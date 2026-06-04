@@ -22,7 +22,9 @@ import {
   rejectWithdrawal,
   adjustBalance,
   createGiftCode,
+  processAllIncome,
 } from "@/app/actions/admin"
+import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
 type Stats = {
   users: number
@@ -135,6 +137,18 @@ export function AdminDashboard({
 }
 
 function Overview({ stats }: { stats: Stats }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+
+  function handleProcessIncome() {
+    startTransition(async () => {
+      const res = await processAllIncome()
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message ?? "Failed")
+      router.refresh()
+    })
+  }
+
   const cards = [
     { label: "Total Users", value: String(stats.users), icon: Users, tint: "text-primary" },
     { label: "Total Deposited", value: formatNaira(stats.totalDeposited), icon: Wallet, tint: "text-success" },
@@ -144,14 +158,24 @@ function Overview({ stats }: { stats: Stats }) {
     { label: "Pending Withdrawals", value: String(stats.pendingWithdrawals), icon: ArrowUpFromLine, tint: "text-destructive" },
   ]
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {cards.map((c) => (
-        <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
-          <c.icon className={`h-5 w-5 ${c.tint}`} />
-          <p className="mt-2 text-xl font-bold tabular-nums">{c.value}</p>
-          <p className="text-xs text-muted-foreground">{c.label}</p>
-        </div>
-      ))}
+    <div className="flex flex-col gap-4">
+      <button
+        onClick={handleProcessIncome}
+        disabled={pending}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+      >
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
+        Process All Income
+      </button>
+      <div className="grid grid-cols-2 gap-3">
+        {cards.map((c) => (
+          <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
+            <c.icon className={`h-5 w-5 ${c.tint}`} />
+            <p className="mt-2 text-xl font-bold tabular-nums">{c.value}</p>
+            <p className="text-xs text-muted-foreground">{c.label}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -396,22 +420,59 @@ function GiftCodesTab({ items }: { items: GiftCode[] }) {
 }
 
 function DepositsTab({ items }: { items: Deposit[] }) {
-  if (items.length === 0) return <Empty label="No deposits yet" />
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+
+  function act(id: number, kind: "approve" | "reject") {
+    startTransition(async () => {
+      const [d] = items.filter((x) => x.id === id)
+      const res =
+        kind === "approve"
+          ? await approveDeposit(d.reference)
+          : await rejectDeposit(d.reference)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
+  if (items.length === 0) return <Empty label="No deposits" />
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card">
-      {items.map((d, i) => (
-        <div
-          key={d.id}
-          className={`flex items-center justify-between p-4 ${i !== items.length - 1 ? "border-b border-border" : ""}`}
-        >
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{d.userEmail}</p>
-            <p className="truncate font-mono text-[10px] text-muted-foreground">{d.reference}</p>
+    <div className="flex flex-col gap-3">
+      {items.map((dep) => (
+        <div key={dep.id} className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="font-bold">{formatNaira(Number(dep.amount))}</p>
+              <p className="text-xs text-muted-foreground">{dep.reference}</p>
+            </div>
+            <StatusBadge status={dep.status} />
           </div>
-          <div className="text-right">
-            <p className="font-bold tabular-nums">{formatNaira(Number(d.amount))}</p>
-            <StatusBadge status={d.status} />
+          <div className="mt-3 rounded-xl bg-secondary/50 p-3 text-xs">
+            <p className="font-semibold">{dep.userEmail}</p>
+            <p className="mt-1 text-muted-foreground">
+              {new Date(dep.createdAt).toLocaleString()}
+            </p>
           </div>
+          {dep.status === "pending" && (
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => act(dep.id, "approve")}
+                disabled={pending}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-success py-2.5 text-sm font-bold text-success-foreground disabled:opacity-60"
+              >
+                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Approve
+              </button>
+              <button
+                onClick={() => act(dep.id, "reject")}
+                disabled={pending}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 py-2.5 text-sm font-bold text-destructive disabled:opacity-60"
+              >
+                <X className="h-4 w-4" /> Reject
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>

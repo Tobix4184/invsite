@@ -29,10 +29,12 @@ function TopupContent() {
   function handleDeposit() {
     startTransition(async () => {
       const res = await startDeposit(amount)
-      if (res.ok && res.url) {
-        window.location.href = res.url
+      if (res.ok) {
+        toast.success(res.message ?? "Deposit request submitted!")
+        setSelected(null)
+        setCustom('')
       } else {
-        toast.error(res.message ?? "Could not start deposit")
+        toast.error(res.message ?? "Could not submit deposit request")
       }
     })
   }
@@ -135,7 +137,7 @@ function TopupContent() {
 
       <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
         <ShieldCheck className="h-4 w-4 text-success" />
-        Secure payment • Funds reflect after confirmation
+        Your request will be reviewed by our team • Funds reflect after approval
       </p>
     </main>
   )

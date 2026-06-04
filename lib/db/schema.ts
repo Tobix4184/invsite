@@ -59,6 +59,9 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updatedAt").defaultNow(),
 })
 
+// Alias for backwards compatibility
+export { user as userTable }
+
 // ---------- App tables ----------
 export const profile = pgTable("profile", {
   id: serial("id").primaryKey(),
