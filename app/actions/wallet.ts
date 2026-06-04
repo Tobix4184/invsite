@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { wallet, withdrawal, transaction, giftCode, giftCodeRedemption } from "@/lib/db/schema"
+import { wallet, withdrawal, transaction, giftCode, giftCodeRedemption, profile } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { and, eq, sql } from "drizzle-orm"
@@ -49,6 +49,16 @@ export async function requestWithdrawal(data: {
     status: "pending",
   })
 
+  // Save bank details for next time
+  await db
+    .update(profile)
+    .set({
+      savedBankName: data.bankName,
+      savedAccountNumber: data.accountNumber,
+      savedAccountName: data.accountName,
+    })
+    .where(eq(profile.userId, userId))
+
   await db.insert(transaction).values({
     userId,
     type: "withdrawal",
@@ -62,6 +72,17 @@ export async function requestWithdrawal(data: {
   return {
     ok: true,
     message: `Withdrawal of ₦${amount.toLocaleString()} submitted. You'll receive ₦${net.toLocaleString()} after approval.`,
+  }
+}
+
+export async function getSavedBankDetails() {
+  const userId = await getUserId()
+  const [p] = await db.select().from(profile).where(eq(profile.userId, userId))
+  if (!p) return null
+  return {
+    savedBankName: p.savedBankName,
+    savedAccountNumber: p.savedAccountNumber,
+    savedAccountName: p.savedAccountName,
   }
 }
 

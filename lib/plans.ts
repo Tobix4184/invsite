@@ -29,6 +29,7 @@ export const SITE = {
   tagline: 'Investment Platform',
   signInBonus: 100,
   welcomeBonus: 1000,
+  investmentBonusPercent: 10,
   minWithdrawal: 1000,
   minDeposit: 3000,
   withdrawalCharge: 18,
@@ -37,8 +38,8 @@ export const SITE = {
   withdrawalHours: '9 AM to 8 PM Daily',
   inviteCode: 'IHHXQ7',
   inviteLink: 'https://incomehenryhub.com/r/IHHXQ7',
-  telegramGroup: 'https://t.me/incomehenryhub',
-  telegramChannel: 'https://t.me/incomehenryhub_channel',
+  telegramGroup: 'https://t.me/ihhsupport',
+  telegramChannel: 'https://t.me/incomehh',
 }
 
 export function formatNaira(value: number): string {

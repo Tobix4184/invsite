@@ -71,6 +71,9 @@ export const profile = pgTable("profile", {
   referredBy: text("referredBy"),
   role: text("role").notNull().default("user"),
   signinBonusGiven: boolean("signinBonusGiven").notNull().default(false),
+  savedBankName: text("savedBankName"),
+  savedAccountName: text("savedAccountName"),
+  savedAccountNumber: text("savedAccountNumber"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })
 
