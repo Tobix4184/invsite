@@ -12,6 +12,7 @@ import {
   investment,
 } from "@/lib/db/schema"
 import { requireAdmin } from "@/lib/session"
+import { accrueIncomeForAll } from "@/lib/income-engine"
 import { desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
@@ -188,4 +189,15 @@ export async function getRecentDeposits() {
     .leftJoin(userTable, eq(deposit.userId, userTable.id))
     .orderBy(desc(deposit.createdAt))
     .limit(50)
+}
+
+/** Admin: process daily income for all users with active investments. */
+export async function processAllIncome() {
+  await requireAdmin()
+  const result = await accrueIncomeForAll()
+  revalidatePath("/admin")
+  return {
+    ok: true,
+    message: `Processed ${result.users} users, credited ${result.credited.toLocaleString()} total`,
+  }
 }

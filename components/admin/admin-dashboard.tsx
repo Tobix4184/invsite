@@ -22,6 +22,7 @@ import {
   rejectWithdrawal,
   adjustBalance,
   createGiftCode,
+  processAllIncome,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -136,6 +137,18 @@ export function AdminDashboard({
 }
 
 function Overview({ stats }: { stats: Stats }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+
+  function handleProcessIncome() {
+    startTransition(async () => {
+      const res = await processAllIncome()
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message ?? "Failed")
+      router.refresh()
+    })
+  }
+
   const cards = [
     { label: "Total Users", value: String(stats.users), icon: Users, tint: "text-primary" },
     { label: "Total Deposited", value: formatNaira(stats.totalDeposited), icon: Wallet, tint: "text-success" },
@@ -145,14 +158,24 @@ function Overview({ stats }: { stats: Stats }) {
     { label: "Pending Withdrawals", value: String(stats.pendingWithdrawals), icon: ArrowUpFromLine, tint: "text-destructive" },
   ]
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {cards.map((c) => (
-        <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
-          <c.icon className={`h-5 w-5 ${c.tint}`} />
-          <p className="mt-2 text-xl font-bold tabular-nums">{c.value}</p>
-          <p className="text-xs text-muted-foreground">{c.label}</p>
-        </div>
-      ))}
+    <div className="flex flex-col gap-4">
+      <button
+        onClick={handleProcessIncome}
+        disabled={pending}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+      >
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
+        Process All Income
+      </button>
+      <div className="grid grid-cols-2 gap-3">
+        {cards.map((c) => (
+          <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
+            <c.icon className={`h-5 w-5 ${c.tint}`} />
+            <p className="mt-2 text-xl font-bold tabular-nums">{c.value}</p>
+            <p className="text-xs text-muted-foreground">{c.label}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
