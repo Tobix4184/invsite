@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   description:
     'incomehh (IHH) — daily income drops every 24 hours. Topup, withdraw, invite, and grow your earnings.',
   generator: 'v0.app',
+  icons: {
+    icon: '/favicon.png',
+    apple: '/logo.png',
+  },
 }
 
 export const viewport: Viewport = {
