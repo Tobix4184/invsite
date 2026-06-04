@@ -7,6 +7,7 @@ import {
   referral,
   transaction,
   dailySignin,
+  investment,
   user as userTable,
 } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
@@ -55,14 +56,15 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string })
     code = genInviteCode()
   }
 
-  // resolve referrer from invite code
+  // resolve referrer from invite code (default to admin if no code provided)
   let referrerId: string | null = null
-  if (opts.inviteCode) {
+  const codeToUse = opts.inviteCode?.trim().toUpperCase() || SITE.inviteCode
+  if (codeToUse) {
     const [ref] = await db
       .select()
       .from(profile)
-      .where(eq(profile.inviteCode, opts.inviteCode.trim().toUpperCase()))
-    if (ref) referrerId = ref.userId
+      .where(eq(profile.inviteCode, codeToUse))
+    if (ref && ref.userId !== userId) referrerId = ref.userId // don't self-refer
   }
 
   await db.insert(profile).values({
@@ -138,6 +140,18 @@ export async function getDashboardData() {
 
 export async function dailySignIn() {
   const userId = await getUserId()
+  
+  // Check if user has made any investment
+  const [hasInvestment] = await db
+    .select()
+    .from(investment)
+    .where(eq(investment.userId, userId))
+    .limit(1)
+  
+  if (!hasInvestment) {
+    return { ok: false, message: "You need to invest first before claiming sign-in bonus", requiresInvestment: true }
+  }
+  
   const since = new Date()
   since.setHours(0, 0, 0, 0)
   const already = await db

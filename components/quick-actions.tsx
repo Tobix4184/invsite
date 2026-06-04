@@ -22,6 +22,13 @@ export function QuickActions({ signedInToday = false }: { signedInToday?: boolea
         toast.success(res.message)
         setDone(true)
         router.refresh()
+      } else if ('requiresInvestment' in res && res.requiresInvestment) {
+        toast.error(res.message, {
+          action: {
+            label: "Invest Now",
+            onClick: () => router.push("/products"),
+          },
+        })
       } else {
         toast.info(res.message)
         setDone(true)
