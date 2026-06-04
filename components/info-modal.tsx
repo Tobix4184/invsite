@@ -39,17 +39,17 @@ export function InfoModal({ open, onClose }: { open: boolean; onClose: () => voi
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+    <div className="fixed inset-0 z-[999] flex items-end justify-center overflow-hidden sm:items-center">
       <button
         aria-label="Close"
         onClick={onClose}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 z-0 bg-black/70 backdrop-blur-sm"
       />
-      <div className="relative z-10 max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border bg-popover p-6 pb-8 shadow-2xl sm:rounded-3xl">
+      <div className="relative z-10 h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-border bg-popover p-6 pb-8 shadow-2xl sm:max-h-[90vh] sm:rounded-3xl">
         <button
           onClick={onClose}
           aria-label="Close dialog"
-          className="absolute right-4 top-4 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          className="absolute right-4 top-4 z-20 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
           <X className="h-5 w-5" />
         </button>
