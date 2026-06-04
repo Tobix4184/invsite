@@ -107,25 +107,20 @@ export function AuthScreen({ defaultInvite = "" }: { defaultInvite?: string }) {
     }
     setLoading(true)
     try {
-      console.log("[v0] Starting signup for:", form.email)
       const result = await authClient.signUp.email({
         email: form.email.toLowerCase(),
         password: form.password,
         name: form.name,
       })
-      console.log("[v0] Signup result:", result)
       if (result.error) {
-        console.log("[v0] Signup error:", result.error)
         toast.error(result.error.message || "Could not create account")
         return
       }
-      console.log("[v0] Signup success, initializing account")
       await initAccount({ phone: form.phone, inviteCode: form.invite })
       toast.success(`Welcome to ${SITE.name}! ₦${SITE.welcomeBonus} bonus added.`)
       router.push("/dashboard")
       router.refresh()
     } catch (err) {
-      console.log("[v0] Signup exception:", err)
       toast.error("Something went wrong. Try again.")
     } finally {
       setLoading(false)

@@ -10,6 +10,7 @@ import { QuickActions } from "@/components/quick-actions"
 import { HeroInfo } from "@/components/hero-info"
 import { PlanCard } from "@/components/plan-card"
 import { ActiveInvestments } from "@/components/active-investments"
+import { WelcomePopup } from "@/components/welcome-popup"
 import { PLANS } from "@/lib/plans"
 
 export const dynamic = "force-dynamic"
@@ -26,6 +27,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen pb-24">
+      <WelcomePopup />
       <AppHeader />
 
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">

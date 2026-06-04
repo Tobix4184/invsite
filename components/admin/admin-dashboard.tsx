@@ -100,7 +100,7 @@ export function AdminDashboard({
         <div className="mx-auto flex h-16 max-w-2xl items-center justify-between px-4">
           <div>
             <h1 className="text-lg font-bold tracking-tight">Admin Console</h1>
-            <p className="text-xs text-muted-foreground">Income Henryhub</p>
+            <p className="text-xs text-muted-foreground">incomehh</p>
           </div>
           <Link
             href="/dashboard"

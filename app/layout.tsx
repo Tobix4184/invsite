@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Income Henryhub — Investment Platform',
+  title: 'incomehh — Investment Platform',
   description:
-    'Income Henryhub (IHH) — daily income drops every 24 hours. Topup, withdraw, invite, and grow your earnings.',
+    'incomehh (IHH) — daily income drops every 24 hours. Topup, withdraw, invite, and grow your earnings.',
   generator: 'v0.app',
 }
 

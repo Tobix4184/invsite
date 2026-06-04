@@ -24,7 +24,7 @@ export const PLANS: Plan[] = [
 ]
 
 export const SITE = {
-  name: 'Income Henryhub',
+  name: 'incomehh',
   short: 'IHH',
   tagline: 'Investment Platform',
   signInBonus: 100,
@@ -37,9 +37,10 @@ export const SITE = {
   referralLevel2: 3,
   withdrawalHours: '9 AM to 8 PM Daily',
   inviteCode: 'IHHXQ7',
-  inviteLink: 'https://incomehenryhub.com/r/IHHXQ7',
+  inviteLink: 'https://incomehh.com/r/IHHXQ7',
   telegramGroup: 'https://t.me/ihhsupport',
   telegramChannel: 'https://t.me/incomehh',
+  telegramSupport: 'ihhsupport',
 }
 
 export function formatNaira(value: number): string {
