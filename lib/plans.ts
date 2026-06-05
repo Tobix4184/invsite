@@ -37,7 +37,6 @@ export const SITE = {
   referralLevel2: 3,
   withdrawalHours: '9 AM to 8 PM Daily',
   inviteCode: 'IHHXQ7',
-  inviteLink: 'https://incomehh.com/r/IHHXQ7',
   telegramGroup: 'https://t.me/ihhsupport',
   telegramChannel: 'https://t.me/incomehh',
   telegramSupport: 'ihhsupport',
