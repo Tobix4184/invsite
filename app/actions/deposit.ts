@@ -4,7 +4,7 @@ import { db } from "@/lib/db"
 import { deposit, wallet, transaction, user as userTable, bankAccount } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
-import { eq, sql } from "drizzle-orm"
+import { eq, sql, desc, and, or } from "drizzle-orm"
 
 function baseUrl() {
   return (
@@ -72,6 +72,9 @@ export async function approveDeposit(reference: string) {
   const [dep] = await db.select().from(deposit).where(eq(deposit.reference, reference))
   if (!dep) return { ok: false, message: "Deposit not found" }
   if (dep.status === "success") return { ok: true, message: "Already approved" }
+  if (!["pending", "processing"].includes(dep.status)) {
+    return { ok: false, message: "Deposit cannot be approved in current status" }
+  }
 
   const amount = Number(dep.amount)
   await db.update(deposit).set({ status: "success" }).where(eq(deposit.reference, reference))
@@ -103,6 +106,9 @@ export async function rejectDeposit(reference: string) {
   const [dep] = await db.select().from(deposit).where(eq(deposit.reference, reference))
   if (!dep) return { ok: false, message: "Deposit not found" }
   if (["success", "failed"].includes(dep.status)) return { ok: true, message: "Already processed" }
+  if (!["pending", "processing"].includes(dep.status)) {
+    return { ok: false, message: "Deposit cannot be rejected in current status" }
+  }
 
   await db.update(deposit).set({ status: "failed" }).where(eq(deposit.reference, reference))
   return { ok: true, message: "Deposit rejected" }
@@ -134,4 +140,56 @@ export async function getDepositByReference(reference: string) {
   if (dep.userId !== userId) return null
   
   return dep
+}
+
+/** Get all user's deposits */
+export async function getUserDeposits() {
+  const userId = await getUserId()
+  return db
+    .select()
+    .from(deposit)
+    .where(eq(deposit.userId, userId))
+    .orderBy(desc(deposit.createdAt))
+}
+
+/** Get user's pending deposits (not expired) */
+export async function getPendingDeposits() {
+  const userId = await getUserId()
+  const now = new Date()
+  
+  const deposits = await db
+    .select()
+    .from(deposit)
+    .where(
+      and(
+        eq(deposit.userId, userId),
+        eq(deposit.status, "pending")
+      )
+    )
+    .orderBy(desc(deposit.createdAt))
+  
+  // Filter out expired deposits (but keep recent ones within 15 min grace period)
+  return deposits.filter(dep => {
+    if (!dep.expiresAt) return true
+    const expiryWithGrace = new Date(dep.expiresAt)
+    expiryWithGrace.setMinutes(expiryWithGrace.getMinutes() + 15) // 15 min grace period
+    return now < expiryWithGrace
+  })
+}
+
+/** Mark a deposit as "waiting" (user confirmed they made payment) */
+export async function markDepositAsPaid(reference: string) {
+  const userId = await getUserId()
+  const [dep] = await db.select().from(deposit).where(eq(deposit.reference, reference))
+  
+  if (!dep) return { ok: false, message: "Deposit not found" }
+  if (dep.userId !== userId) return { ok: false, message: "Not authorized" }
+  if (dep.status !== "pending") return { ok: false, message: "Deposit already processed" }
+  
+  await db
+    .update(deposit)
+    .set({ status: "processing" })
+    .where(eq(deposit.reference, reference))
+  
+  return { ok: true, message: "Payment marked as complete. Processing..." }
 }

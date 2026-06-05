@@ -494,7 +494,7 @@ function DepositsTab({ items }: { items: Deposit[] }) {
               {new Date(dep.createdAt).toLocaleString()}
             </p>
           </div>
-          {dep.status === "pending" && (
+          {(dep.status === "pending" || dep.status === "processing") && (
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => act(dep.id, "approve")}
@@ -768,6 +768,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     pending: "bg-amber-400/15 text-amber-400",
+    processing: "bg-primary/15 text-primary",
     success: "bg-success/15 text-success",
     approved: "bg-success/15 text-success",
     completed: "bg-success/15 text-success",

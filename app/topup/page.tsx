@@ -2,13 +2,13 @@
 
 import { Suspense, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, ShieldCheck, Wallet, Loader2, Copy, Check, User } from 'lucide-react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { ArrowLeft, ShieldCheck, Wallet, Loader2, Copy, Check, User, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/app-header'
 import { BottomNav } from '@/components/bottom-nav'
 import { PLANS, SITE, formatNaira } from '@/lib/plans'
-import { startDeposit, updateDepositSenderName } from '@/app/actions/deposit'
+import { startDeposit, updateDepositSenderName, markDepositAsPaid } from '@/app/actions/deposit'
 import { cn } from '@/lib/utils'
 
 const QUICK_AMOUNTS = [3000, 5000, 10000, 15000, 20000, 30000, 50000, 100000, 200000]
@@ -21,6 +21,7 @@ type BankAccountInfo = {
 
 function TopupContent() {
   const params = useSearchParams()
+  const router = useRouter()
   const planId = Number(params.get('plan'))
   const presetPlan = PLANS.find((p) => p.id === planId)
 
@@ -33,6 +34,7 @@ function TopupContent() {
   const [copied, setCopied] = useState(false)
   const [senderName, setSenderName] = useState('')
   const [savingSenderName, setSavingSenderName] = useState(false)
+  const [markingPaid, setMarkingPaid] = useState(false)
 
   const customValue = Number(custom)
   const amount = custom ? customValue : selected ?? 0
@@ -79,6 +81,26 @@ function TopupContent() {
       toast.success('Sender name saved')
     } else {
       toast.error(res.message ?? 'Failed to save sender name')
+    }
+  }
+
+  async function handleMarkAsPaid() {
+    if (!depositRef) return
+    setMarkingPaid(true)
+    
+    // Save sender name first if provided
+    if (senderName.trim()) {
+      await updateDepositSenderName(depositRef, senderName)
+    }
+    
+    const res = await markDepositAsPaid(depositRef)
+    if (res.ok) {
+      toast.success('Payment marked as complete')
+      // Redirect to deposit detail page to show processing status
+      router.push(`/deposits/${depositRef}`)
+    } else {
+      toast.error(res.message ?? 'Failed to mark as paid')
+      setMarkingPaid(false)
     }
   }
 
@@ -205,17 +227,28 @@ function TopupContent() {
           )}
 
           {/* Done Button */}
-          <Link
-            href="/dashboard"
-            className="mt-2 flex w-full items-center justify-center rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90"
+          <button
+            onClick={handleMarkAsPaid}
+            disabled={markingPaid}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
           >
+            {markingPaid && <Loader2 className="h-5 w-5 animate-spin" />}
             I&apos;ve Made the Transfer
-          </Link>
+          </button>
 
           <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
             <ShieldCheck className="h-4 w-4 text-success" />
-            Your deposit will be confirmed within 5-10 minutes after payment
+            Payment will be processed within 0-15 minutes
           </p>
+
+          {/* View deposit history link */}
+          <Link
+            href="/deposits"
+            className="flex items-center justify-center gap-1.5 text-center text-xs text-primary underline"
+          >
+            <Clock className="h-3.5 w-3.5" />
+            View deposit history
+          </Link>
         </div>
       </main>
     )

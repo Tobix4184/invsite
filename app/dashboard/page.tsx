@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { getSession } from "@/lib/session"
 import { getDashboardData } from "@/app/actions/account"
 import { getInvestments } from "@/app/actions/investments"
+import { getPendingDeposits } from "@/app/actions/deposit"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { BalanceCard } from "@/components/balance-card"
@@ -11,6 +12,7 @@ import { HeroInfo } from "@/components/hero-info"
 import { PlanCard } from "@/components/plan-card"
 import { ActiveInvestments } from "@/components/active-investments"
 import { WelcomePopup } from "@/components/welcome-popup"
+import { PendingDepositPopup } from "@/components/pending-deposit-popup"
 import { PLANS } from "@/lib/plans"
 
 export const dynamic = "force-dynamic"
@@ -19,7 +21,11 @@ export default async function DashboardPage() {
   const session = await getSession()
   if (!session?.user) redirect("/")
 
-  const [data, investments] = await Promise.all([getDashboardData(), getInvestments()])
+  const [data, investments, pendingDeposits] = await Promise.all([
+    getDashboardData(),
+    getInvestments(),
+    getPendingDeposits(),
+  ])
 
   const todayIncome = investments
     .filter((i) => i.status === "active")
@@ -28,6 +34,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen pb-24">
       <WelcomePopup />
+      <PendingDepositPopup deposits={pendingDeposits} />
       <AppHeader />
 
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">

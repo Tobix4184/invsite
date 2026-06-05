@@ -14,6 +14,7 @@ import {
   ListOrdered,
   ShieldCheck,
   Loader2,
+  Clock,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
@@ -36,6 +37,7 @@ export function ProfileView(props: Props) {
 
   const menu = [
     { label: "Transactions", icon: ListOrdered, href: "/transactions", tint: "text-foreground" },
+    { label: "Deposit History", icon: Clock, href: "/deposits", tint: "text-primary" },
     { label: "Topup", icon: ArrowDownToLine, href: "/topup", tint: "text-success" },
     { label: "Withdraw", icon: ArrowUpFromLine, href: "/withdraw", tint: "text-amber-400" },
     { label: "Gift Code", icon: Gift, href: "/gift-code", tint: "text-pink-400" },
