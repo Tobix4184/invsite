@@ -21,9 +21,9 @@ function baseUrl() {
 export async function startDeposit(amount: number) {
   const userId = await getUserId()
 
-  // Respect global deposit pause
+  // Respect global deposit pause — surface as an "unavailable" state
   if (await getBoolSetting(SETTING_KEYS.depositsPaused)) {
-    return { ok: false, message: "Deposits are temporarily unavailable. Please check back later." }
+    return { ok: false, unavailable: true, message: "Service unavailable. Please try again later." }
   }
 
   const amt = Math.floor(Number(amount))

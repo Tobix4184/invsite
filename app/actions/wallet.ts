@@ -17,9 +17,9 @@ export async function requestWithdrawal(data: {
   const userId = await getUserId()
   const amount = Number(data.amount)
 
-  // Respect global withdrawal pause
+  // Respect global withdrawal pause — surface as a generic network error
   if (await getBoolSetting(SETTING_KEYS.withdrawalsPaused)) {
-    return { ok: false, message: "Withdrawals are temporarily unavailable. Please check back later." }
+    return { ok: false, message: "Network error. Please try again later." }
   }
 
   if (!amount || amount < SITE.minWithdrawal) {

@@ -8,12 +8,8 @@ import { dailySignIn } from "@/app/actions/account"
 
 export function QuickActions({
   signedInToday = false,
-  depositsPaused = false,
-  withdrawalsPaused = false,
 }: {
   signedInToday?: boolean
-  depositsPaused?: boolean
-  withdrawalsPaused?: boolean
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -45,10 +41,10 @@ export function QuickActions({
   }
 
   const linkActions = [
-    { label: "Topup", icon: ArrowDownToLine, href: "/topup", tint: "text-success", bg: "bg-success/15", hidden: depositsPaused },
-    { label: "Withdraw", icon: ArrowUpFromLine, href: "/withdraw", tint: "text-amber-400", bg: "bg-amber-400/15", hidden: withdrawalsPaused },
-    { label: "Gift Code", icon: Gift, href: "/gift-code", tint: "text-pink-400", bg: "bg-pink-400/15", hidden: false },
-  ].filter((a) => !a.hidden)
+    { label: "Topup", icon: ArrowDownToLine, href: "/topup", tint: "text-success", bg: "bg-success/15" },
+    { label: "Withdraw", icon: ArrowUpFromLine, href: "/withdraw", tint: "text-amber-400", bg: "bg-amber-400/15" },
+    { label: "Gift Code", icon: Gift, href: "/gift-code", tint: "text-pink-400", bg: "bg-pink-400/15" },
+  ]
 
   return (
     <section className="grid grid-cols-5 gap-2">

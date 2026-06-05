@@ -3,7 +3,7 @@
 import { Suspense, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { ArrowLeft, ShieldCheck, Wallet, Loader2, Copy, Check, User, Clock } from 'lucide-react'
+import { ArrowLeft, ShieldCheck, Wallet, Loader2, Copy, Check, User, Clock, AlertTriangle, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { AppHeader } from '@/components/app-header'
 import { BottomNav } from '@/components/bottom-nav'
@@ -27,7 +27,7 @@ function TopupContent() {
 
   const [selected, setSelected] = useState<number | null>(presetPlan?.price ?? null)
   const [custom, setCustom] = useState('')
-  const [step, setStep] = useState<'amount' | 'confirm'>('amount')
+  const [step, setStep] = useState<'amount' | 'confirm' | 'unavailable'>('amount')
   const [depositRef, setDepositRef] = useState<string | null>(null)
   const [bankAccount, setBankAccount] = useState<BankAccountInfo | null>(null)
   const [expiryTime, setExpiryTime] = useState<Date | null>(null)
@@ -50,8 +50,25 @@ function TopupContent() {
         setBankAccount(res.bankAccount)
         setExpiryTime(res.expiresAt ? new Date(res.expiresAt) : null)
         setStep('confirm')
+      } else if ('unavailable' in res && res.unavailable) {
+        setStep('unavailable')
       } else {
         toast.error(res.message ?? "Could not submit deposit request")
+      }
+    })
+  }
+
+  function handleRetry() {
+    startTransition(async () => {
+      const res = await startDeposit(amount)
+      if (res.ok && res.reference && res.bankAccount) {
+        setDepositRef(res.reference)
+        setBankAccount(res.bankAccount)
+        setExpiryTime(res.expiresAt ? new Date(res.expiresAt) : null)
+        setStep('confirm')
+      } else {
+        // Still unavailable — keep the user on the unavailable screen
+        setStep('unavailable')
       }
     })
   }
@@ -113,6 +130,45 @@ function TopupContent() {
       minute: '2-digit',
       hour12: true,
     })
+  }
+
+  // Unavailable state (e.g. generating account details failed)
+  if (step === 'unavailable') {
+    return (
+      <main className="mx-auto flex max-w-md flex-col">
+        <div className="flex items-center gap-3 bg-card px-4 py-4">
+          <button
+            onClick={() => setStep('amount')}
+            aria-label="Back"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-foreground"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="flex-1 text-center text-lg font-bold">Payment Details</h1>
+          <div className="w-10" />
+        </div>
+
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-16 text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+            <AlertTriangle className="h-8 w-8 text-destructive" />
+          </span>
+          <div className="flex flex-col gap-2">
+            <h2 className="text-xl font-bold">Service Unavailable</h2>
+            <p className="text-sm text-muted-foreground">
+              We couldn&apos;t generate your payment account right now. Please try again in a moment.
+            </p>
+          </div>
+          <button
+            onClick={handleRetry}
+            disabled={pending}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <RotateCcw className="h-5 w-5" />}
+            Try Again
+          </button>
+        </div>
+      </main>
+    )
   }
 
   // Step 2: Payment Confirmation
