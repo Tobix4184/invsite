@@ -20,6 +20,8 @@ import {
   ToggleLeft,
   ToggleRight,
   Eye,
+  Star,
+  Trophy,
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatNaira } from "@/lib/plans"
@@ -33,6 +35,11 @@ import {
   updateBankAccount,
   deleteBankAccount,
   toggleBankAccountStatus,
+  togglePromoter,
+  createMilestone,
+  updateMilestone,
+  deleteMilestone,
+  toggleMilestoneStatus,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -64,8 +71,11 @@ type AdminUser = {
   name: string | null
   email: string | null
   role: string | null
+  isPromoter: boolean | null
   balance: string | null
   totalDeposited: string | null
+  referralEarnings: string | null
+  referralCount: number
 }
 
 type GiftCode = {
@@ -102,7 +112,14 @@ type BankAccount = {
   createdAt: Date | string
 }
 
-const TABS = ["Overview", "Withdrawals", "Users", "Gift Codes", "Deposits", "Bank Accounts"] as const
+type Milestone = {
+  id: number
+  referralCount: number
+  rewardAmount: string
+  isActive: boolean
+}
+
+const TABS = ["Overview", "Withdrawals", "Users", "Gift Codes", "Deposits", "Bank Accounts", "Milestones"] as const
 type Tab = (typeof TABS)[number]
 
 export function AdminDashboard({
@@ -112,6 +129,7 @@ export function AdminDashboard({
   giftCodes,
   deposits,
   bankAccounts,
+  milestones,
 }: {
   stats: Stats
   withdrawals: Withdrawal[]
@@ -119,6 +137,7 @@ export function AdminDashboard({
   giftCodes: GiftCode[]
   deposits: Deposit[]
   bankAccounts: BankAccount[]
+  milestones: Milestone[]
 }) {
   const [tab, setTab] = useState<Tab>("Overview")
 
@@ -160,6 +179,7 @@ export function AdminDashboard({
         {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} />}
         {tab === "Deposits" && <DepositsTab items={deposits} />}
         {tab === "Bank Accounts" && <BankAccountsTab items={bankAccounts} />}
+        {tab === "Milestones" && <MilestonesTab items={milestones} />}
       </div>
     </div>
   )
@@ -289,6 +309,15 @@ function UsersTab({ items }: { items: AdminUser[] }) {
     })
   }
 
+  function handleTogglePromoter(userId: string) {
+    startTransition(async () => {
+      const res = await togglePromoter(userId)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
   if (items.length === 0) return <Empty label="No users" />
 
   return (
@@ -297,15 +326,27 @@ function UsersTab({ items }: { items: AdminUser[] }) {
         <div key={u.id} className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
-              <p className="truncate font-semibold">
+              <p className="flex items-center gap-2 truncate font-semibold">
                 {u.name}
                 {u.role === "admin" && (
-                  <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+                  <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
                     admin
+                  </span>
+                )}
+                {u.isPromoter && (
+                  <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-400">
+                    <Star className="mr-0.5 inline h-2.5 w-2.5" />promoter
                   </span>
                 )}
               </p>
               <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+              <p className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Users className="h-3 w-3" /> {u.referralCount} referrals
+                </span>
+                <span>·</span>
+                <span className="text-success">{formatNaira(Number(u.referralEarnings ?? 0))} earned</span>
+              </p>
             </div>
             <div className="text-right">
               <p className="font-bold tabular-nums">{formatNaira(Number(u.balance ?? 0))}</p>
@@ -347,12 +388,26 @@ function UsersTab({ items }: { items: AdminUser[] }) {
               </div>
             </div>
           ) : (
-            <button
-              onClick={() => setEditing(u.id)}
-              className="mt-3 w-full rounded-xl border border-border bg-secondary py-2 text-xs font-bold text-muted-foreground"
-            >
-              Adjust Balance
-            </button>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => setEditing(u.id)}
+                className="flex-1 rounded-xl border border-border bg-secondary py-2 text-xs font-bold text-muted-foreground"
+              >
+                Adjust Balance
+              </button>
+              <button
+                onClick={() => handleTogglePromoter(u.id)}
+                disabled={pending}
+                className={`flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-bold ${
+                  u.isPromoter
+                    ? "border border-amber-400/40 bg-amber-400/10 text-amber-400"
+                    : "border border-border bg-secondary text-muted-foreground"
+                }`}
+              >
+                <Star className="h-3 w-3" />
+                {u.isPromoter ? "Remove" : "Promoter"}
+              </button>
+            </div>
           )}
         </div>
       ))}
@@ -752,6 +807,192 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                       disabled={pending}
                       className="flex items-center justify-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-bold text-destructive disabled:opacity-60"
                     >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MilestonesTab({ items }: { items: Milestone[] }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [form, setForm] = useState({ referralCount: "", rewardAmount: "" })
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editForm, setEditForm] = useState({ referralCount: "", rewardAmount: "" })
+
+  function handleCreate() {
+    startTransition(async () => {
+      const res = await createMilestone({
+        referralCount: Number(form.referralCount),
+        rewardAmount: Number(form.rewardAmount),
+      })
+      if (res.ok) {
+        toast.success(res.message)
+        setForm({ referralCount: "", rewardAmount: "" })
+        router.refresh()
+      } else {
+        toast.error(res.message)
+      }
+    })
+  }
+
+  function handleToggle(id: number) {
+    startTransition(async () => {
+      const res = await toggleMilestoneStatus(id)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
+  function handleDelete(id: number) {
+    if (!confirm("Delete this milestone?")) return
+    startTransition(async () => {
+      const res = await deleteMilestone(id)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
+  function startEdit(m: Milestone) {
+    setEditingId(m.id)
+    setEditForm({ referralCount: String(m.referralCount), rewardAmount: m.rewardAmount })
+  }
+
+  function handleSaveEdit(id: number) {
+    startTransition(async () => {
+      const res = await updateMilestone(id, {
+        referralCount: Number(editForm.referralCount),
+        rewardAmount: Number(editForm.rewardAmount),
+      })
+      if (res.ok) {
+        toast.success(res.message)
+        setEditingId(null)
+        router.refresh()
+      } else {
+        toast.error(res.message)
+      }
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-4">
+        <p className="flex items-center gap-2 text-sm font-bold text-amber-400">
+          <Trophy className="h-4 w-4" /> Referral Milestones
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Set bonus rewards for users who reach referral goals. E.g., 10 referrals = 5k bonus.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <p className="mb-3 flex items-center gap-2 text-sm font-bold">
+          <Plus className="h-4 w-4 text-primary" /> Create Milestone
+        </p>
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <input
+              type="number"
+              placeholder="Referrals (e.g. 10)"
+              value={form.referralCount}
+              onChange={(e) => setForm((f) => ({ ...f, referralCount: e.target.value }))}
+              className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+            <input
+              type="number"
+              placeholder="Reward ₦ (e.g. 5000)"
+              value={form.rewardAmount}
+              onChange={(e) => setForm((f) => ({ ...f, rewardAmount: e.target.value }))}
+              className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <button
+            onClick={handleCreate}
+            disabled={pending}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} Create Milestone
+          </button>
+        </div>
+      </div>
+
+      {items.length === 0 ? (
+        <Empty label="No milestones yet" />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {items.map((m) => (
+            <div key={m.id} className="rounded-2xl border border-border bg-card p-4">
+              {editingId === m.id ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      placeholder="Referral count"
+                      value={editForm.referralCount}
+                      onChange={(e) => setEditForm((f) => ({ ...f, referralCount: e.target.value }))}
+                      className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Reward amount"
+                      value={editForm.rewardAmount}
+                      onChange={(e) => setEditForm((f) => ({ ...f, rewardAmount: e.target.value }))}
+                      className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="flex-1 rounded-xl border border-border bg-secondary py-2.5 text-sm font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleSaveEdit(m.id)}
+                      disabled={pending}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+                    >
+                      {pending && <Loader2 className="h-4 w-4 animate-spin" />} Save
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/15">
+                        <Trophy className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="font-bold">{m.referralCount} Referrals</p>
+                        <p className="text-sm font-semibold text-success">{formatNaira(Number(m.rewardAmount))}</p>
+                      </div>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${m.isActive ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
+                      {m.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => handleToggle(m.id)}
+                      disabled={pending}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold disabled:opacity-60 ${m.isActive ? "border border-amber-400/40 bg-amber-400/10 text-amber-400" : "bg-success text-success-foreground"}`}
+                    >
+                      {m.isActive ? <><ToggleLeft className="h-4 w-4" /> Deactivate</> : <><ToggleRight className="h-4 w-4" /> Activate</>}
+                    </button>
+                    <button onClick={() => startEdit(m)} disabled={pending} className="flex items-center justify-center rounded-xl border border-border bg-secondary px-4 py-2.5 text-sm font-bold disabled:opacity-60">
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleDelete(m.id)} disabled={pending} className="flex items-center justify-center rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-bold text-destructive disabled:opacity-60">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>

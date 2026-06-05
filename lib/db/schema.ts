@@ -70,6 +70,7 @@ export const profile = pgTable("profile", {
   inviteCode: text("inviteCode").notNull().unique(),
   referredBy: text("referredBy"),
   role: text("role").notNull().default("user"),
+  isPromoter: boolean("isPromoter").notNull().default(false),
   signinBonusGiven: boolean("signinBonusGiven").notNull().default(false),
   savedBankName: text("savedBankName"),
   savedAccountName: text("savedAccountName"),
@@ -187,9 +188,28 @@ export const bankAccount = pgTable("bank_account", {
   accountNumber: text("accountNumber").notNull().unique(),
   bankName: text("bankName").notNull(),
   accountName: text("accountName").notNull(),
-  label: text("label"), // optional label for admin reference (e.g., "Hussein", "Praise")
+  label: text("label"),
   isActive: boolean("isActive").notNull().default(true),
   totalDeposits: numeric("totalDeposits", { precision: 14, scale: 2 }).notNull().default("0"),
   depositCount: integer("depositCount").notNull().default(0),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
+// Referral milestones - rewards for referring X number of people
+export const referralMilestone = pgTable("referral_milestone", {
+  id: serial("id").primaryKey(),
+  referralCount: integer("referralCount").notNull().unique(),
+  rewardAmount: numeric("rewardAmount", { precision: 14, scale: 2 }).notNull(),
+  isActive: boolean("isActive").notNull().default(true),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
+// Track which milestones users have claimed
+export const milestoneClaim = pgTable("milestone_claim", {
+  id: serial("id").primaryKey(),
+  userId: text("userId").notNull(),
+  milestoneId: integer("milestoneId").notNull(),
+  referralCount: integer("referralCount").notNull(),
+  rewardAmount: numeric("rewardAmount", { precision: 14, scale: 2 }).notNull(),
+  claimedAt: timestamp("claimedAt").notNull().defaultNow(),
 })

@@ -35,12 +35,13 @@ export const SITE = {
   withdrawalCharge: 18,
   referralLevel1: 20,
   referralLevel2: 3,
+  promoterLevel1: 40,
   withdrawalHours: '9 AM to 8 PM Daily',
   inviteCode: 'IHHXQ7',
   telegramGroup: 'https://t.me/ihhsupport',
   telegramChannel: 'https://t.me/incomehh',
   telegramSupport: 'ihhsupport',
-  paymentExpiryMinutes: 30, // How long user has to complete payment
+  paymentExpiryMinutes: 30,
 }
 
 export function formatNaira(value: number): string {

@@ -11,10 +11,13 @@ import {
   giftCode,
   investment,
   bankAccount,
+  referral,
+  referralMilestone,
+  milestoneClaim,
 } from "@/lib/db/schema"
 import { requireAdmin } from "@/lib/session"
 import { accrueIncomeForAll } from "@/lib/income-engine"
-import { desc, eq, sql } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
 export async function getAdminStats() {
@@ -120,14 +123,17 @@ export async function rejectWithdrawal(id: number) {
 
 export async function getAdminUsers() {
   await requireAdmin()
-  return db
+  
+  const users = await db
     .select({
       id: userTable.id,
       name: userTable.name,
       email: userTable.email,
       role: profile.role,
+      isPromoter: profile.isPromoter,
       balance: wallet.balance,
       totalDeposited: wallet.totalDeposited,
+      referralEarnings: wallet.referralEarnings,
       createdAt: userTable.createdAt,
     })
     .from(userTable)
@@ -135,6 +141,22 @@ export async function getAdminUsers() {
     .leftJoin(wallet, eq(userTable.id, wallet.userId))
     .orderBy(desc(userTable.createdAt))
     .limit(200)
+  
+  const referralCounts = await db
+    .select({
+      referrerId: referral.referrerId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(referral)
+    .where(eq(referral.level, 1))
+    .groupBy(referral.referrerId)
+  
+  const countMap = new Map(referralCounts.map(r => [r.referrerId, r.count]))
+  
+  return users.map(u => ({
+    ...u,
+    referralCount: countMap.get(u.id) || 0,
+  }))
 }
 
 export async function adjustBalance(userId: string, amount: number, note: string) {
@@ -339,4 +361,87 @@ export async function getAccountDeposits(accountId: number) {
     .where(eq(deposit.bankAccountId, accountId))
     .orderBy(desc(deposit.createdAt))
     .limit(100)
+}
+
+// ===================== PROMOTER MANAGEMENT =====================
+
+export async function togglePromoter(userId: string) {
+  await requireAdmin()
+  const [p] = await db.select().from(profile).where(eq(profile.userId, userId))
+  if (!p) return { ok: false, message: "User not found" }
+  
+  await db
+    .update(profile)
+    .set({ isPromoter: !p.isPromoter })
+    .where(eq(profile.userId, userId))
+  
+  revalidatePath("/admin")
+  return { ok: true, message: p.isPromoter ? "Promoter status removed" : "User is now a promoter (40% L1 commission)" }
+}
+
+// ===================== MILESTONE MANAGEMENT =====================
+
+export async function getMilestones() {
+  await requireAdmin()
+  return db.select().from(referralMilestone).orderBy(referralMilestone.referralCount)
+}
+
+export async function createMilestone(data: { referralCount: number; rewardAmount: number }) {
+  await requireAdmin()
+  if (!data.referralCount || !data.rewardAmount) {
+    return { ok: false, message: "Referral count and reward amount are required" }
+  }
+  
+  const exists = await db.select().from(referralMilestone).where(eq(referralMilestone.referralCount, data.referralCount))
+  if (exists.length > 0) {
+    return { ok: false, message: "A milestone with this referral count already exists" }
+  }
+  
+  await db.insert(referralMilestone).values({
+    referralCount: data.referralCount,
+    rewardAmount: String(data.rewardAmount),
+    isActive: true,
+  })
+  
+  revalidatePath("/admin")
+  return { ok: true, message: `Milestone created: ${data.referralCount} referrals = ₦${data.rewardAmount.toLocaleString()}` }
+}
+
+export async function updateMilestone(id: number, data: { referralCount?: number; rewardAmount?: number; isActive?: boolean }) {
+  await requireAdmin()
+  const [existing] = await db.select().from(referralMilestone).where(eq(referralMilestone.id, id))
+  if (!existing) return { ok: false, message: "Milestone not found" }
+  
+  await db
+    .update(referralMilestone)
+    .set({
+      referralCount: data.referralCount ?? existing.referralCount,
+      rewardAmount: data.rewardAmount ? String(data.rewardAmount) : existing.rewardAmount,
+      isActive: data.isActive ?? existing.isActive,
+    })
+    .where(eq(referralMilestone.id, id))
+  
+  revalidatePath("/admin")
+  return { ok: true, message: "Milestone updated" }
+}
+
+export async function deleteMilestone(id: number) {
+  await requireAdmin()
+  await db.delete(referralMilestone).where(eq(referralMilestone.id, id))
+  revalidatePath("/admin")
+  return { ok: true, message: "Milestone deleted" }
+}
+
+export async function toggleMilestoneStatus(id: number) {
+  await requireAdmin()
+  const [existing] = await db.select().from(referralMilestone).where(eq(referralMilestone.id, id))
+  if (!existing) return { ok: false, message: "Milestone not found" }
+  
+  await db
+    .update(referralMilestone)
+    .set({ isActive: !existing.isActive })
+    .where(eq(referralMilestone.id, id))
+  
+  revalidatePath("/admin")
+  return { ok: true, message: existing.isActive ? "Milestone deactivated" : "Milestone activated" }
 }

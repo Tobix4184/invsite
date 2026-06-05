@@ -1,8 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Copy, Check, Users, UserPlus, Share2, Coins } from "lucide-react"
+import { useState, useEffect, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { Copy, Check, Users, UserPlus, Share2, Coins, Trophy, Gift, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
+import { claimMilestone } from "@/app/actions/referral"
 
 type Member = { name: string; email: string; commission: number; joined: Date | string | null }
 type TeamData = {
@@ -11,6 +14,19 @@ type TeamData = {
   level2: Member[]
   totalCommission: number
   totalMembers: number
+}
+
+type MilestoneItem = {
+  id: number
+  referralCount: number
+  rewardAmount: string
+  canClaim: boolean
+  claimed: boolean
+}
+
+type MilestonesData = {
+  referralCount: number
+  milestones: MilestoneItem[]
 }
 
 function CopyField({ label, value }: { label: string; value: string }) {
@@ -41,7 +57,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function TeamView({ data }: { data: TeamData }) {
+export function TeamView({ data, milestonesData }: { data: TeamData; milestonesData: MilestonesData }) {
   const [origin, setOrigin] = useState('')
 
   // Get the current domain on client side
@@ -83,9 +99,90 @@ export function TeamView({ data }: { data: TeamData }) {
         </div>
       </section>
 
+      {milestonesData.milestones.length > 0 && (
+        <MilestonesSection data={milestonesData} />
+      )}
+
       <LevelBlock title="Level 1 Members" rate={SITE.referralLevel1} tint="text-primary" bg="bg-primary/15" members={data.level1} />
       <LevelBlock title="Level 2 Members" rate={SITE.referralLevel2} tint="text-sky-400" bg="bg-sky-400/15" members={data.level2} />
     </main>
+  )
+}
+
+function MilestonesSection({ data }: { data: MilestonesData }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [claimingId, setClaimingId] = useState<number | null>(null)
+
+  function handleClaim(id: number) {
+    setClaimingId(id)
+    startTransition(async () => {
+      const res = await claimMilestone(id)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      setClaimingId(null)
+      router.refresh()
+    })
+  }
+
+  return (
+    <section className="rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-400/10 via-card to-card">
+      <div className="flex items-center justify-between border-b border-border p-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-400/15">
+            <Trophy className="h-4 w-4 text-amber-400" />
+          </span>
+          <div>
+            <p className="font-semibold leading-tight">Referral Milestones</p>
+            <p className="text-xs text-muted-foreground">You have {data.referralCount} referrals</p>
+          </div>
+        </div>
+      </div>
+      <div className="divide-y divide-border">
+        {data.milestones.map((m) => {
+          const progress = Math.min((data.referralCount / m.referralCount) * 100, 100)
+          return (
+            <div key={m.id} className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${m.claimed ? "bg-success/15" : "bg-amber-400/15"}`}>
+                  {m.claimed ? (
+                    <Check className="h-5 w-5 text-success" />
+                  ) : (
+                    <Gift className="h-5 w-5 text-amber-400" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">{m.referralCount} Referrals</p>
+                  <p className="text-xs text-success font-medium">{formatNaira(Number(m.rewardAmount))}</p>
+                  {!m.claimed && (
+                    <div className="mt-1 h-1.5 w-24 rounded-full bg-secondary overflow-hidden">
+                      <div
+                        className="h-full bg-amber-400 transition-all"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              {m.claimed ? (
+                <span className="rounded-full bg-success/15 px-3 py-1.5 text-xs font-bold text-success">Claimed</span>
+              ) : m.canClaim ? (
+                <button
+                  onClick={() => handleClaim(m.id)}
+                  disabled={pending}
+                  className="flex items-center gap-1.5 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
+                >
+                  {claimingId === m.id && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Claim
+                </button>
+              ) : (
+                <span className="text-xs text-muted-foreground">{data.referralCount}/{m.referralCount}</span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
