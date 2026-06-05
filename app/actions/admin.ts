@@ -252,6 +252,7 @@ export async function addBankAccount(data: {
   bankName: string
   accountName: string
   label?: string
+  weight?: number
 }) {
   await requireAdmin()
   const accNum = data.accountNumber.trim()
@@ -273,6 +274,7 @@ export async function addBankAccount(data: {
     bankName: data.bankName.trim(),
     accountName: data.accountName.trim(),
     label: data.label?.trim() || null,
+    weight: Math.max(1, Math.floor(Number(data.weight) || 1)),
     isActive: true,
   })
   
@@ -288,6 +290,7 @@ export async function updateBankAccount(
     accountName?: string
     label?: string
     isActive?: boolean
+    weight?: number
   }
 ) {
   await requireAdmin()
@@ -308,11 +311,21 @@ export async function updateBankAccount(
       accountName: data.accountName?.trim() ?? existing.accountName,
       label: data.label?.trim() ?? existing.label,
       isActive: data.isActive ?? existing.isActive,
+      weight: data.weight != null ? Math.max(1, Math.floor(Number(data.weight))) : existing.weight,
     })
     .where(eq(bankAccount.id, id))
   
   revalidatePath("/admin")
   return { ok: true, message: "Bank account updated" }
+}
+
+/** Admin: set just the display weight for an account (higher = shown more often). */
+export async function setBankAccountWeight(id: number, weight: number) {
+  await requireAdmin()
+  const w = Math.max(1, Math.floor(Number(weight) || 1))
+  await db.update(bankAccount).set({ weight: w }).where(eq(bankAccount.id, id))
+  revalidatePath("/admin")
+  return { ok: true, message: `Display weight set to ${w}` }
 }
 
 export async function deleteBankAccount(id: number) {
@@ -452,4 +465,53 @@ export async function toggleMilestoneStatus(id: number) {
   
   revalidatePath("/admin")
   return { ok: true, message: existing.isActive ? "Milestone deactivated" : "Milestone activated" }
+}
+
+// ===================== SITE SETTINGS (PAUSE TOGGLES) =====================
+
+export async function getSiteControls() {
+  await requireAdmin()
+  return getPauseFlags()
+}
+
+export async function setDepositsPaused(paused: boolean) {
+  await requireAdmin()
+  await setSetting(SETTING_KEYS.depositsPaused, paused ? "true" : "false")
+  revalidatePath("/admin")
+  return { ok: true, message: paused ? "Deposits paused" : "Deposits resumed" }
+}
+
+export async function setWithdrawalsPaused(paused: boolean) {
+  await requireAdmin()
+  await setSetting(SETTING_KEYS.withdrawalsPaused, paused ? "true" : "false")
+  revalidatePath("/admin")
+  return { ok: true, message: paused ? "Withdrawals paused" : "Withdrawals resumed" }
+}
+
+// ===================== TRANSACTIONS FEED =====================
+
+/** Admin: site-wide transaction feed, optionally filtered by type. */
+export async function getAllTransactions(opts?: { type?: string; limit?: number }) {
+  await requireAdmin()
+  const limit = Math.min(opts?.limit ?? 100, 500)
+  const where = opts?.type && opts.type !== "all" ? eq(transaction.type, opts.type) : undefined
+
+  return db
+    .select({
+      id: transaction.id,
+      userId: transaction.userId,
+      type: transaction.type,
+      amount: transaction.amount,
+      status: transaction.status,
+      description: transaction.description,
+      reference: transaction.reference,
+      createdAt: transaction.createdAt,
+      userName: userTable.name,
+      userEmail: userTable.email,
+    })
+    .from(transaction)
+    .leftJoin(userTable, eq(transaction.userId, userTable.id))
+    .where(where)
+    .orderBy(desc(transaction.createdAt))
+    .limit(limit)
 }

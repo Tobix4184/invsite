@@ -22,6 +22,11 @@ import {
   Eye,
   Star,
   Trophy,
+  Receipt,
+  SlidersHorizontal,
+  ArrowDownToLine,
+  Pause,
+  Play,
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatNaira } from "@/lib/plans"
@@ -35,11 +40,14 @@ import {
   updateBankAccount,
   deleteBankAccount,
   toggleBankAccountStatus,
+  setBankAccountWeight,
   togglePromoter,
   createMilestone,
   updateMilestone,
   deleteMilestone,
   toggleMilestoneStatus,
+  setDepositsPaused,
+  setWithdrawalsPaused,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -107,6 +115,7 @@ type BankAccount = {
   accountName: string
   label: string | null
   isActive: boolean
+  weight: number
   totalDeposits: string
   depositCount: number
   createdAt: Date | string
@@ -119,7 +128,34 @@ type Milestone = {
   isActive: boolean
 }
 
-const TABS = ["Overview", "Withdrawals", "Users", "Gift Codes", "Deposits", "Bank Accounts", "Milestones"] as const
+type Controls = {
+  depositsPaused: boolean
+  withdrawalsPaused: boolean
+}
+
+type Txn = {
+  id: number
+  userId: string
+  type: string
+  amount: string
+  status: string
+  description: string | null
+  reference: string | null
+  createdAt: Date | string
+  userName: string | null
+  userEmail: string | null
+}
+
+const TABS = [
+  "Overview",
+  "Transactions",
+  "Withdrawals",
+  "Users",
+  "Gift Codes",
+  "Deposits",
+  "Bank Accounts",
+  "Milestones",
+] as const
 type Tab = (typeof TABS)[number]
 
 export function AdminDashboard({
@@ -130,6 +166,8 @@ export function AdminDashboard({
   deposits,
   bankAccounts,
   milestones,
+  controls,
+  transactions,
 }: {
   stats: Stats
   withdrawals: Withdrawal[]
@@ -138,6 +176,8 @@ export function AdminDashboard({
   deposits: Deposit[]
   bankAccounts: BankAccount[]
   milestones: Milestone[]
+  controls: Controls
+  transactions: Txn[]
 }) {
   const [tab, setTab] = useState<Tab>("Overview")
 
