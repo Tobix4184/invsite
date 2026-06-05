@@ -21,20 +21,31 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
   let totalCredited = 0
   const now = Date.now()
 
+  console.log(`[v0] accrueIncomeForUser: Processing ${actives.length} active investments for user ${userId}`)
+
   for (const inv of actives) {
     const daily = Number(inv.dailyEarning)
     const duration = inv.durationDays
     const daysPaid = inv.daysPaid
     const last = new Date(inv.lastPayoutAt).getTime()
 
-    const elapsedDays = Math.floor((now - last) / DAY_MS)
-    if (elapsedDays <= 0) continue
+    const elapsedMs = now - last
+    const elapsedDays = Math.floor(elapsedMs / DAY_MS)
+    const hoursElapsed = Math.floor(elapsedMs / (60 * 60 * 1000))
+    
+    console.log(`[v0] Investment ${inv.id} (${inv.planName}): lastPayout=${inv.lastPayoutAt}, hoursElapsed=${hoursElapsed}, elapsedDays=${elapsedDays}, daysPaid=${daysPaid}/${duration}`)
+
+    if (elapsedDays <= 0) {
+      console.log(`[v0] Investment ${inv.id}: Not yet 24h since last payout (${hoursElapsed}h elapsed, need 24h)`)
+      continue
+    }
 
     const remainingDays = duration - daysPaid
     const payDays = Math.min(elapsedDays, remainingDays)
     if (payDays <= 0) {
       if (remainingDays <= 0) {
         await db.update(investment).set({ status: "completed" }).where(eq(investment.id, inv.id))
+        console.log(`[v0] Investment ${inv.id}: Marked as completed`)
       }
       continue
     }
@@ -44,6 +55,8 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
     const newStatus = newDaysPaid >= duration ? "completed" : "active"
     // advance lastPayoutAt by the number of full days paid
     const newLast = new Date(last + payDays * DAY_MS)
+
+    console.log(`[v0] Investment ${inv.id}: Crediting ${credit} for ${payDays} day(s), newDaysPaid=${newDaysPaid}, status=${newStatus}`)
 
     await db
       .update(investment)
@@ -74,6 +87,7 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
     totalCredited += credit
   }
 
+  console.log(`[v0] accrueIncomeForUser: Total credited for user ${userId}: ${totalCredited}`)
   return totalCredited
 }
 
@@ -84,9 +98,13 @@ export async function accrueIncomeForAll(): Promise<{ users: number; credited: n
     .from(investment)
     .where(eq(investment.status, "active"))
 
+  console.log(`[v0] accrueIncomeForAll: Found ${rows.length} users with active investments`)
+
   let credited = 0
   for (const r of rows) {
     credited += await accrueIncomeForUser(r.userId)
   }
+  
+  console.log(`[v0] accrueIncomeForAll: Total users=${rows.length}, totalCredited=${credited}`)
   return { users: rows.length, credited }
 }
