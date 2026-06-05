@@ -128,6 +128,7 @@ export async function getDashboardData() {
     email: u?.email ?? "",
     phone: p?.phone ?? "",
     role: p?.role ?? "user",
+    isPromoter: p?.isPromoter ?? false,
     inviteCode: p?.inviteCode ?? "",
     balance: Number(w?.balance ?? 0),
     totalDeposited: Number(w?.totalDeposited ?? 0),

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Gift } from 'lucide-react'
+import { X, Gift, Send, MessageCircle } from 'lucide-react'
 import { SITE, formatNaira } from '@/lib/plans'
 
 export function WelcomePopup() {
@@ -39,19 +39,38 @@ export function WelcomePopup() {
           </div>
         </div>
 
-        <h2 className="mb-2 text-2xl font-bold tracking-tight">Welcome to incomehh!</h2>
-        <p className="mb-6 text-sm text-muted-foreground">
+        <h2 className="mb-2 text-2xl font-bold tracking-tight">Welcome to {SITE.name}!</h2>
+        <p className="mb-5 text-sm text-muted-foreground">
           You&apos;ve received a {formatNaira(SITE.welcomeBonus)} welcome bonus. Start investing today to earn daily income!
         </p>
 
-        <div className="mb-6 rounded-2xl bg-primary/10 p-4">
+        <div className="mb-5 rounded-2xl bg-primary/10 p-4">
           <p className="text-xs font-semibold text-primary">How it works:</p>
           <ul className="mt-2 space-y-1 text-left text-xs text-muted-foreground">
-            <li>✓ Choose a plan and invest</li>
-            <li>✓ Get {SITE.investmentBonusPercent}% instant bonus</li>
-            <li>✓ Earn daily for 30 days</li>
-            <li>✓ Withdraw & invite friends</li>
+            <li>1. Choose a plan and invest</li>
+            <li>2. Get {SITE.investmentBonusPercent}% instant bonus</li>
+            <li>3. Earn daily for 30 days</li>
+            <li>4. Withdraw & invite friends</li>
           </ul>
+        </div>
+
+        <div className="mb-4 flex flex-col gap-2">
+          <a
+            href={SITE.telegramChannel}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-[#0088cc] py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            <Send className="h-4 w-4" /> Join Our Telegram Channel
+          </a>
+          <a
+            href={`https://t.me/${SITE.telegramSupport}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2 rounded-2xl border border-[#0088cc]/30 bg-[#0088cc]/10 py-3 text-sm font-semibold text-[#0088cc] transition-colors hover:bg-[#0088cc]/20"
+          >
+            <MessageCircle className="h-4 w-4" /> Contact Support
+          </a>
         </div>
 
         <button

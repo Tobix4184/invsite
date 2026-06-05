@@ -1,7 +1,9 @@
 import { Clock3, Wallet, ArrowDownToLine, Users } from 'lucide-react'
 import { SITE, formatNaira } from '@/lib/plans'
 
-export function HeroInfo() {
+export function HeroInfo({ isPromoter = false }: { isPromoter?: boolean }) {
+  const level1Rate = isPromoter ? SITE.promoterLevel1 : SITE.referralLevel1
+
   return (
     <section className="overflow-hidden rounded-3xl border border-border bg-card">
       <div className="relative bg-gradient-to-r from-success/25 via-primary/15 to-primary/30 p-5 text-center">
@@ -31,9 +33,9 @@ export function HeroInfo() {
         />
         <Stat
           icon={Users}
-          tint="text-primary"
-          label="Referral L1"
-          value={`${SITE.referralLevel1}%`}
+          tint={isPromoter ? "text-amber-400" : "text-primary"}
+          label={isPromoter ? "Referral L1 (Promoter)" : "Referral L1"}
+          value={`${level1Rate}%`}
         />
         <Stat
           icon={Users}

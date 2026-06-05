@@ -22,7 +22,7 @@ const items = [
   {
     icon: Users,
     title: 'Referral Bonus',
-    desc: `Level 1: ${SITE.referralLevel1}% • Level 2: ${SITE.referralLevel2}%`,
+    desc: `L1: ${SITE.referralLevel1}% (Promoters: ${SITE.promoterLevel1}%) • L2: ${SITE.referralLevel2}%`,
     tint: 'text-success',
     bg: 'bg-success/15',
   },

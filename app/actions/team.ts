@@ -28,6 +28,7 @@ export async function getTeamData() {
 
   return {
     inviteCode,
+    isPromoter: p?.isPromoter ?? false,
     level1: level1.map((m) => ({
       name: m.name ?? "User",
       email: maskEmail(m.email ?? ""),

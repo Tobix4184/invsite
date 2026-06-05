@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Copy, Check, Users, UserPlus, Share2, Coins, Trophy, Gift, Loader2 } from "lucide-react"
+import { Copy, Check, Users, UserPlus, Share2, Coins, Trophy, Gift, Loader2, Star } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
 import { claimMilestone } from "@/app/actions/referral"
@@ -10,6 +10,7 @@ import { claimMilestone } from "@/app/actions/referral"
 type Member = { name: string; email: string; commission: number; joined: Date | string | null }
 type TeamData = {
   inviteCode: string
+  isPromoter: boolean
   level1: Member[]
   level2: Member[]
   totalCommission: number
@@ -66,6 +67,7 @@ export function TeamView({ data, milestonesData }: { data: TeamData; milestonesD
   }, [])
 
   const inviteLink = origin ? `${origin}/r/${data.inviteCode}` : `/r/${data.inviteCode}`
+  const level1Rate = data.isPromoter ? SITE.promoterLevel1 : SITE.referralLevel1
 
   return (
     <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
@@ -75,9 +77,14 @@ export function TeamView({ data, milestonesData }: { data: TeamData; milestonesD
           <div className="flex items-center gap-2 text-success">
             <Share2 className="h-5 w-5" />
             <p className="text-sm font-semibold">Invite & Earn</p>
+            {data.isPromoter && (
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-400">
+                <Star className="h-3 w-3" /> Promoter
+              </span>
+            )}
           </div>
           <h2 className="mt-1 text-xl font-bold text-balance">
-            Earn {SITE.referralLevel1}% on Level 1 and {SITE.referralLevel2}% on Level 2 deposits
+            Earn {level1Rate}% on Level 1 and {SITE.referralLevel2}% on Level 2 deposits
           </h2>
           <div className="mt-4 flex flex-col gap-3">
             <CopyField label="Invitation Code" value={data.inviteCode} />
@@ -103,7 +110,7 @@ export function TeamView({ data, milestonesData }: { data: TeamData; milestonesD
         <MilestonesSection data={milestonesData} />
       )}
 
-      <LevelBlock title="Level 1 Members" rate={SITE.referralLevel1} tint="text-primary" bg="bg-primary/15" members={data.level1} />
+      <LevelBlock title="Level 1 Members" rate={level1Rate} tint={data.isPromoter ? "text-amber-400" : "text-primary"} bg={data.isPromoter ? "bg-amber-400/15" : "bg-primary/15"} members={data.level1} isPromoter={data.isPromoter} />
       <LevelBlock title="Level 2 Members" rate={SITE.referralLevel2} tint="text-sky-400" bg="bg-sky-400/15" members={data.level2} />
     </main>
   )
@@ -192,12 +199,14 @@ function LevelBlock({
   tint,
   bg,
   members,
+  isPromoter = false,
 }: {
   title: string
   rate: number
   tint: string
   bg: string
   members: Member[]
+  isPromoter?: boolean
 }) {
   return (
     <section className="rounded-2xl border border-border bg-card">
@@ -208,7 +217,9 @@ function LevelBlock({
           </span>
           <div>
             <p className="font-semibold leading-tight">{title}</p>
-            <p className="text-xs text-muted-foreground">{rate}% commission</p>
+            <p className="text-xs text-muted-foreground">
+              {rate}% commission{isPromoter && " (Promoter)"}
+            </p>
           </div>
         </div>
         <span className="rounded-full bg-secondary px-3 py-1 text-sm font-bold tabular-nums">{members.length}</span>
