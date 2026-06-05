@@ -10,6 +10,7 @@ import {
   deposit,
   giftCode,
   investment,
+  bankAccount,
 } from "@/lib/db/schema"
 import { requireAdmin } from "@/lib/session"
 import { accrueIncomeForAll } from "@/lib/income-engine"
@@ -184,6 +185,10 @@ export async function getRecentDeposits() {
       status: deposit.status,
       createdAt: deposit.createdAt,
       userEmail: userTable.email,
+      senderName: deposit.senderName,
+      assignedBankName: deposit.assignedBankName,
+      assignedAccountNumber: deposit.assignedAccountNumber,
+      assignedAccountName: deposit.assignedAccountName,
     })
     .from(deposit)
     .leftJoin(userTable, eq(deposit.userId, userTable.id))
@@ -200,4 +205,138 @@ export async function processAllIncome() {
     ok: true,
     message: `Processed ${result.users} users, credited ${result.credited.toLocaleString()} total`,
   }
+}
+
+// ===================== BANK ACCOUNT MANAGEMENT =====================
+
+export async function getBankAccounts() {
+  await requireAdmin()
+  return db
+    .select()
+    .from(bankAccount)
+    .orderBy(desc(bankAccount.createdAt))
+}
+
+export async function addBankAccount(data: {
+  accountNumber: string
+  bankName: string
+  accountName: string
+  label?: string
+}) {
+  await requireAdmin()
+  const accNum = data.accountNumber.trim()
+  if (!accNum || !data.bankName || !data.accountName) {
+    return { ok: false, message: "All fields are required" }
+  }
+  
+  // Check if account number already exists
+  const exists = await db
+    .select()
+    .from(bankAccount)
+    .where(eq(bankAccount.accountNumber, accNum))
+  if (exists.length > 0) {
+    return { ok: false, message: "Account number already exists" }
+  }
+  
+  await db.insert(bankAccount).values({
+    accountNumber: accNum,
+    bankName: data.bankName.trim(),
+    accountName: data.accountName.trim(),
+    label: data.label?.trim() || null,
+    isActive: true,
+  })
+  
+  revalidatePath("/admin")
+  return { ok: true, message: "Bank account added" }
+}
+
+export async function updateBankAccount(
+  id: number,
+  data: {
+    accountNumber?: string
+    bankName?: string
+    accountName?: string
+    label?: string
+    isActive?: boolean
+  }
+) {
+  await requireAdmin()
+  
+  const [existing] = await db
+    .select()
+    .from(bankAccount)
+    .where(eq(bankAccount.id, id))
+  if (!existing) {
+    return { ok: false, message: "Bank account not found" }
+  }
+  
+  await db
+    .update(bankAccount)
+    .set({
+      accountNumber: data.accountNumber?.trim() ?? existing.accountNumber,
+      bankName: data.bankName?.trim() ?? existing.bankName,
+      accountName: data.accountName?.trim() ?? existing.accountName,
+      label: data.label?.trim() ?? existing.label,
+      isActive: data.isActive ?? existing.isActive,
+    })
+    .where(eq(bankAccount.id, id))
+  
+  revalidatePath("/admin")
+  return { ok: true, message: "Bank account updated" }
+}
+
+export async function deleteBankAccount(id: number) {
+  await requireAdmin()
+  
+  const [existing] = await db
+    .select()
+    .from(bankAccount)
+    .where(eq(bankAccount.id, id))
+  if (!existing) {
+    return { ok: false, message: "Bank account not found" }
+  }
+  
+  await db.delete(bankAccount).where(eq(bankAccount.id, id))
+  
+  revalidatePath("/admin")
+  return { ok: true, message: "Bank account deleted" }
+}
+
+export async function toggleBankAccountStatus(id: number) {
+  await requireAdmin()
+  
+  const [existing] = await db
+    .select()
+    .from(bankAccount)
+    .where(eq(bankAccount.id, id))
+  if (!existing) {
+    return { ok: false, message: "Bank account not found" }
+  }
+  
+  await db
+    .update(bankAccount)
+    .set({ isActive: !existing.isActive })
+    .where(eq(bankAccount.id, id))
+  
+  revalidatePath("/admin")
+  return { ok: true, message: existing.isActive ? "Account deactivated" : "Account activated" }
+}
+
+export async function getAccountDeposits(accountId: number) {
+  await requireAdmin()
+  return db
+    .select({
+      id: deposit.id,
+      amount: deposit.amount,
+      reference: deposit.reference,
+      status: deposit.status,
+      createdAt: deposit.createdAt,
+      userEmail: userTable.email,
+      senderName: deposit.senderName,
+    })
+    .from(deposit)
+    .leftJoin(userTable, eq(deposit.userId, userTable.id))
+    .where(eq(deposit.bankAccountId, accountId))
+    .orderBy(desc(deposit.createdAt))
+    .limit(100)
 }

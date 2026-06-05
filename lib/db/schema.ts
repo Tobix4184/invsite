@@ -121,6 +121,14 @@ export const deposit = pgTable("deposit", {
   amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
   reference: text("reference").notNull().unique(),
   status: text("status").notNull().default("pending"),
+  // Bank account assigned for this deposit
+  bankAccountId: integer("bankAccountId"),
+  assignedBankName: text("assignedBankName"),
+  assignedAccountNumber: text("assignedAccountNumber"),
+  assignedAccountName: text("assignedAccountName"),
+  // Sender name for verification (optional)
+  senderName: text("senderName"),
+  expiresAt: timestamp("expiresAt"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })
 
@@ -170,5 +178,18 @@ export const giftCodeRedemption = pgTable("gift_code_redemption", {
   giftCodeId: integer("giftCodeId").notNull(),
   code: text("code").notNull(),
   amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
+// Bank accounts pool for rotating deposit accounts
+export const bankAccount = pgTable("bank_account", {
+  id: serial("id").primaryKey(),
+  accountNumber: text("accountNumber").notNull().unique(),
+  bankName: text("bankName").notNull(),
+  accountName: text("accountName").notNull(),
+  label: text("label"), // optional label for admin reference (e.g., "Hussein", "Praise")
+  isActive: boolean("isActive").notNull().default(true),
+  totalDeposits: numeric("totalDeposits", { precision: 14, scale: 2 }).notNull().default("0"),
+  depositCount: integer("depositCount").notNull().default(0),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })

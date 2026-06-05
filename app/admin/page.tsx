@@ -9,6 +9,7 @@ import {
   getAdminUsers,
   getGiftCodes,
   getRecentDeposits,
+  getBankAccounts,
 } from "@/app/actions/admin"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
 
@@ -21,12 +22,13 @@ export default async function AdminPage() {
   const [p] = await db.select().from(profile).where(eq(profile.userId, session.user.id))
   if (!p || p.role !== "admin") redirect("/dashboard")
 
-  const [stats, withdrawals, users, giftCodes, deposits] = await Promise.all([
+  const [stats, withdrawals, users, giftCodes, deposits, bankAccounts] = await Promise.all([
     getAdminStats(),
     getPendingWithdrawals(),
     getAdminUsers(),
     getGiftCodes(),
     getRecentDeposits(),
+    getBankAccounts(),
   ])
 
   return (
@@ -36,6 +38,7 @@ export default async function AdminPage() {
       users={users}
       giftCodes={giftCodes}
       deposits={deposits}
+      bankAccounts={bankAccounts}
     />
   )
 }

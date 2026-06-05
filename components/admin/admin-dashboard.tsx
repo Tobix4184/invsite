@@ -14,6 +14,12 @@ import {
   Plus,
   Home,
   Loader2,
+  Building2,
+  Pencil,
+  Trash2,
+  ToggleLeft,
+  ToggleRight,
+  Eye,
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatNaira } from "@/lib/plans"
@@ -23,6 +29,10 @@ import {
   adjustBalance,
   createGiftCode,
   processAllIncome,
+  addBankAccount,
+  updateBankAccount,
+  deleteBankAccount,
+  toggleBankAccountStatus,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -74,9 +84,25 @@ type Deposit = {
   status: string
   createdAt: Date | string
   userEmail: string | null
+  senderName: string | null
+  assignedBankName: string | null
+  assignedAccountNumber: string | null
+  assignedAccountName: string | null
 }
 
-const TABS = ["Overview", "Withdrawals", "Users", "Gift Codes", "Deposits"] as const
+type BankAccount = {
+  id: number
+  accountNumber: string
+  bankName: string
+  accountName: string
+  label: string | null
+  isActive: boolean
+  totalDeposits: string
+  depositCount: number
+  createdAt: Date | string
+}
+
+const TABS = ["Overview", "Withdrawals", "Users", "Gift Codes", "Deposits", "Bank Accounts"] as const
 type Tab = (typeof TABS)[number]
 
 export function AdminDashboard({
@@ -85,12 +111,14 @@ export function AdminDashboard({
   users,
   giftCodes,
   deposits,
+  bankAccounts,
 }: {
   stats: Stats
   withdrawals: Withdrawal[]
   users: AdminUser[]
   giftCodes: GiftCode[]
   deposits: Deposit[]
+  bankAccounts: BankAccount[]
 }) {
   const [tab, setTab] = useState<Tab>("Overview")
 
@@ -131,6 +159,7 @@ export function AdminDashboard({
         {tab === "Users" && <UsersTab items={users} />}
         {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} />}
         {tab === "Deposits" && <DepositsTab items={deposits} />}
+        {tab === "Bank Accounts" && <BankAccountsTab items={bankAccounts} />}
       </div>
     </div>
   )
@@ -451,6 +480,16 @@ function DepositsTab({ items }: { items: Deposit[] }) {
           </div>
           <div className="mt-3 rounded-xl bg-secondary/50 p-3 text-xs">
             <p className="font-semibold">{dep.userEmail}</p>
+            {dep.senderName && (
+              <p className="mt-1 text-muted-foreground">
+                Sender: <span className="font-medium text-foreground">{dep.senderName}</span>
+              </p>
+            )}
+            {dep.assignedBankName && (
+              <p className="mt-1 text-muted-foreground">
+                To: {dep.assignedBankName} - {dep.assignedAccountNumber} ({dep.assignedAccountName})
+              </p>
+            )}
             <p className="mt-1 text-muted-foreground">
               {new Date(dep.createdAt).toLocaleString()}
             </p>
@@ -475,6 +514,253 @@ function DepositsTab({ items }: { items: Deposit[] }) {
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+function BankAccountsTab({ items }: { items: BankAccount[] }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [form, setForm] = useState({
+    accountNumber: "",
+    bankName: "",
+    accountName: "",
+    label: "",
+  })
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editForm, setEditForm] = useState({
+    accountNumber: "",
+    bankName: "",
+    accountName: "",
+    label: "",
+  })
+
+  function handleAdd() {
+    startTransition(async () => {
+      const res = await addBankAccount(form)
+      if (res.ok) {
+        toast.success(res.message)
+        setForm({ accountNumber: "", bankName: "", accountName: "", label: "" })
+        router.refresh()
+      } else {
+        toast.error(res.message)
+      }
+    })
+  }
+
+  function handleToggle(id: number) {
+    startTransition(async () => {
+      const res = await toggleBankAccountStatus(id)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
+  function handleDelete(id: number) {
+    if (!confirm("Are you sure you want to delete this bank account?")) return
+    startTransition(async () => {
+      const res = await deleteBankAccount(id)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
+  function startEdit(acc: BankAccount) {
+    setEditingId(acc.id)
+    setEditForm({
+      accountNumber: acc.accountNumber,
+      bankName: acc.bankName,
+      accountName: acc.accountName,
+      label: acc.label || "",
+    })
+  }
+
+  function handleSaveEdit(id: number) {
+    startTransition(async () => {
+      const res = await updateBankAccount(id, editForm)
+      if (res.ok) {
+        toast.success(res.message)
+        setEditingId(null)
+        router.refresh()
+      } else {
+        toast.error(res.message)
+      }
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Add New Account Form */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <p className="mb-3 flex items-center gap-2 text-sm font-bold">
+          <Plus className="h-4 w-4 text-primary" /> Add Bank Account
+        </p>
+        <div className="flex flex-col gap-2">
+          <input
+            placeholder="Account Number"
+            value={form.accountNumber}
+            onChange={(e) => setForm((f) => ({ ...f, accountNumber: e.target.value }))}
+            className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <input
+            placeholder="Bank Name (e.g. Providus, VFD)"
+            value={form.bankName}
+            onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
+            className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <input
+            placeholder="Account Name"
+            value={form.accountName}
+            onChange={(e) => setForm((f) => ({ ...f, accountName: e.target.value }))}
+            className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <input
+            placeholder="Label (optional, e.g. Hussein, Praise)"
+            value={form.label}
+            onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+            className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={pending || !form.accountNumber || !form.bankName || !form.accountName}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} Add Account
+          </button>
+        </div>
+      </div>
+
+      {/* Bank Accounts List */}
+      {items.length === 0 ? (
+        <Empty label="No bank accounts yet" />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {items.map((acc) => (
+            <div key={acc.id} className="rounded-2xl border border-border bg-card p-4">
+              {editingId === acc.id ? (
+                /* Edit Mode */
+                <div className="flex flex-col gap-2">
+                  <input
+                    placeholder="Account Number"
+                    value={editForm.accountNumber}
+                    onChange={(e) => setEditForm((f) => ({ ...f, accountNumber: e.target.value }))}
+                    className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                  <input
+                    placeholder="Bank Name"
+                    value={editForm.bankName}
+                    onChange={(e) => setEditForm((f) => ({ ...f, bankName: e.target.value }))}
+                    className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                  <input
+                    placeholder="Account Name"
+                    value={editForm.accountName}
+                    onChange={(e) => setEditForm((f) => ({ ...f, accountName: e.target.value }))}
+                    className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                  <input
+                    placeholder="Label (optional)"
+                    value={editForm.label}
+                    onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))}
+                    className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditingId(null)}
+                      className="flex-1 rounded-xl border border-border bg-secondary py-2.5 text-sm font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleSaveEdit(acc.id)}
+                      disabled={pending}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+                    >
+                      {pending && <Loader2 className="h-4 w-4 animate-spin" />} Save
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* View Mode */
+                <>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <Building2 className={`h-5 w-5 ${acc.isActive ? "text-success" : "text-muted-foreground"}`} />
+                      <div>
+                        <p className="font-bold">{acc.accountNumber}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {acc.bankName} - {acc.accountName}
+                        </p>
+                        {acc.label && (
+                          <p className="text-xs text-primary">{acc.label}</p>
+                        )}
+                      </div>
+                    </div>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+                        acc.isActive
+                          ? "bg-success/15 text-success"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {acc.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between rounded-xl bg-secondary/50 p-3">
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Deposits: </span>
+                      <span className="font-bold">{acc.depositCount}</span>
+                    </div>
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Total: </span>
+                      <span className="font-bold text-success">{formatNaira(Number(acc.totalDeposits))}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => handleToggle(acc.id)}
+                      disabled={pending}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold disabled:opacity-60 ${
+                        acc.isActive
+                          ? "border border-amber-400/40 bg-amber-400/10 text-amber-400"
+                          : "bg-success text-success-foreground"
+                      }`}
+                    >
+                      {acc.isActive ? (
+                        <>
+                          <ToggleLeft className="h-4 w-4" /> Deactivate
+                        </>
+                      ) : (
+                        <>
+                          <ToggleRight className="h-4 w-4" /> Activate
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => startEdit(acc)}
+                      disabled={pending}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary px-4 py-2.5 text-sm font-bold disabled:opacity-60"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(acc.id)}
+                      disabled={pending}
+                      className="flex items-center justify-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-bold text-destructive disabled:opacity-60"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
