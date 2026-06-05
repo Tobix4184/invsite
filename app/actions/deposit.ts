@@ -34,9 +34,23 @@ export async function startDeposit(amount: number) {
     return { ok: false, message: "No active payment accounts available. Please try again later." }
   }
   
-  // Pick a random account
-  const randomIndex = Math.floor(Math.random() * activeAccounts.length)
-  const selectedAccount = activeAccounts[randomIndex]
+  // Get user's last deposit to avoid assigning same account
+  const [lastDeposit] = await db
+    .select()
+    .from(deposit)
+    .where(eq(deposit.userId, userId))
+    .orderBy(desc(deposit.createdAt))
+    .limit(1)
+  
+  // Filter out the last used account if there are multiple accounts
+  let availableAccounts = activeAccounts
+  if (lastDeposit?.bankAccountId && activeAccounts.length > 1) {
+    availableAccounts = activeAccounts.filter(acc => acc.id !== lastDeposit.bankAccountId)
+  }
+  
+  // Pick a random account from available ones
+  const randomIndex = Math.floor(Math.random() * availableAccounts.length)
+  const selectedAccount = availableAccounts[randomIndex]
   
   const reference = `IHH_${userId.slice(0, 8)}_${Date.now()}`
   const expiresAt = new Date()
