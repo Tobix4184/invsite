@@ -223,9 +223,17 @@ export async function processAllIncome() {
   await requireAdmin()
   const result = await accrueIncomeForAll()
   revalidatePath("/admin")
+  
+  if (result.credited === 0) {
+    return {
+      ok: true,
+      message: `Found ${result.users} user(s) with active investments. No payments due yet (income is paid every 24 hours from investment time).`,
+    }
+  }
+  
   return {
     ok: true,
-    message: `Processed ${result.users} users, credited ${result.credited.toLocaleString()} total`,
+    message: `Processed ${result.users} users, credited ₦${result.credited.toLocaleString()} total`,
   }
 }
 
