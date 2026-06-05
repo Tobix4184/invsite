@@ -81,8 +81,8 @@ export default async function DepositsPage() {
                     </span>
                   </div>
 
-                  {/* Bank Details */}
-                  {dep.assignedBankName && (
+                  {/* Bank Details - only show for pending/processing deposits */}
+                  {dep.assignedBankName && (dep.status === "pending" || dep.status === "processing") && (
                     <div className="mt-3 rounded-xl bg-secondary/50 p-3">
                       <p className="text-xs text-muted-foreground">Transfer to:</p>
                       <p className="font-semibold text-sm">{dep.assignedBankName} - {dep.assignedAccountNumber}</p>
