@@ -42,7 +42,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
 }
 
 export function TeamView({ data }: { data: TeamData }) {
-  const inviteLink = `https://incomehh.com/r/${data.inviteCode}`
+  const inviteLink = `https://ihh.incomeb.fun/r/${data.inviteCode}`
 
   return (
     <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
