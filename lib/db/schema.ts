@@ -190,9 +190,18 @@ export const bankAccount = pgTable("bank_account", {
   accountName: text("accountName").notNull(),
   label: text("label"),
   isActive: boolean("isActive").notNull().default(true),
+  // Relative display weight. Higher = shown more often (weighted random).
+  weight: integer("weight").notNull().default(1),
   totalDeposits: numeric("totalDeposits", { precision: 14, scale: 2 }).notNull().default("0"),
   depositCount: integer("depositCount").notNull().default(0),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
+// Global key/value settings (e.g. deposits_paused, withdrawals_paused)
+export const siteSetting = pgTable("site_setting", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 })
 
 // Referral milestones - rewards for referring X number of people

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session"
 import { getDashboardData } from "@/app/actions/account"
 import { getInvestments } from "@/app/actions/investments"
 import { getPendingDeposits } from "@/app/actions/deposit"
+import { getPauseFlags } from "@/app/actions/settings"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { BalanceCard } from "@/components/balance-card"
@@ -22,10 +23,11 @@ export default async function DashboardPage() {
   const session = await getSession()
   if (!session?.user) redirect("/")
 
-  const [data, investments, pendingDeposits] = await Promise.all([
+  const [data, investments, pendingDeposits, pauseFlags] = await Promise.all([
     getDashboardData(),
     getInvestments(),
     getPendingDeposits(),
+    getPauseFlags(),
   ])
 
   const todayIncome = investments
@@ -52,7 +54,11 @@ export default async function DashboardPage() {
         </div>
 
         <BalanceCard balance={data.balance} todayIncome={todayIncome} />
-        <QuickActions signedInToday={data.signedInToday} />
+        <QuickActions
+          signedInToday={data.signedInToday}
+          depositsPaused={pauseFlags.depositsPaused}
+          withdrawalsPaused={pauseFlags.withdrawalsPaused}
+        />
         <HeroInfo isPromoter={data.isPromoter} />
 
         <ActiveInvestments investments={investments} />

@@ -1,10 +1,11 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { deposit, wallet, transaction, user as userTable, bankAccount } from "@/lib/db/schema"
+import { deposit, wallet, transaction, user as userTable } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
-import { eq, sql, desc, and, or } from "drizzle-orm"
+import { eq, sql, desc, and } from "drizzle-orm"
+import { getBoolSetting, pickWeightedBankAccount, SETTING_KEYS } from "@/app/actions/settings"
 
 function baseUrl() {
   return (
@@ -19,39 +20,31 @@ function baseUrl() {
 /** Submits a manual deposit request for admin approval. */
 export async function startDeposit(amount: number) {
   const userId = await getUserId()
+
+  // Respect global deposit pause
+  if (await getBoolSetting(SETTING_KEYS.depositsPaused)) {
+    return { ok: false, message: "Deposits are temporarily unavailable. Please check back later." }
+  }
+
   const amt = Math.floor(Number(amount))
   if (!amt || amt < SITE.minDeposit) {
     return { ok: false, message: `Minimum deposit is ₦${SITE.minDeposit.toLocaleString()}` }
   }
 
-  // Get a random active bank account
-  const activeAccounts = await db
-    .select()
-    .from(bankAccount)
-    .where(eq(bankAccount.isActive, true))
-  
-  if (activeAccounts.length === 0) {
-    return { ok: false, message: "No active payment accounts available. Please try again later." }
-  }
-  
-  // Get user's last deposit to avoid assigning same account
+  // Get user's last deposit to avoid assigning the same account twice in a row
   const [lastDeposit] = await db
     .select()
     .from(deposit)
     .where(eq(deposit.userId, userId))
     .orderBy(desc(deposit.createdAt))
     .limit(1)
-  
-  // Filter out the last used account if there are multiple accounts
-  let availableAccounts = activeAccounts
-  if (lastDeposit?.bankAccountId && activeAccounts.length > 1) {
-    availableAccounts = activeAccounts.filter(acc => acc.id !== lastDeposit.bankAccountId)
+
+  // Pick an active account using weighted random selection
+  const selectedAccount = await pickWeightedBankAccount(lastDeposit?.bankAccountId ?? undefined)
+  if (!selectedAccount) {
+    return { ok: false, message: "No active payment accounts available. Please try again later." }
   }
-  
-  // Pick a random account from available ones
-  const randomIndex = Math.floor(Math.random() * availableAccounts.length)
-  const selectedAccount = availableAccounts[randomIndex]
-  
+
   const reference = `IHH_${userId.slice(0, 8)}_${Date.now()}`
   const expiresAt = new Date()
   expiresAt.setMinutes(expiresAt.getMinutes() + SITE.paymentExpiryMinutes)

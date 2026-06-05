@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { wallet, withdrawal, transaction, giftCode, giftCodeRedemption, profile } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
+import { getBoolSetting, SETTING_KEYS } from "@/app/actions/settings"
 import { and, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
@@ -15,6 +16,11 @@ export async function requestWithdrawal(data: {
 }) {
   const userId = await getUserId()
   const amount = Number(data.amount)
+
+  // Respect global withdrawal pause
+  if (await getBoolSetting(SETTING_KEYS.withdrawalsPaused)) {
+    return { ok: false, message: "Withdrawals are temporarily unavailable. Please check back later." }
+  }
 
   if (!amount || amount < SITE.minWithdrawal) {
     return { ok: false, message: `Minimum withdrawal is ₦${SITE.minWithdrawal.toLocaleString()}` }
