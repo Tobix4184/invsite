@@ -43,12 +43,12 @@ function CopyField({ label, value }: { label: string; value: string }) {
 
 export function TeamView({ data }: { data: TeamData }) {
   const [origin, setOrigin] = useState('')
-  
+
   // Get the current domain on client side
   useEffect(() => {
     setOrigin(window.location.origin)
   }, [])
-  
+
   const inviteLink = origin ? `${origin}/r/${data.inviteCode}` : `/r/${data.inviteCode}`
 
   return (
