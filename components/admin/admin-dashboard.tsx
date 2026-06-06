@@ -40,6 +40,7 @@ import {
   Ban,
   CalendarPlus,
   ChevronDown,
+  Zap,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
@@ -72,6 +73,7 @@ import {
   executeLuckyDraw,
   saveGameConfig,
   getAdminReferralsForUser,
+  testSabussWebhook,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -1334,6 +1336,8 @@ function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => vo
 function BankAccountsTab({ items }: { items: BankAccount[] }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [testingId, setTestingId] = useState<number | null>(null)
+  const [testResults, setTestResults] = useState<Record<number, { ok: boolean; message: string; status?: string }>>({})
   const [form, setForm] = useState({
     accountNumber: "",
     bankName: "",
@@ -1394,6 +1398,14 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
       weight: String(acc.weight ?? 1),
       sabussApiKey: acc.sabussApiKey || "",
     })
+  }
+
+  async function handleTest(id: number) {
+    setTestingId(id)
+    setTestResults((prev) => { const n = { ...prev }; delete n[id]; return n })
+    const res = await testSabussWebhook(id)
+    setTestResults((prev) => ({ ...prev, [id]: res }))
+    setTestingId(null)
   }
 
   function handleSaveEdit(id: number) {
@@ -1619,8 +1631,24 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                   </div>
                   <div className={`mt-2 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs ${acc.sabussApiKey ? "bg-success/10 text-success" : "bg-secondary/50 text-muted-foreground"}`}>
                     <span className={`h-1.5 w-1.5 rounded-full ${acc.sabussApiKey ? "bg-success" : "bg-muted-foreground"}`} />
-                    {acc.sabussApiKey ? "Sabuss auto-detect ON" : "No Sabuss API key — manual approval only"}
+                    <span className="flex-1">{acc.sabussApiKey ? "Sabuss auto-detect ON" : "No Sabuss API key — manual approval only"}</span>
+                    {acc.sabussApiKey && (
+                      <button
+                        onClick={() => handleTest(acc.id)}
+                        disabled={testingId === acc.id}
+                        className="ml-auto flex items-center gap-1 rounded-md bg-success/20 px-2 py-0.5 text-[10px] font-bold text-success hover:bg-success/30 disabled:opacity-60"
+                      >
+                        {testingId === acc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+                        Test
+                      </button>
+                    )}
                   </div>
+                  {testResults[acc.id] && (
+                    <div className={`mt-1.5 rounded-lg px-3 py-2 text-[11px] ${testResults[acc.id].ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                      <p className="font-bold">{testResults[acc.id].ok ? "Webhook reached" : "Webhook failed"}</p>
+                      <p className="mt-0.5 font-mono opacity-80">{testResults[acc.id].message}</p>
+                    </div>
+                  )}
 
                   <div className="mt-3 flex gap-2">
                     <button
