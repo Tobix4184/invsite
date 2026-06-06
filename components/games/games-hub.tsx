@@ -43,10 +43,18 @@ type Props = {
   vaultMin: number
 }
 
-const TABS: { id: Tab; label: string; icon: typeof Dices; feature: keyof Props["features"] }[] = [
-  { id: "spin", label: "Stake & Spin", icon: Dices, feature: "stakeAndSpin" },
-  { id: "draw", label: "Lucky Draw", icon: Ticket, feature: "luckyDraw" },
-  { id: "vault", label: "Lock Vault", icon: Lock, feature: "lockVault" },
+const TABS: {
+  id: Tab
+  label: string
+  icon: typeof Dices
+  feature: keyof Props["features"]
+  activeColor: string
+  inactiveColor: string
+  delay: string
+}[] = [
+  { id: "spin",  label: "Stake & Spin", icon: Dices,  feature: "stakeAndSpin", activeColor: "text-amber-400",  inactiveColor: "text-amber-400/60",  delay: "0ms" },
+  { id: "draw",  label: "Lucky Draw",   icon: Ticket, feature: "luckyDraw",    activeColor: "text-emerald-400", inactiveColor: "text-emerald-400/60", delay: "120ms" },
+  { id: "vault", label: "Lock Vault",   icon: Lock,   feature: "lockVault",    activeColor: "text-sky-400",     inactiveColor: "text-sky-400/60",     delay: "240ms" },
 ]
 
 export function GamesHub(props: Props) {
@@ -117,7 +125,14 @@ export function GamesHub(props: Props) {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <t.icon className="h-3.5 w-3.5" />
+                  <span
+                    className="animate-shake"
+                    style={{ animationDelay: t.delay, display: "inline-flex" }}
+                  >
+                    <t.icon
+                      className={`h-3.5 w-3.5 ${tab === t.id ? t.activeColor : t.inactiveColor}`}
+                    />
+                  </span>
                   {t.label}
                 </button>
               ))}
