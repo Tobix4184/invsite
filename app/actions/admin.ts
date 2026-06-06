@@ -1076,3 +1076,55 @@ export async function getAdminData() {
     ])
   return { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats, gameConfig }
 }
+
+// ── Sabuss Webhook Test ───────────────────────────────────────────────────────
+
+/**
+ * Fires a simulated Sabuss webhook payload to the live /api/webhooks/sabuss
+ * endpoint so the admin can verify it is reachable and responding correctly.
+ * Uses the account's real API key so the route can match it to the DB row.
+ */
+export async function testSabussWebhook(accountId: number) {
+  await requireAdmin()
+
+  const [acc] = await db
+    .select()
+    .from(bankAccount)
+    .where(eq(bankAccount.id, accountId))
+
+  if (!acc) return { ok: false, message: "Account not found" }
+  if (!acc.sabussApiKey) return { ok: false, message: "No Sabuss API key set for this account" }
+
+  const payload = {
+    api_key: acc.sabussApiKey,
+    amount: "1",           // ₦1 test — won't match any real deposit
+    sender: "WebhookTest",
+    reference: `TEST_${Date.now()}`,
+    type: "credit",
+    date: new Date().toISOString(),
+    balance: "0",
+  }
+
+  try {
+    const res = await fetch("https://ihh.incumb.fun/api/webhooks/sabuss", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(8000),
+    })
+    const json = await res.json()
+    if (!res.ok) {
+      return { ok: false, message: `HTTP ${res.status}: ${JSON.stringify(json)}` }
+    }
+    // Any 2xx with {ok:true} is success — "no_matching_deposit" is the expected
+    // status for a ₦1 test ping (no real deposit exists for ₦1).
+    return {
+      ok: true,
+      message: `Webhook reached! Response: ${JSON.stringify(json)}`,
+      status: (json as Record<string, string>).status ?? "ok",
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { ok: false, message: `Could not reach webhook: ${msg}` }
+  }
+}

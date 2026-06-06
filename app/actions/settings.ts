@@ -101,10 +101,19 @@ export async function pickWeightedBankAccount(excludeId?: number) {
     if (filtered.length > 0) pool = filtered
   }
 
-  const totalWeight = pool.reduce((sum, a) => sum + Math.max(1, a.weight ?? 1), 0)
+  // Sabuss-enabled accounts (have an API key) are given 5x their base weight
+  // so they are strongly preferred over manual-only accounts.
+  // If ALL accounts in the pool have no Sabuss key, fallback is normal weighting.
+  const hasSabuss = pool.some((a) => a.sabussApiKey)
+  const effectiveWeight = (a: (typeof pool)[number]) => {
+    const base = Math.max(1, a.weight ?? 1)
+    return hasSabuss && a.sabussApiKey ? base * 5 : base
+  }
+
+  const totalWeight = pool.reduce((sum, a) => sum + effectiveWeight(a), 0)
   let r = Math.random() * totalWeight
   for (const acc of pool) {
-    r -= Math.max(1, acc.weight ?? 1)
+    r -= effectiveWeight(acc)
     if (r <= 0) return acc
   }
   return pool[pool.length - 1]
