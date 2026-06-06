@@ -35,6 +35,7 @@ import {
   BarChart3,
   Dices,
   Ticket,
+  Lock,
   CalendarCheck,
   Ban,
   CalendarPlus,
@@ -183,6 +184,7 @@ type PromoterCode = {
 const TABS = [
   "Overview",
   "Financials",
+  "Games",
   "Investments",
   "Transactions",
   "Withdrawals",
@@ -195,6 +197,51 @@ const TABS = [
   "Milestones",
 ] as const
 type Tab = (typeof TABS)[number]
+
+type SpinRow = {
+  id: number
+  userId: string
+  stakeAmount: string
+  outcome: string
+  multiplier: string
+  winAmount: string
+  createdAt: Date | string
+  userName: string | null
+  userEmail: string | null
+}
+
+type VaultRow = {
+  id: number
+  userId: string
+  amount: string
+  lockDays: number
+  bonusPercent: string
+  bonusAmount: string
+  status: string
+  unlocksAt: Date | string
+  penaltyAmount: string | null
+  createdAt: Date | string
+  completedAt: Date | string | null
+  userName: string | null
+  userEmail: string | null
+}
+
+type DrawSlotRow = {
+  id: number
+  userId: string
+  source: string
+  purchaseAmount: string | null
+  drawDate: string
+  createdAt: Date | string
+  userName: string | null
+  userEmail: string | null
+}
+
+type GameStats = {
+  spin: { total: number; wins: number; losses: number; winRate: number; totalStaked: number; totalPaidOut: number; houseProfit: number }
+  vault: { total: number; active: number; totalLocked: number }
+  draw: { totalSlots: number; paidSlots: number; revenue: number }
+}
 
 type InvestmentRow = {
   id: number
@@ -249,6 +296,10 @@ type AdminData = {
   investments: InvestmentRow[]
   financials: Financials
   drawRounds: DrawRound[]
+  spins: SpinRow[]
+  vaults: VaultRow[]
+  drawSlots: DrawSlotRow[]
+  gameStats: GameStats
 }
 
 export function AdminDashboard(initial: AdminData) {
@@ -279,7 +330,7 @@ export function AdminDashboard(initial: AdminData) {
     }
   }, [refresh])
 
-  const { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds } = data
+  const { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats } = data
 
   return (
     <div className="min-h-screen pb-10">
@@ -336,6 +387,7 @@ export function AdminDashboard(initial: AdminData) {
 
         {tab === "Overview" && <Overview stats={stats} controls={controls} onAction={() => refresh()} />}
         {tab === "Financials" && <FinancialsTab data={financials} />}
+        {tab === "Games" && <GamesAdminTab spins={spins} vaults={vaults} drawSlots={drawSlots} drawRounds={drawRounds} gameStats={gameStats} onAction={() => refresh()} />}
         {tab === "Investments" && <InvestmentsTab items={investments} onAction={() => refresh()} />}
         {tab === "Transactions" && <TransactionsTab items={transactions} />}
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
@@ -1659,6 +1711,313 @@ function Empty({ label }: { label: string }) {
   return (
     <div className="rounded-2xl border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
       {label}
+    </div>
+  )
+}
+
+// ── Games Admin Tab ───────────────────────────────────────────────────────────
+
+type GameSubTab = "overview" | "spin" | "vault" | "draw"
+
+function GamesAdminTab({
+  spins, vaults, drawSlots, drawRounds, gameStats, onAction,
+}: {
+  spins: SpinRow[]
+  vaults: VaultRow[]
+  drawSlots: DrawSlotRow[]
+  drawRounds: DrawRound[]
+  gameStats: GameStats
+  onAction: () => void
+}) {
+  const [sub, setSub] = useState<GameSubTab>("overview")
+  const [pending, startTransition] = useTransition()
+  const [spinFilter, setSpinFilter] = useState<"all" | "win" | "lose">("all")
+  const [vaultFilter, setVaultFilter] = useState<"all" | "locked" | "completed" | "broken">("all")
+  const [houseEdge, setHouseEdge] = useState(String(SITE.stakeHouseEdge * 100))
+  const [slotCost, setSlotCost] = useState(String(SITE.luckyDrawSlotCost))
+
+  const SUB_TABS: { id: GameSubTab; label: string; icon: React.ElementType }[] = [
+    { id: "overview", label: "Overview", icon: BarChart3 },
+    { id: "spin", label: "Stake & Spin", icon: Dices },
+    { id: "vault", label: "Lock Vault", icon: Lock },
+    { id: "draw", label: "Lucky Draw", icon: Ticket },
+  ]
+
+  const filteredSpins = spins.filter((s) => spinFilter === "all" || s.outcome === spinFilter)
+  const filteredVaults = vaults.filter((v) => vaultFilter === "all" || v.status === vaultFilter)
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Sub-tab switcher */}
+      <div className="no-scrollbar flex gap-2 overflow-x-auto">
+        {SUB_TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setSub(t.id)}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
+              sub === t.id
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground"
+            }`}
+          >
+            <t.icon className="h-3.5 w-3.5" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Overview ── */}
+      {sub === "overview" && (
+        <div className="flex flex-col gap-4">
+          {/* Stake & Spin stats */}
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Dices className="h-4 w-4 text-primary" />
+              <p className="font-bold">Stake &amp; Spin</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: "Total Spins", value: gameStats.spin.total.toString() },
+                { label: "Win Rate", value: `${gameStats.spin.winRate}%` },
+                { label: "Total Staked", value: `₦${gameStats.spin.totalStaked.toLocaleString()}` },
+                { label: "Total Paid Out", value: `₦${gameStats.spin.totalPaidOut.toLocaleString()}` },
+                { label: "House Profit", value: `₦${gameStats.spin.houseProfit.toLocaleString()}`, highlight: true },
+                { label: "Wins / Losses", value: `${gameStats.spin.wins} / ${gameStats.spin.losses}` },
+              ].map((c) => (
+                <div key={c.label} className="rounded-xl bg-secondary/60 p-3">
+                  <p className={`font-mono text-base font-bold ${c.highlight ? "text-success" : ""}`}>{c.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{c.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Lock Vault stats */}
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Lock className="h-4 w-4 text-primary" />
+              <p className="font-bold">Lock Vault</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "Total Vaults", value: gameStats.vault.total.toString() },
+                { label: "Active", value: gameStats.vault.active.toString() },
+                { label: "Total Locked", value: `₦${gameStats.vault.totalLocked.toLocaleString()}` },
+              ].map((c) => (
+                <div key={c.label} className="rounded-xl bg-secondary/60 p-3 text-center">
+                  <p className="font-mono text-base font-bold">{c.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{c.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Lucky Draw stats */}
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Ticket className="h-4 w-4 text-primary" />
+              <p className="font-bold">Lucky Draw</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "Total Slots", value: gameStats.draw.totalSlots.toString() },
+                { label: "Paid Slots", value: gameStats.draw.paidSlots.toString() },
+                { label: "Slot Revenue", value: `₦${gameStats.draw.revenue.toLocaleString()}` },
+              ].map((c) => (
+                <div key={c.label} className="rounded-xl bg-secondary/60 p-3 text-center">
+                  <p className="font-mono text-base font-bold">{c.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{c.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Config display (read-only — edit in plans.ts) */}
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <p className="mb-3 font-bold">Current Config</p>
+            <div className="flex flex-col gap-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">House Edge (Spin)</span>
+                <span className="font-mono font-bold">{SITE.stakeHouseEdge * 100}% lose chance</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Stake Range</span>
+                <span className="font-mono font-bold">₦{SITE.stakeMin.toLocaleString()} – ₦{SITE.stakeMax.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Multipliers</span>
+                <span className="font-mono font-bold">{SITE.stakeMultipliers.join("x, ")}x</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Slot Cost</span>
+                <span className="font-mono font-bold">₦{SITE.luckyDrawSlotCost.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Vault Tiers</span>
+                <span className="font-mono font-bold">
+                  {SITE.vaultTiers.map((t) => `${t.days}d/+${t.bonusPercent}%`).join(", ")}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Stake & Spin History ── */}
+      {sub === "spin" && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold">{filteredSpins.length} records</p>
+            <div className="flex gap-1.5">
+              {(["all", "win", "lose"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setSpinFilter(f)}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${
+                    spinFilter === f ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground"
+                  }`}
+                >
+                  {f === "all" ? `All (${spins.length})` : f === "win" ? `Win (${spins.filter((s) => s.outcome === "win").length})` : `Lose (${spins.filter((s) => s.outcome === "lose").length})`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {filteredSpins.length === 0 && <Empty label="No spin records" />}
+          {filteredSpins.map((s) => (
+            <div key={s.id} className="rounded-xl border border-border bg-card px-4 py-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold">{s.userEmail ?? s.userId}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Staked ₦{Number(s.stakeAmount).toLocaleString()} · {new Date(s.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                <div className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${
+                  s.outcome === "win"
+                    ? "bg-success/20 text-success"
+                    : "bg-destructive/20 text-destructive"
+                }`}>
+                  {s.outcome === "win" ? `+₦${Number(s.winAmount).toLocaleString()} (${s.multiplier}x)` : `-₦${Number(s.stakeAmount).toLocaleString()}`}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Lock Vault History ── */}
+      {sub === "vault" && (
+        <div className="flex flex-col gap-3">
+          <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+            {(["all", "locked", "completed", "broken"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setVaultFilter(f)}
+                className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${
+                  vaultFilter === f ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground"
+                }`}
+              >
+                {f} ({f === "all" ? vaults.length : vaults.filter((v) => v.status === f).length})
+              </button>
+            ))}
+          </div>
+
+          {filteredVaults.length === 0 && <Empty label="No vault records" />}
+          {filteredVaults.map((v) => {
+            const unlockDate = new Date(v.unlocksAt)
+            const matured = new Date() >= unlockDate
+            return (
+              <div key={v.id} className="rounded-xl border border-border bg-card p-4">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold">{v.userEmail ?? v.userId}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {v.lockDays} days · Created {new Date(v.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <StatusBadge status={v.status === "locked" ? (matured ? "approved" : "pending") : v.status === "completed" ? "approved" : "rejected"} />
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-secondary/50 p-2">
+                    <p className="font-mono text-sm font-bold">₦{Number(v.amount).toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground">Locked</p>
+                  </div>
+                  <div className="rounded-lg bg-secondary/50 p-2">
+                    <p className="font-mono text-sm font-bold text-success">+₦{Number(v.bonusAmount).toLocaleString()}</p>
+                    <p className="text-[10px] text-muted-foreground">Bonus ({v.bonusPercent}%)</p>
+                  </div>
+                  <div className="rounded-lg bg-secondary/50 p-2">
+                    <p className={`text-xs font-bold ${matured && v.status === "locked" ? "text-success" : "text-muted-foreground"}`}>
+                      {v.status === "locked" ? (matured ? "Matured" : unlockDate.toLocaleDateString()) : v.status}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">Unlocks</p>
+                  </div>
+                </div>
+                {v.penaltyAmount && (
+                  <p className="mt-2 text-xs text-destructive">Penalty: ₦{Number(v.penaltyAmount).toLocaleString()}</p>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Lucky Draw Slots & Rounds ── */}
+      {sub === "draw" && (
+        <div className="flex flex-col gap-4">
+          {/* Rounds */}
+          <p className="text-sm font-bold">Draw Rounds</p>
+          {drawRounds.length === 0 && <Empty label="No draw rounds yet" />}
+          {drawRounds.map((r) => (
+            <div key={r.id} className="rounded-xl border border-border bg-card p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="font-bold">{r.drawDate}</p>
+                <StatusBadge status={r.status === "drawn" ? "completed" : "pending"} />
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="rounded-lg bg-secondary/50 p-2">
+                  <p className="font-mono text-sm font-bold">₦{Number(r.prizePool).toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground">Prize Pool</p>
+                </div>
+                <div className="rounded-lg bg-secondary/50 p-2">
+                  <p className="font-mono text-sm font-bold">
+                    {drawSlots.filter((s) => s.drawDate === r.drawDate).length}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Slots Entered</p>
+                </div>
+              </div>
+              {r.status === "drawn" && (
+                <div className="mt-2 rounded-lg border border-success/20 bg-success/10 px-3 py-2">
+                  <p className="text-xs font-bold text-success">Winners paid</p>
+                  {[r.winner1Id, r.winner2Id, r.winner3Id].filter(Boolean).map((uid, i) => (
+                    <p key={uid} className="mt-0.5 text-[11px] text-muted-foreground">
+                      {i + 1}. {uid}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Slot entries */}
+          <p className="text-sm font-bold">All Slot Entries ({drawSlots.length})</p>
+          {drawSlots.length === 0 && <Empty label="No slots purchased yet" />}
+          {drawSlots.slice(0, 100).map((s) => (
+            <div key={s.id} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold">{s.userEmail ?? s.userId}</p>
+                <p className="text-[11px] text-muted-foreground">{s.drawDate} · {s.source}</p>
+              </div>
+              <div className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${
+                s.source === "purchased" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
+              }`}>
+                {s.source === "purchased" ? `₦${Number(s.purchaseAmount).toLocaleString()}` : "Free"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

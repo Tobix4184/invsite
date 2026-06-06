@@ -17,6 +17,10 @@ import {
   getAllInvestments,
   getFinancials,
   getLuckyDrawRounds,
+  getAllSpins,
+  getAllVaults,
+  getAllDrawSlots,
+  getGameStats,
 } from "@/app/actions/admin"
 import { AdminDashboard } from "@/components/admin/admin-dashboard"
 
@@ -43,6 +47,10 @@ export default async function AdminPage() {
     investments,
     financials,
     drawRounds,
+    spins,
+    vaults,
+    drawSlots,
+    gameStats,
   ] = await Promise.all([
     getAdminStats(),
     getPendingWithdrawals(),
@@ -57,6 +65,10 @@ export default async function AdminPage() {
     getAllInvestments(),
     getFinancials(),
     getLuckyDrawRounds(),
+    getAllSpins(),
+    getAllVaults(),
+    getAllDrawSlots(),
+    getGameStats(),
   ])
 
   return (
@@ -74,6 +86,10 @@ export default async function AdminPage() {
       investments={investments}
       financials={financials}
       drawRounds={drawRounds}
+      spins={spins}
+      vaults={vaults}
+      drawSlots={drawSlots}
+      gameStats={gameStats}
     />
   )
 }

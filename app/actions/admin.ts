@@ -17,6 +17,8 @@ import {
   promoterCode,
   luckyDrawRound,
   luckyDrawSlot,
+  stakeSpin,
+  lockVault,
 } from "@/lib/db/schema"
 import { requireAdmin } from "@/lib/session"
 import { accrueIncomeForAll } from "@/lib/income-engine"
@@ -836,11 +838,118 @@ export async function executeLuckyDraw(drawDate: string) {
   return { ok: true, message: `Draw executed. ${winners.length} winners paid from ₦${pool.toLocaleString()} pool.` }
 }
 
+// ── Admin: Game History Queries ───────────────────────────────────────────────
+
+export async function getAllSpins() {
+  await requireAdmin()
+  const rows = await db
+    .select({
+      id: stakeSpin.id,
+      userId: stakeSpin.userId,
+      stakeAmount: stakeSpin.stakeAmount,
+      outcome: stakeSpin.outcome,
+      multiplier: stakeSpin.multiplier,
+      winAmount: stakeSpin.winAmount,
+      createdAt: stakeSpin.createdAt,
+      userName: userTable.name,
+      userEmail: userTable.email,
+    })
+    .from(stakeSpin)
+    .leftJoin(userTable, eq(stakeSpin.userId, userTable.id))
+    .orderBy(desc(stakeSpin.createdAt))
+    .limit(200)
+  return rows
+}
+
+export async function getAllVaults() {
+  await requireAdmin()
+  const rows = await db
+    .select({
+      id: lockVault.id,
+      userId: lockVault.userId,
+      amount: lockVault.amount,
+      lockDays: lockVault.lockDays,
+      bonusPercent: lockVault.bonusPercent,
+      bonusAmount: lockVault.bonusAmount,
+      status: lockVault.status,
+      unlocksAt: lockVault.unlocksAt,
+      penaltyAmount: lockVault.penaltyAmount,
+      createdAt: lockVault.createdAt,
+      completedAt: lockVault.completedAt,
+      userName: userTable.name,
+      userEmail: userTable.email,
+    })
+    .from(lockVault)
+    .leftJoin(userTable, eq(lockVault.userId, userTable.id))
+    .orderBy(desc(lockVault.createdAt))
+    .limit(200)
+  return rows
+}
+
+export async function getAllDrawSlots() {
+  await requireAdmin()
+  const rows = await db
+    .select({
+      id: luckyDrawSlot.id,
+      userId: luckyDrawSlot.userId,
+      source: luckyDrawSlot.source,
+      purchaseAmount: luckyDrawSlot.purchaseAmount,
+      drawDate: luckyDrawSlot.drawDate,
+      createdAt: luckyDrawSlot.createdAt,
+      userName: userTable.name,
+      userEmail: userTable.email,
+    })
+    .from(luckyDrawSlot)
+    .leftJoin(userTable, eq(luckyDrawSlot.userId, userTable.id))
+    .orderBy(desc(luckyDrawSlot.createdAt))
+    .limit(500)
+  return rows
+}
+
+export async function getGameStats() {
+  await requireAdmin()
+
+  const [totalSpins] = await db.select({ c: sql<number>`count(*)::int` }).from(stakeSpin)
+  const [spinWins] = await db.select({ c: sql<number>`count(*)::int` }).from(stakeSpin).where(eq(stakeSpin.outcome, "win"))
+  const [spinStaked] = await db.select({ total: sql<number>`coalesce(sum("stakeAmount"),0)::float` }).from(stakeSpin)
+  const [spinPaidOut] = await db.select({ total: sql<number>`coalesce(sum("winAmount"),0)::float` }).from(stakeSpin).where(eq(stakeSpin.outcome, "win"))
+
+  const [totalVaults] = await db.select({ c: sql<number>`count(*)::int` }).from(lockVault)
+  const [activeVaults] = await db.select({ c: sql<number>`count(*)::int` }).from(lockVault).where(eq(lockVault.status, "locked"))
+  const [vaultLocked] = await db.select({ total: sql<number>`coalesce(sum(amount),0)::float` }).from(lockVault).where(eq(lockVault.status, "locked"))
+
+  const [totalSlots] = await db.select({ c: sql<number>`count(*)::int` }).from(luckyDrawSlot)
+  const [paidSlots] = await db.select({ c: sql<number>`count(*)::int` }).from(luckyDrawSlot).where(eq(luckyDrawSlot.source, "purchased"))
+  const [slotRevenue] = await db.select({ total: sql<number>`coalesce(sum("purchaseAmount"),0)::float` }).from(luckyDrawSlot).where(eq(luckyDrawSlot.source, "purchased"))
+
+  return {
+    spin: {
+      total: totalSpins.c,
+      wins: spinWins.c,
+      losses: totalSpins.c - spinWins.c,
+      winRate: totalSpins.c > 0 ? Math.round((spinWins.c / totalSpins.c) * 100) : 0,
+      totalStaked: spinStaked.total,
+      totalPaidOut: spinPaidOut.total,
+      houseProfit: spinStaked.total - spinPaidOut.total,
+    },
+    vault: {
+      total: totalVaults.c,
+      active: activeVaults.c,
+      totalLocked: vaultLocked.total,
+    },
+    draw: {
+      totalSlots: totalSlots.c,
+      paidSlots: paidSlots.c,
+      revenue: slotRevenue.total,
+    },
+  }
+}
+
 // Single action that fetches all admin dashboard data in parallel.
 // Used by the live-polling client so it only needs one round-trip.
 export async function getAdminData() {
   await requireAdmin()
-  const [stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds] =
+  const [stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats] =
     await Promise.all([
       getAdminStats(),
       getPendingWithdrawals(),
@@ -855,6 +964,10 @@ export async function getAdminData() {
       getAllInvestments(),
       getFinancials(),
       getLuckyDrawRounds(),
+      getAllSpins(),
+      getAllVaults(),
+      getAllDrawSlots(),
+      getGameStats(),
     ])
-  return { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds }
+  return { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats }
 }

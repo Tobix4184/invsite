@@ -7,6 +7,7 @@ import { wallet, investment, lockVault, luckyDrawSlot, luckyDrawRound } from "@/
 import { eq, and, desc } from "drizzle-orm"
 import { SITE } from "@/lib/plans"
 import { GamesHub } from "@/components/games/games-hub"
+import { BottomNav } from "@/components/bottom-nav"
 
 export default async function GamesPage() {
   const session = await getSession()
@@ -43,19 +44,23 @@ export default async function GamesPage() {
     .orderBy(desc(lockVault.createdAt))
 
   return (
-    <GamesHub
-      balance={balance}
-      activeInvestments={activeInvestments.length}
-      today={today}
-      round={round ?? null}
-      todaySlotsCount={todaySlots.length}
-      freeSlotsTotal={activeInvestments.length * SITE.luckyDrawFreePerInvestment}
-      vaults={vaults}
-      features={SITE.features}
-      vaultTiers={SITE.vaultTiers}
-      stakeMin={SITE.stakeMin}
-      stakeMax={SITE.stakeMax}
-      slotCost={SITE.luckyDrawSlotCost}
-    />
+    <>
+      <GamesHub
+        balance={balance}
+        activeInvestments={activeInvestments.length}
+        hasInvestment={activeInvestments.length > 0}
+        today={today}
+        round={round ?? null}
+        todaySlotsCount={todaySlots.length}
+        freeSlotsTotal={activeInvestments.length * SITE.luckyDrawFreePerInvestment}
+        vaults={vaults}
+        features={SITE.features}
+        vaultTiers={SITE.vaultTiers}
+        stakeMin={SITE.stakeMin}
+        stakeMax={SITE.stakeMax}
+        slotCost={SITE.luckyDrawSlotCost}
+      />
+      <BottomNav />
+    </>
   )
 }
