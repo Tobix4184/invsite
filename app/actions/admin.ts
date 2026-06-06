@@ -129,7 +129,12 @@ export async function rejectWithdrawal(id: number) {
 
 export async function getAdminUsers() {
   await requireAdmin()
-  
+
+  // Alias for the referrer's user row so we can join it without collision
+  const referrerUser = db.$with("referrer_user").as(
+    db.select({ id: userTable.id, name: userTable.name }).from(userTable)
+  )
+
   const users = await db
     .select({
       id: userTable.id,
@@ -141,6 +146,7 @@ export async function getAdminUsers() {
       balance: wallet.balance,
       totalDeposited: wallet.totalDeposited,
       referralEarnings: wallet.referralEarnings,
+      referredBy: profile.referredBy,
       createdAt: userTable.createdAt,
     })
     .from(userTable)
@@ -148,7 +154,17 @@ export async function getAdminUsers() {
     .leftJoin(wallet, eq(userTable.id, wallet.userId))
     .orderBy(desc(userTable.createdAt))
     .limit(200)
-  
+
+  // Build a map of inviteCode → name so we can resolve referredBy invite codes
+  const allProfiles = await db
+    .select({ inviteCode: profile.inviteCode, userId: profile.userId })
+    .from(profile)
+
+  const inviteCodeToUserId = new Map(allProfiles.map((p) => [p.inviteCode, p.userId]))
+
+  const allUsers = await db.select({ id: userTable.id, name: userTable.name }).from(userTable)
+  const userIdToName = new Map(allUsers.map((u) => [u.id, u.name]))
+
   const referralCounts = await db
     .select({
       referrerId: referral.referrerId,
@@ -157,12 +173,54 @@ export async function getAdminUsers() {
     .from(referral)
     .where(eq(referral.level, 1))
     .groupBy(referral.referrerId)
-  
-  const countMap = new Map(referralCounts.map(r => [r.referrerId, r.count]))
-  
-  return users.map(u => ({
-    ...u,
-    referralCount: countMap.get(u.id) || 0,
+
+  const countMap = new Map(referralCounts.map((r) => [r.referrerId, r.count]))
+
+  return users.map((u) => {
+    const referrerId = u.referredBy ? inviteCodeToUserId.get(u.referredBy) : null
+    const referredByName = referrerId ? (userIdToName.get(referrerId) ?? null) : null
+    return {
+      ...u,
+      referralCount: countMap.get(u.id) || 0,
+      referredByName,
+    }
+  })
+}
+
+/**
+ * Returns the full list of users directly referred by a given user,
+ * including deposit status and commission earned from each.
+ */
+export async function getAdminReferralsForUser(referrerId: string) {
+  await requireAdmin()
+
+  const rows = await db
+    .select({
+      referralId: referral.id,
+      referredId: referral.referredId,
+      totalCommission: referral.totalCommission,
+      joinedAt: referral.createdAt,
+      name: userTable.name,
+      email: userTable.email,
+      balance: wallet.balance,
+      totalDeposited: wallet.totalDeposited,
+    })
+    .from(referral)
+    .leftJoin(userTable, eq(referral.referredId, userTable.id))
+    .leftJoin(wallet, eq(referral.referredId, wallet.userId))
+    .where(and(eq(referral.referrerId, referrerId), eq(referral.level, 1)))
+    .orderBy(desc(referral.createdAt))
+
+  return rows.map((r) => ({
+    referralId: r.referralId,
+    referredId: r.referredId,
+    name: r.name ?? "Unknown",
+    email: r.email ?? "—",
+    totalDeposited: r.totalDeposited ?? "0",
+    hasDeposited: Number(r.totalDeposited ?? 0) > 0,
+    balance: r.balance ?? "0",
+    commissionEarned: r.totalCommission ?? "0",
+    joinedAt: r.joinedAt,
   }))
 }
 

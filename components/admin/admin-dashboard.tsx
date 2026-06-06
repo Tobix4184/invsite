@@ -39,6 +39,7 @@ import {
   CalendarCheck,
   Ban,
   CalendarPlus,
+  ChevronDown,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
@@ -70,6 +71,7 @@ import {
   adminExtendInvestment,
   executeLuckyDraw,
   saveGameConfig,
+  getAdminReferralsForUser,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -109,6 +111,19 @@ type AdminUser = {
   totalDeposited: string | null
   referralEarnings: string | null
   referralCount: number
+  referredByName: string | null
+}
+
+type ReferralDetail = {
+  referralId: number
+  referredId: string
+  name: string
+  email: string
+  totalDeposited: string
+  hasDeposited: boolean
+  balance: string
+  commissionEarned: string
+  joinedAt: Date | string
 }
 
 type GiftCode = {
@@ -696,7 +711,23 @@ function UsersTab({ items }: { items: AdminUser[] }) {
   const [note, setNote] = useState("")
   const [commissionEditing, setCommissionEditing] = useState<string | null>(null)
   const [commissionVal, setCommissionVal] = useState("")
+  const [expandedReferrals, setExpandedReferrals] = useState<Set<string>>(new Set())
+  const [referralDetails, setReferralDetails] = useState<Record<string, ReferralDetail[]>>({})
+  const [loadingReferrals, setLoadingReferrals] = useState<Set<string>>(new Set())
   const router = useRouter()
+
+  async function toggleReferrals(userId: string) {
+    if (expandedReferrals.has(userId)) {
+      setExpandedReferrals((s) => { const n = new Set(s); n.delete(userId); return n })
+      return
+    }
+    setExpandedReferrals((s) => new Set(s).add(userId))
+    if (referralDetails[userId]) return // already loaded
+    setLoadingReferrals((s) => new Set(s).add(userId))
+    const data = await getAdminReferralsForUser(userId)
+    setReferralDetails((prev) => ({ ...prev, [userId]: data }))
+    setLoadingReferrals((s) => { const n = new Set(s); n.delete(userId); return n })
+  }
 
   function submit(userId: string) {
     startTransition(async () => {
@@ -753,12 +784,28 @@ function UsersTab({ items }: { items: AdminUser[] }) {
                 )}
               </p>
               <p className="truncate text-xs text-muted-foreground">{u.email}</p>
-              <p className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Users className="h-3 w-3" /> {u.referralCount} referrals
-                </span>
-                <span>·</span>
-                <span className="text-success">{formatNaira(Number(u.referralEarnings ?? 0))} earned</span>
+              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+                <button
+                  onClick={() => toggleReferrals(u.id)}
+                  className={`flex items-center gap-1 rounded-full border px-2 py-0.5 transition-colors ${
+                    expandedReferrals.has(u.id)
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-border bg-secondary/60 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Users className="h-3 w-3" />
+                  {u.referralCount} referred
+                  {u.referralCount > 0 && (
+                    <ChevronDown className={`h-3 w-3 transition-transform ${expandedReferrals.has(u.id) ? "rotate-180" : ""}`} />
+                  )}
+                </button>
+                <span className="text-success">{formatNaira(Number(u.referralEarnings ?? 0))} commission</span>
+                {u.referredByName && (
+                  <>
+                    <span>·</span>
+                    <span>via <span className="font-semibold text-foreground">{u.referredByName}</span></span>
+                  </>
+                )}
               </p>
             </div>
             <div className="text-right">
@@ -847,6 +894,54 @@ function UsersTab({ items }: { items: AdminUser[] }) {
               <button onClick={() => handleSetCommission(u.id)} disabled={pending} className="flex items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60">
                 {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save
               </button>
+            </div>
+          )}
+
+          {/* Referral drill-down panel */}
+          {expandedReferrals.has(u.id) && (
+            <div className="mt-3 rounded-xl border border-border bg-secondary/40 p-3">
+              <p className="mb-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                Referred Users ({u.referralCount})
+              </p>
+              {loadingReferrals.has(u.id) && (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {!loadingReferrals.has(u.id) && (referralDetails[u.id]?.length ?? 0) === 0 && (
+                <p className="py-2 text-center text-xs text-muted-foreground">No referrals yet</p>
+              )}
+              {!loadingReferrals.has(u.id) && referralDetails[u.id]?.map((r) => (
+                <div
+                  key={r.referralId}
+                  className="mb-2 last:mb-0 rounded-lg border border-border bg-card px-3 py-2.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold">{r.name}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{r.email}</p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        Joined {new Date(r.joinedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className={`mb-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        r.hasDeposited
+                          ? "bg-success/15 text-success"
+                          : "bg-secondary text-muted-foreground"
+                      }`}>
+                        {r.hasDeposited ? "Deposited" : "No deposit"}
+                      </div>
+                      <p className="text-[11px] font-mono font-bold">
+                        dep {formatNaira(Number(r.totalDeposited))}
+                      </p>
+                      <p className="text-[10px] text-success font-mono">
+                        +{formatNaira(Number(r.commissionEarned))} commission
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
