@@ -800,7 +800,8 @@ export async function executeLuckyDraw(drawDate: string) {
   }
 
   const pool = Number(round.prizePool)
-  const shares = [0.5, 0.3, 0.2].slice(0, winners.length)
+  // 35% 1st, 20% 2nd, 15% 3rd — platform retains the remaining 30%
+  const shares = [0.35, 0.20, 0.15].slice(0, winners.length)
   const amounts = shares.map((s) => Math.round(pool * s))
 
   // Pay out winners
@@ -834,8 +835,11 @@ export async function executeLuckyDraw(drawDate: string) {
     executedAt: new Date(),
   }).where(eq(luckyDrawRound.drawDate, drawDate))
 
+  const totalPaid = amounts.reduce((a, b) => a + b, 0)
+  const platformEarned = pool - totalPaid
+
   revalidatePath("/admin")
-  return { ok: true, message: `Draw executed. ${winners.length} winners paid from ₦${pool.toLocaleString()} pool.` }
+  return { ok: true, message: `Draw executed. ${winners.length} winners paid ₦${totalPaid.toLocaleString()} (platform retained ₦${platformEarned.toLocaleString()}).` }
 }
 
 // ── Admin: Game Config ────────────────────────────────────────────────────────

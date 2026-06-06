@@ -78,7 +78,7 @@ export function LuckyDrawGame({
           ₦{prizePool.toLocaleString()}
         </p>
         <p className="text-xs text-muted-foreground">
-          Top 3 slot holders win 50% / 30% / 20%
+          Top 3 winners take 35% / 20% / 15% of the pool
         </p>
 
         <div className="mt-4 flex justify-center gap-3">
@@ -219,7 +219,7 @@ export function LuckyDrawGame({
           <li>• Each active investment earns you 1 free slot per day</li>
           <li>• Buy extra slots for ₦{slotCost.toLocaleString()} each — they grow the prize pool</li>
           <li>• Admin executes the draw daily — 3 random winners selected</li>
-          <li>• Winners receive 50%, 30%, and 20% of the prize pool</li>
+          <li>• Winners receive 35%, 20%, and 15% of the prize pool (platform retains 30%)</li>
           <li>• More slots = higher chance of winning</li>
         </ul>
       </div>
