@@ -3,8 +3,7 @@
 import { useState, useTransition } from "react"
 import { Lock, Unlock, AlertTriangle, Loader2, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
-import { createVault, claimVault } from "@/app/actions/games"
-import { SITE } from "@/lib/plans"
+import { createVault, claimVault, getUserVaults } from "@/app/actions/games"
 
 type Vault = {
   id: number
@@ -27,10 +26,12 @@ export function LockVaultGame({
   balance,
   vaults,
   tiers,
+  vaultMin,
 }: {
   balance: number
   vaults: Vault[]
   tiers: Tier[]
+  vaultMin: number
 }) {
   const [localBalance, setLocalBalance] = useState(balance)
   const [activeVaults, setActiveVaults] = useState(vaults)
@@ -44,8 +45,8 @@ export function LockVaultGame({
   const payout = parsedAmount + bonus
 
   const handleCreate = () => {
-    if (!tier || parsedAmount < SITE.vaultMin) {
-      toast.error(`Minimum lock amount is ₦${SITE.vaultMin.toLocaleString()}`)
+    if (!tier || parsedAmount < vaultMin) {
+      toast.error(`Minimum lock amount is ₦${vaultMin.toLocaleString()}`)
       return
     }
     if (parsedAmount > localBalance) {
@@ -58,21 +59,9 @@ export function LockVaultGame({
       toast.success(res.message)
       setLocalBalance((b) => b - parsedAmount)
       setAmount("")
-      // Optimistic vault entry
-      const unlocksAt = new Date(Date.now() + tier.days * 86400000)
-      setActiveVaults((v) => [
-        {
-          id: Date.now(),
-          amount: parsedAmount,
-          lockDays: tier.days,
-          bonusPercent: tier.bonusPercent,
-          bonusAmount: bonus,
-          status: "locked",
-          unlocksAt,
-          createdAt: new Date(),
-        },
-        ...v,
-      ])
+      // Reload real vaults from server so we have the true DB id (no fake optimistic id)
+      const fresh = await getUserVaults()
+      setActiveVaults(fresh as Vault[])
     })
   }
 
@@ -138,7 +127,7 @@ export function LockVaultGame({
         {/* Amount input */}
         <div className="mb-3">
           <label className="mb-1.5 block text-xs font-bold text-muted-foreground">
-            Amount to Lock (min ₦{SITE.vaultMin.toLocaleString()})
+            Amount to Lock (min ₦{vaultMin.toLocaleString()})
           </label>
           <input
             type="number"
@@ -150,7 +139,7 @@ export function LockVaultGame({
         </div>
 
         {/* Calculation preview */}
-        {parsedAmount >= SITE.vaultMin && tier && (
+        {parsedAmount >= vaultMin && tier && (
           <div className="mb-4 rounded-xl border border-border bg-secondary/50 p-3">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Principal</span>
@@ -179,7 +168,7 @@ export function LockVaultGame({
 
         <button
           onClick={handleCreate}
-          disabled={pending || parsedAmount < SITE.vaultMin || parsedAmount > localBalance}
+          disabled={pending || parsedAmount < vaultMin || parsedAmount > localBalance}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60"
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}

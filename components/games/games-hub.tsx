@@ -29,7 +29,7 @@ type Round = {
 type Props = {
   balance: number
   activeInvestments: number
-  hasInvestment: boolean
+  hasDeposited: boolean
   today: string
   round: Round
   todaySlotsCount: number
@@ -40,6 +40,7 @@ type Props = {
   stakeMin: number
   stakeMax: number
   slotCost: number
+  vaultMin: number
 }
 
 const TABS: { id: Tab; label: string; icon: typeof Dices; feature: keyof Props["features"] }[] = [
@@ -49,7 +50,7 @@ const TABS: { id: Tab; label: string; icon: typeof Dices; feature: keyof Props["
 ]
 
 export function GamesHub(props: Props) {
-  const { balance, features, hasInvestment } = props
+  const { balance, features, hasDeposited } = props
   const enabledTabs = TABS.filter((t) => features[t.feature])
   const [tab, setTab] = useState<Tab>(enabledTabs[0]?.id ?? "spin")
 
@@ -81,29 +82,29 @@ export function GamesHub(props: Props) {
       </header>
 
       <div className="mx-auto max-w-2xl px-4 pt-5">
-        {/* Investment gate */}
-        {!hasInvestment && (
+        {/* Deposit gate */}
+        {!hasDeposited && (
           <div className="mb-5 flex flex-col items-center gap-4 rounded-2xl border border-border bg-card px-6 py-10 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-secondary">
               <ShieldAlert className="h-7 w-7 text-muted-foreground" />
             </div>
             <div>
-              <p className="font-bold">Investment Required</p>
+              <p className="font-bold">Deposit Required</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                You need an active investment to access Games. Purchase a plan first to unlock Stake &amp; Spin, Lucky Draw, and Lock Vault.
+                Make your first deposit to unlock all game features — Stake &amp; Spin, Lucky Draw, and Lock Vault.
               </p>
             </div>
             <Link
-              href="/products"
+              href="/deposit"
               className="flex h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-bold text-primary-foreground"
             >
-              Browse Plans
+              Make a Deposit
             </Link>
           </div>
         )}
 
-        {/* Tab switcher + game content — only shown when user has an active investment */}
-        {hasInvestment && (
+        {/* Tab switcher + game content — only shown when user has deposited */}
+        {hasDeposited && (
           <>
             <div className="mb-5 flex gap-2 rounded-2xl border border-border bg-card p-1.5">
               {enabledTabs.map((t) => (
@@ -139,6 +140,7 @@ export function GamesHub(props: Props) {
                 balance={balance}
                 vaults={props.vaults}
                 tiers={props.vaultTiers}
+                vaultMin={props.vaultMin}
               />
             )}
           </>
