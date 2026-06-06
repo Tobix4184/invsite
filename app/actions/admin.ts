@@ -617,3 +617,23 @@ export async function deletePromoterCode(id: number) {
   revalidatePath("/admin")
   return { ok: true, message: "Promoter code deleted" }
 }
+
+// Single action that fetches all admin dashboard data in parallel.
+// Used by the live-polling client so it only needs one round-trip.
+export async function getAdminData() {
+  await requireAdmin()
+  const [stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes] =
+    await Promise.all([
+      getAdminStats(),
+      getPendingWithdrawals(),
+      getAdminUsers(),
+      getGiftCodes(),
+      getRecentDeposits(),
+      getBankAccounts(),
+      getMilestones(),
+      getSiteControls(),
+      getAllTransactions({ limit: 100 }),
+      getPromoterCodes(),
+    ])
+  return { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes }
+}

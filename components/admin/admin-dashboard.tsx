@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -31,6 +31,7 @@ import {
   Copy,
   Link2,
   Percent,
+  RefreshCw,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
@@ -56,8 +57,11 @@ import {
   togglePromoterCode,
   deletePromoterCode,
   setPromoterCommission,
+  getAdminData,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
+
+const POLL_INTERVAL = 20_000 // 20 seconds
 
 type Stats = {
   users: number
@@ -179,18 +183,7 @@ const TABS = [
 ] as const
 type Tab = (typeof TABS)[number]
 
-export function AdminDashboard({
-  stats,
-  withdrawals,
-  users,
-  giftCodes,
-  deposits,
-  bankAccounts,
-  milestones,
-  controls,
-  transactions,
-  promoterCodes,
-}: {
+type AdminData = {
   stats: Stats
   withdrawals: Withdrawal[]
   users: AdminUser[]
@@ -201,8 +194,37 @@ export function AdminDashboard({
   controls: Controls
   transactions: Txn[]
   promoterCodes: PromoterCode[]
-}) {
+}
+
+export function AdminDashboard(initial: AdminData) {
+  const [data, setData] = useState<AdminData>(initial)
   const [tab, setTab] = useState<Tab>("Overview")
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const refresh = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setRefreshing(true)
+    try {
+      const fresh = await getAdminData()
+      setData(fresh)
+      setLastUpdated(new Date())
+    } catch {
+      // silently ignore — data stays stale
+    } finally {
+      if (showSpinner) setRefreshing(false)
+    }
+  }, [])
+
+  // Start polling on mount
+  useEffect(() => {
+    timerRef.current = setInterval(() => refresh(), POLL_INTERVAL)
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [refresh])
+
+  const { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes } = data
 
   return (
     <div className="min-h-screen pb-10">
@@ -210,18 +232,39 @@ export function AdminDashboard({
         <div className="mx-auto flex h-16 max-w-2xl items-center justify-between px-4">
           <div>
             <h1 className="text-lg font-bold tracking-tight">Admin Console</h1>
-            <p className="text-xs text-muted-foreground">incomehh</p>
+            <p className="text-xs text-muted-foreground">
+              Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </p>
           </div>
-          <Link
-            href="/dashboard"
-            className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-secondary px-3 text-xs font-semibold text-muted-foreground"
-          >
-            <Home className="h-4 w-4" /> App
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => refresh(true)}
+              disabled={refreshing}
+              className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-secondary px-3 text-xs font-semibold text-muted-foreground disabled:opacity-60"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              {refreshing ? "Loading..." : "Refresh"}
+            </button>
+            <Link
+              href="/dashboard"
+              className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-secondary px-3 text-xs font-semibold text-muted-foreground"
+            >
+              <Home className="h-4 w-4" /> App
+            </Link>
+          </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-2xl px-4 py-5">
+        {/* Live pulse indicator */}
+        <div className="mb-4 flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+          </span>
+          <span className="text-xs text-muted-foreground">Live — auto-refreshes every 20 seconds</span>
+        </div>
+
         <div className="no-scrollbar mb-5 flex gap-2 overflow-x-auto">
           {TABS.map((t) => (
             <button
@@ -236,13 +279,13 @@ export function AdminDashboard({
           ))}
         </div>
 
-        {tab === "Overview" && <Overview stats={stats} controls={controls} />}
+        {tab === "Overview" && <Overview stats={stats} controls={controls} onAction={() => refresh()} />}
         {tab === "Transactions" && <TransactionsTab items={transactions} />}
-        {tab === "Withdrawals" && <Withdrawals items={withdrawals} />}
+        {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
         {tab === "Users" && <UsersTab items={users} />}
         {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} />}
-        {tab === "Promoter Codes" && <PromoterCodesTab items={promoterCodes} />}
-        {tab === "Deposits" && <DepositsTab items={deposits} />}
+        {tab === "Promoter Codes" && <PromoterCodesTab items={promoterCodes} onAction={() => refresh()} />}
+        {tab === "Deposits" && <DepositsTab items={deposits} onAction={() => refresh()} />}
         {tab === "Bank Accounts" && <BankAccountsTab items={bankAccounts} />}
         {tab === "Milestones" && <MilestonesTab items={milestones} />}
       </div>
@@ -308,20 +351,23 @@ function TransactionsTab({ items }: { items: Txn[] }) {
   )
 }
 
-function Overview({ stats, controls }: { stats: Stats; controls: Controls }) {
-  const router = useRouter()
+function Overview({ stats, controls, onAction }: { stats: Stats; controls: Controls; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
   const [depositsPaused, setDepPaused] = useState(controls.depositsPaused)
   const [withdrawalsPaused, setWdPaused] = useState(controls.withdrawalsPaused)
   const [savingDep, startDepTransition] = useTransition()
   const [savingWd, startWdTransition] = useTransition()
 
+  // Keep local pause state in sync when polled data arrives
+  useEffect(() => { setDepPaused(controls.depositsPaused) }, [controls.depositsPaused])
+  useEffect(() => { setWdPaused(controls.withdrawalsPaused) }, [controls.withdrawalsPaused])
+
   function handleProcessIncome() {
     startTransition(async () => {
       const res = await processAllIncome()
       if (res.ok) toast.success(res.message)
       else toast.error(res.message ?? "Failed")
-      router.refresh()
+      onAction()
     })
   }
 
@@ -335,7 +381,7 @@ function Overview({ stats, controls }: { stats: Stats; controls: Controls }) {
         toast.error("Failed")
         setDepPaused(!next)
       }
-      router.refresh()
+      onAction()
     })
   }
 
@@ -349,7 +395,7 @@ function Overview({ stats, controls }: { stats: Stats; controls: Controls }) {
         toast.error("Failed")
         setWdPaused(!next)
       }
-      router.refresh()
+      onAction()
     })
   }
 
@@ -448,8 +494,7 @@ function Overview({ stats, controls }: { stats: Stats; controls: Controls }) {
   )
 }
 
-function Withdrawals({ items }: { items: Withdrawal[] }) {
-  const router = useRouter()
+function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
 
   function act(id: number, kind: "approve" | "reject") {
@@ -457,8 +502,13 @@ function Withdrawals({ items }: { items: Withdrawal[] }) {
       const res = kind === "approve" ? await approveWithdrawal(id) : await rejectWithdrawal(id)
       if (res.ok) toast.success(res.message)
       else toast.error(res.message)
-      router.refresh()
+      onAction()
     })
+  }
+
+  function copyAcct(value: string) {
+    navigator.clipboard.writeText(value)
+    toast.success("Account number copied")
   }
 
   if (items.length === 0) return <Empty label="No withdrawals" />
@@ -478,9 +528,20 @@ function Withdrawals({ items }: { items: Withdrawal[] }) {
           </div>
           <div className="mt-3 rounded-xl bg-secondary/50 p-3 text-xs">
             <p className="font-semibold">{w.userName ?? "User"} · {w.userEmail}</p>
-            <p className="mt-1 text-muted-foreground">
-              {w.bankName} · {w.accountNumber} · {w.accountName}
-            </p>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <p className="text-muted-foreground">
+                {w.bankName} · <span className="font-mono font-semibold text-foreground">{w.accountNumber}</span> · {w.accountName}
+              </p>
+              {w.accountNumber && (
+                <button
+                  onClick={() => copyAcct(w.accountNumber!)}
+                  className="shrink-0 rounded-lg border border-border bg-background p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                  title="Copy account number"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           </div>
           {w.status === "pending" && (
             <div className="mt-3 flex gap-2">
@@ -507,13 +568,13 @@ function Withdrawals({ items }: { items: Withdrawal[] }) {
 }
 
 function UsersTab({ items }: { items: AdminUser[] }) {
-  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [editing, setEditing] = useState<string | null>(null)
   const [amount, setAmount] = useState("")
   const [note, setNote] = useState("")
   const [commissionEditing, setCommissionEditing] = useState<string | null>(null)
   const [commissionVal, setCommissionVal] = useState("")
+  const router = useRouter()
 
   function submit(userId: string) {
     startTransition(async () => {
@@ -760,8 +821,7 @@ function GiftCodesTab({ items }: { items: GiftCode[] }) {
   )
 }
 
-function PromoterCodesTab({ items }: { items: PromoterCode[] }) {
-  const router = useRouter()
+function PromoterCodesTab({ items, onAction }: { items: PromoterCode[]; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
   const [form, setForm] = useState({ code: "", label: "", maxSignups: "", commissionRate: "" })
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -778,7 +838,7 @@ function PromoterCodesTab({ items }: { items: PromoterCode[] }) {
       if (res.ok) {
         toast.success(res.message)
         setForm({ code: "", label: "", maxSignups: "", commissionRate: "" })
-        router.refresh()
+        onAction()
       } else {
         toast.error(res.message)
       }
@@ -791,7 +851,7 @@ function PromoterCodesTab({ items }: { items: PromoterCode[] }) {
         maxSignups: editVals.maxSignups !== "" ? Number(editVals.maxSignups) : null,
         commissionRate: editVals.commissionRate !== "" ? Number(editVals.commissionRate) : null,
       })
-      if (res.ok) { toast.success(res.message); setEditingId(null); router.refresh() }
+      if (res.ok) { toast.success(res.message); setEditingId(null); onAction() }
       else toast.error(res.message)
     })
   }
@@ -801,7 +861,7 @@ function PromoterCodesTab({ items }: { items: PromoterCode[] }) {
       const res = await togglePromoterCode(id)
       if (res.ok) toast.success(res.message)
       else toast.error(res.message)
-      router.refresh()
+      onAction()
     })
   }
 
@@ -810,7 +870,7 @@ function PromoterCodesTab({ items }: { items: PromoterCode[] }) {
       const res = await deletePromoterCode(id)
       if (res.ok) toast.success(res.message)
       else toast.error(res.message)
-      router.refresh()
+      onAction()
     })
   }
 
@@ -984,8 +1044,7 @@ function PromoterCodesTab({ items }: { items: PromoterCode[] }) {
   )
 }
 
-function DepositsTab({ items }: { items: Deposit[] }) {
-  const router = useRouter()
+function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
 
   function act(id: number, kind: "approve" | "reject") {
@@ -997,7 +1056,7 @@ function DepositsTab({ items }: { items: Deposit[] }) {
           : await rejectDeposit(d.reference)
       if (res.ok) toast.success(res.message)
       else toast.error(res.message)
-      router.refresh()
+      onAction()
     })
   }
 
