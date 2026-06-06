@@ -195,6 +195,11 @@ export const bankAccount = pgTable("bank_account", {
   weight: integer("weight").notNull().default(1),
   totalDeposits: numeric("totalDeposits", { precision: 14, scale: 2 }).notNull().default("0"),
   depositCount: integer("depositCount").notNull().default(0),
+  // Sabuss VTU API — each account can have its own API key for auto-detection
+  // sabussApiKey: used to query transactions via Sabuss API
+  // sabussSecret: optional shared secret to verify webhook payloads
+  sabussApiKey: text("sabussApiKey"),
+  sabussSecret: text("sabussSecret"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })
 

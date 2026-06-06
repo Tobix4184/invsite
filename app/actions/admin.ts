@@ -318,6 +318,7 @@ export async function addBankAccount(data: {
   accountName: string
   label?: string
   weight?: number
+  sabussApiKey?: string
 }) {
   await requireAdmin()
   const accNum = data.accountNumber.trim()
@@ -341,6 +342,7 @@ export async function addBankAccount(data: {
     label: data.label?.trim() || null,
     weight: Math.max(1, Math.floor(Number(data.weight) || 1)),
     isActive: true,
+    sabussApiKey: data.sabussApiKey?.trim() || null,
   })
   
   revalidatePath("/admin")
@@ -356,6 +358,7 @@ export async function updateBankAccount(
     label?: string
     isActive?: boolean
     weight?: number
+    sabussApiKey?: string | null
   }
 ) {
   await requireAdmin()
@@ -377,6 +380,7 @@ export async function updateBankAccount(
       label: data.label?.trim() ?? existing.label,
       isActive: data.isActive ?? existing.isActive,
       weight: data.weight != null ? Math.max(1, Math.floor(Number(data.weight))) : existing.weight,
+      sabussApiKey: "sabussApiKey" in data ? (data.sabussApiKey?.trim() || null) : existing.sabussApiKey,
     })
     .where(eq(bankAccount.id, id))
   

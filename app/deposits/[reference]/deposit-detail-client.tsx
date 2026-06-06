@@ -286,32 +286,45 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
           </div>
         )}
 
-        {/* Regular Sender Name Input */}
+        {/* Sender Name — always visible, prominent tip for auto-detection */}
         {!showNamePrompt && (
-          <div className="rounded-xl border border-border bg-card p-4">
-            <label className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
-              <User className="h-4 w-4 text-muted-foreground" />
-              Sender Name <span className="text-xs text-muted-foreground">(Recommended)</span>
+          <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+            <label className="mb-1 flex items-center gap-2 text-sm font-bold text-foreground">
+              <User className="h-4 w-4 text-primary" />
+              Your Sender Name <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">Recommended</span>
             </label>
             <p className="mb-3 text-xs text-muted-foreground">
-              Enter the name on your bank account to speed up verification
+              Add your first or last name as it appears on your bank account. This helps the system identify your deposit automatically and credit your wallet faster.
             </p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="e.g. John Doe"
-                value={senderName}
-                onChange={(e) => setSenderName(e.target.value)}
-                className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
-              />
-              <button
-                onClick={handleSaveSenderName}
-                disabled={!senderName.trim() || pending}
-                className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-              </button>
-            </div>
+            {deposit.senderName ? (
+              <div className="flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2">
+                <Check className="h-4 w-4 text-success" />
+                <span className="text-sm font-medium text-success">{deposit.senderName}</span>
+                <button
+                  onClick={() => setSenderName(deposit.senderName || "")}
+                  className="ml-auto text-xs text-muted-foreground underline"
+                >
+                  Edit
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. John or Doe or John Doe"
+                  value={senderName}
+                  onChange={(e) => setSenderName(e.target.value)}
+                  className="flex-1 rounded-lg border border-primary/30 bg-background px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+                />
+                <button
+                  onClick={handleSaveSenderName}
+                  disabled={!senderName.trim() || pending}
+                  className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
+                >
+                  {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
