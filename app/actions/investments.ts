@@ -53,12 +53,13 @@ export async function buyPlan(planId: number) {
 async function payReferralCommission(buyerId: string, amount: number) {
   const refs = await db.select().from(referral).where(eq(referral.referredId, buyerId))
   for (const r of refs) {
-    // Check if referrer is a promoter (gets 40% instead of 20% for level 1)
+    // Determine rate: promoters use their per-user override if set, else the
+    // site-wide promoterLevel1 default. Normal users use referralLevel1/2.
     let rate = r.level === 1 ? SITE.referralLevel1 : SITE.referralLevel2
     if (r.level === 1) {
       const [referrerProfile] = await db.select().from(profile).where(eq(profile.userId, r.referrerId))
       if (referrerProfile?.isPromoter) {
-        rate = SITE.promoterLevel1
+        rate = referrerProfile.promoterCommission ?? SITE.promoterLevel1
       }
     }
     const commission = Math.round((amount * rate) / 100)

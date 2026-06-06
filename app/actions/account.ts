@@ -9,6 +9,7 @@ import {
   dailySignin,
   investment,
   user as userTable,
+  promoterCode,
 } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getUserId, getSession } from "@/lib/session"
@@ -40,7 +41,7 @@ function genInviteCode() {
  * grants the welcome bonus, links the referral chain, and stores phone.
  * Safe to call repeatedly (no-op if already initialized).
  */
-export async function initAccount(opts: { phone?: string; inviteCode?: string }) {
+export async function initAccount(opts: { phone?: string; inviteCode?: string; promoCode?: string }) {
   const session = await getSession()
   if (!session?.user) throw new Error("Unauthorized")
   const userId = session.user.id
@@ -67,12 +68,42 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string })
     if (ref && ref.userId !== userId) referrerId = ref.userId // don't self-refer
   }
 
+  // resolve promoter code: tag as promoter only when the code is active AND
+  // hasn't hit its maxSignups cap (null = unlimited).
+  let isPromoter = false
+  let matchedPromoCodeId: number | null = null
+  let promoterCommission: number | null = null
+  const promo = opts.promoCode?.trim().toUpperCase().replace(/\s+/g, "")
+  if (promo) {
+    const [pc] = await db.select().from(promoterCode).where(eq(promoterCode.code, promo))
+    if (pc && pc.isActive) {
+      const underCap = pc.maxSignups === null || pc.signups < pc.maxSignups
+      if (underCap) {
+        isPromoter = true
+        matchedPromoCodeId = pc.id
+        promoterCommission = pc.commissionRate ?? null
+      }
+      // If cap is hit the user is registered normally — no promoter tag.
+    }
+  }
+
   await db.insert(profile).values({
     userId,
     phone: opts.phone ?? null,
     inviteCode: code,
     referredBy: referrerId,
+    isPromoter,
+    promoterCommission,
   })
+
+  // increment the promoter code's signup counter (even if cap was already hit
+  // we only increment when we actually tagged them)
+  if (matchedPromoCodeId) {
+    await db
+      .update(promoterCode)
+      .set({ signups: sql`${promoterCode.signups} + 1` })
+      .where(eq(promoterCode.id, matchedPromoCodeId))
+  }
 
   await db.insert(wallet).values({
     userId,

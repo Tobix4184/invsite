@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, Phone, Lock, ShieldCheck, Tag, User, Loader2 } from "lucide-react"
+import { Mail, Phone, Lock, ShieldCheck, Tag, User, Loader2, Megaphone } from "lucide-react"
 import { toast } from "sonner"
 import { Logo } from "@/components/logo"
 import { SITE } from "@/lib/plans"
@@ -50,9 +50,9 @@ function Field({
   )
 }
 
-export function AuthScreen({ defaultInvite = "" }: { defaultInvite?: string }) {
+export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvite?: string; promoCode?: string }) {
   const router = useRouter()
-  const [mode, setMode] = useState<Mode>("sign-in")
+  const [mode, setMode] = useState<Mode>(promoCode ? "sign-up" : "sign-in")
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     name: "",
@@ -116,7 +116,7 @@ export function AuthScreen({ defaultInvite = "" }: { defaultInvite?: string }) {
         toast.error(result.error.message || "Could not create account")
         return
       }
-      await initAccount({ phone: form.phone, inviteCode: form.invite })
+      await initAccount({ phone: form.phone, inviteCode: form.invite, promoCode })
       toast.success(`Welcome to ${SITE.name}! ₦${SITE.welcomeBonus} bonus added.`)
       router.push("/dashboard")
       router.refresh()
@@ -162,6 +162,16 @@ export function AuthScreen({ defaultInvite = "" }: { defaultInvite?: string }) {
             mode === "sign-in" ? handleSignIn() : handleSignUp()
           }}
         >
+          {mode === "sign-up" && promoCode && (
+            <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3">
+              <Megaphone className="h-5 w-5 shrink-0 text-primary" />
+              <p className="text-sm text-foreground">
+                You&apos;re registering with a <span className="font-bold">Promoter</span> invite. Your account will be
+                tagged as a promoter automatically.
+              </p>
+            </div>
+          )}
+
           {mode === "sign-up" && (
             <Field
               id="name"

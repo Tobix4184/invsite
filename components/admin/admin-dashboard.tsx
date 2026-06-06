@@ -27,9 +27,13 @@ import {
   ArrowDownToLine,
   Pause,
   Play,
+  Megaphone,
+  Copy,
+  Link2,
+  Percent,
 } from "lucide-react"
 import { toast } from "sonner"
-import { formatNaira } from "@/lib/plans"
+import { SITE, formatNaira } from "@/lib/plans"
 import {
   approveWithdrawal,
   rejectWithdrawal,
@@ -47,6 +51,11 @@ import {
   toggleMilestoneStatus,
   setDepositsPaused,
   setWithdrawalsPaused,
+  createPromoterCode,
+  updatePromoterCode,
+  togglePromoterCode,
+  deletePromoterCode,
+  setPromoterCommission,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -79,6 +88,7 @@ type AdminUser = {
   email: string | null
   role: string | null
   isPromoter: boolean | null
+  promoterCommission: number | null
   balance: string | null
   totalDeposited: string | null
   referralEarnings: string | null
@@ -145,12 +155,24 @@ type Txn = {
   userEmail: string | null
 }
 
+type PromoterCode = {
+  id: number
+  code: string
+  label: string | null
+  isActive: boolean
+  signups: number
+  maxSignups: number | null
+  commissionRate: number | null
+  createdAt: Date | string
+}
+
 const TABS = [
   "Overview",
   "Transactions",
   "Withdrawals",
   "Users",
   "Gift Codes",
+  "Promoter Codes",
   "Deposits",
   "Bank Accounts",
   "Milestones",
@@ -167,6 +189,7 @@ export function AdminDashboard({
   milestones,
   controls,
   transactions,
+  promoterCodes,
 }: {
   stats: Stats
   withdrawals: Withdrawal[]
@@ -177,6 +200,7 @@ export function AdminDashboard({
   milestones: Milestone[]
   controls: Controls
   transactions: Txn[]
+  promoterCodes: PromoterCode[]
 }) {
   const [tab, setTab] = useState<Tab>("Overview")
 
@@ -217,6 +241,7 @@ export function AdminDashboard({
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} />}
         {tab === "Users" && <UsersTab items={users} />}
         {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} />}
+        {tab === "Promoter Codes" && <PromoterCodesTab items={promoterCodes} />}
         {tab === "Deposits" && <DepositsTab items={deposits} />}
         {tab === "Bank Accounts" && <BankAccountsTab items={bankAccounts} />}
         {tab === "Milestones" && <MilestonesTab items={milestones} />}
@@ -487,6 +512,8 @@ function UsersTab({ items }: { items: AdminUser[] }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [amount, setAmount] = useState("")
   const [note, setNote] = useState("")
+  const [commissionEditing, setCommissionEditing] = useState<string | null>(null)
+  const [commissionVal, setCommissionVal] = useState("")
 
   function submit(userId: string) {
     startTransition(async () => {
@@ -500,6 +527,15 @@ function UsersTab({ items }: { items: AdminUser[] }) {
       } else {
         toast.error(res.message)
       }
+    })
+  }
+
+  function handleSetCommission(userId: string) {
+    startTransition(async () => {
+      const rate = commissionVal.trim() === "" ? null : Number(commissionVal)
+      const res = await setPromoterCommission(userId, rate)
+      if (res.ok) { toast.success(res.message); setCommissionEditing(null); setCommissionVal(""); router.refresh() }
+      else toast.error(res.message)
     })
   }
 
@@ -601,6 +637,33 @@ function UsersTab({ items }: { items: AdminUser[] }) {
                 <Star className="h-3 w-3" />
                 {u.isPromoter ? "Remove" : "Promoter"}
               </button>
+              {u.isPromoter && (
+                <button
+                  onClick={() => { setCommissionEditing(u.id); setCommissionVal(u.promoterCommission != null ? String(u.promoterCommission) : "") }}
+                  className="flex items-center justify-center gap-1 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-muted-foreground"
+                >
+                  <Percent className="h-3 w-3" /> {u.promoterCommission != null ? `${u.promoterCommission}%` : "Rate"}
+                </button>
+              )}
+            </div>
+          )}
+          {commissionEditing === u.id && (
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                max="100"
+                placeholder={`Commission % (default ${SITE.promoterLevel1}%)`}
+                value={commissionVal}
+                onChange={(e) => setCommissionVal(e.target.value)}
+                className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+              <button onClick={() => setCommissionEditing(null)} className="rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold">
+                Cancel
+              </button>
+              <button onClick={() => handleSetCommission(u.id)} disabled={pending} className="flex items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60">
+                {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save
+              </button>
             </div>
           )}
         </div>
@@ -689,6 +752,230 @@ function GiftCodesTab({ items }: { items: GiftCode[] }) {
                 </div>
               </div>
               <span className="font-bold text-success tabular-nums">{formatNaira(Number(g.amount))}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PromoterCodesTab({ items }: { items: PromoterCode[] }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [form, setForm] = useState({ code: "", label: "", maxSignups: "", commissionRate: "" })
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editVals, setEditVals] = useState({ maxSignups: "", commissionRate: "" })
+
+  const create = () => {
+    startTransition(async () => {
+      const res = await createPromoterCode({
+        code: form.code,
+        label: form.label,
+        maxSignups: form.maxSignups ? Number(form.maxSignups) : null,
+        commissionRate: form.commissionRate ? Number(form.commissionRate) : null,
+      })
+      if (res.ok) {
+        toast.success(res.message)
+        setForm({ code: "", label: "", maxSignups: "", commissionRate: "" })
+        router.refresh()
+      } else {
+        toast.error(res.message)
+      }
+    })
+  }
+
+  const saveEdit = (id: number) => {
+    startTransition(async () => {
+      const res = await updatePromoterCode(id, {
+        maxSignups: editVals.maxSignups !== "" ? Number(editVals.maxSignups) : null,
+        commissionRate: editVals.commissionRate !== "" ? Number(editVals.commissionRate) : null,
+      })
+      if (res.ok) { toast.success(res.message); setEditingId(null); router.refresh() }
+      else toast.error(res.message)
+    })
+  }
+
+  const toggle = (id: number) => {
+    startTransition(async () => {
+      const res = await togglePromoterCode(id)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
+  const remove = (id: number) => {
+    startTransition(async () => {
+      const res = await deletePromoterCode(id)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
+  const copyLink = (code: string) => {
+    if (typeof window !== "undefined") {
+      const link = `${window.location.origin}/?promo=${encodeURIComponent(code)}`
+      navigator.clipboard.writeText(link)
+      toast.success("Promoter link copied")
+    }
+  }
+
+  const inputCls = "rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Create form */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <p className="mb-1 flex items-center gap-2 text-sm font-bold">
+          <Megaphone className="h-4 w-4 text-primary" /> Create Promoter Code
+        </p>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Anyone who registers with this link is tagged as a promoter. Leave max signups blank for unlimited.
+        </p>
+        <div className="flex flex-col gap-2">
+          <input
+            placeholder="Code (leave blank to auto-generate)"
+            value={form.code}
+            onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+            className={`${inputCls} font-mono`}
+          />
+          <input
+            placeholder="Label (optional, e.g. Instagram campaign)"
+            value={form.label}
+            onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+            className={inputCls}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              min="1"
+              placeholder="Max signups (blank = unlimited)"
+              value={form.maxSignups}
+              onChange={(e) => setForm((f) => ({ ...f, maxSignups: e.target.value }))}
+              className={inputCls}
+            />
+            <input
+              type="number"
+              min="1"
+              max="100"
+              placeholder={`Commission % (default ${SITE.promoterLevel1}%)`}
+              value={form.commissionRate}
+              onChange={(e) => setForm((f) => ({ ...f, commissionRate: e.target.value }))}
+              className={inputCls}
+            />
+          </div>
+          <button
+            onClick={create}
+            disabled={pending}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} Create Code
+          </button>
+        </div>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="rounded-2xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+          No promoter codes yet
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {items.map((c) => (
+            <div key={c.id} className="rounded-2xl border border-border bg-card p-4">
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 font-mono font-bold">
+                    <Megaphone className="h-4 w-4 text-primary" />
+                    {c.code}
+                    {!c.isActive && (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">
+                        inactive
+                      </span>
+                    )}
+                  </p>
+                  {c.label && <p className="mt-0.5 truncate text-xs text-muted-foreground">{c.label}</p>}
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>
+                      <span className="font-semibold text-foreground">{c.signups}</span>
+                      {c.maxSignups != null ? ` / ${c.maxSignups}` : ""} signups
+                    </span>
+                    <span>·</span>
+                    <span>
+                      L1 commission:{" "}
+                      <span className="font-semibold text-foreground">
+                        {c.commissionRate ?? SITE.promoterLevel1}%
+                      </span>
+                      {c.commissionRate == null && <span className="text-muted-foreground"> (default)</span>}
+                    </span>
+                  </div>
+                </div>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${c.isActive ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
+                  {c.isActive ? "active" : "off"}
+                </span>
+              </div>
+
+              {/* Link preview */}
+              <div className="mt-3 flex items-center gap-2 overflow-hidden rounded-xl bg-secondary/50 px-3 py-2">
+                <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate text-xs text-muted-foreground">
+                  {typeof window !== "undefined" ? `${window.location.origin}/?promo=${c.code}` : `/?promo=${c.code}`}
+                </span>
+              </div>
+
+              {/* Inline edit for limits */}
+              {editingId === c.id ? (
+                <div className="mt-3 flex flex-col gap-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Max signups (blank = unlimited)"
+                      value={editVals.maxSignups}
+                      onChange={(e) => setEditVals((v) => ({ ...v, maxSignups: e.target.value }))}
+                      className={inputCls}
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      placeholder={`Commission % (default ${SITE.promoterLevel1}%)`}
+                      value={editVals.commissionRate}
+                      onChange={(e) => setEditVals((v) => ({ ...v, commissionRate: e.target.value }))}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingId(null)} className="flex-1 rounded-xl border border-border bg-secondary py-2 text-xs font-bold">
+                      Cancel
+                    </button>
+                    <button onClick={() => saveEdit(c.id)} disabled={pending} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-primary py-2 text-xs font-bold text-primary-foreground disabled:opacity-60">
+                      {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => copyLink(c.code)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary py-2 text-xs font-bold text-muted-foreground">
+                    <Copy className="h-3.5 w-3.5" /> Copy Link
+                  </button>
+                  <button
+                    onClick={() => { setEditingId(c.id); setEditVals({ maxSignups: c.maxSignups != null ? String(c.maxSignups) : "", commissionRate: c.commissionRate != null ? String(c.commissionRate) : "" }) }}
+                    className="flex items-center justify-center gap-1 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-muted-foreground"
+                  >
+                    Edit
+                  </button>
+                  <button onClick={() => toggle(c.id)} disabled={pending} className={`flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-bold disabled:opacity-60 ${c.isActive ? "border border-amber-400/40 bg-amber-400/10 text-amber-400" : "border border-success/40 bg-success/10 text-success"}`}>
+                    {c.isActive ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                    {c.isActive ? "Off" : "On"}
+                  </button>
+                  <button onClick={() => remove(c.id)} disabled={pending} className="flex items-center justify-center rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive disabled:opacity-60">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
