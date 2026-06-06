@@ -9,6 +9,7 @@ import {
   dailySignin,
   investment,
   user as userTable,
+  promoterCode,
 } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getUserId, getSession } from "@/lib/session"
@@ -40,7 +41,7 @@ function genInviteCode() {
  * grants the welcome bonus, links the referral chain, and stores phone.
  * Safe to call repeatedly (no-op if already initialized).
  */
-export async function initAccount(opts: { phone?: string; inviteCode?: string }) {
+export async function initAccount(opts: { phone?: string; inviteCode?: string; promoCode?: string }) {
   const session = await getSession()
   if (!session?.user) throw new Error("Unauthorized")
   const userId = session.user.id
@@ -67,12 +68,34 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string })
     if (ref && ref.userId !== userId) referrerId = ref.userId // don't self-refer
   }
 
+  // resolve promoter code: if a valid, active promoter code was used, tag this
+  // new user as a promoter.
+  let isPromoter = false
+  let matchedPromoCodeId: number | null = null
+  const promo = opts.promoCode?.trim().toUpperCase().replace(/\s+/g, "")
+  if (promo) {
+    const [pc] = await db.select().from(promoterCode).where(eq(promoterCode.code, promo))
+    if (pc && pc.isActive) {
+      isPromoter = true
+      matchedPromoCodeId = pc.id
+    }
+  }
+
   await db.insert(profile).values({
     userId,
     phone: opts.phone ?? null,
     inviteCode: code,
     referredBy: referrerId,
+    isPromoter,
   })
+
+  // increment the promoter code's signup counter
+  if (matchedPromoCodeId) {
+    await db
+      .update(promoterCode)
+      .set({ signups: sql`${promoterCode.signups} + 1` })
+      .where(eq(promoterCode.id, matchedPromoCodeId))
+  }
 
   await db.insert(wallet).values({
     userId,

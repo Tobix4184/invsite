@@ -5,10 +5,10 @@ import { AuthScreen } from "@/components/auth-screen"
 export default async function LandingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string }>
+  searchParams: Promise<{ ref?: string; promo?: string }>
 }) {
   const session = await getSession()
   if (session?.user) redirect("/dashboard")
-  const { ref } = await searchParams
-  return <AuthScreen defaultInvite={ref ?? ""} />
+  const { ref, promo } = await searchParams
+  return <AuthScreen defaultInvite={ref ?? ""} promoCode={promo ?? ""} />
 }

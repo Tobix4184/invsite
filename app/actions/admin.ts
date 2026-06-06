@@ -14,6 +14,7 @@ import {
   referral,
   referralMilestone,
   milestoneClaim,
+  promoterCode,
 } from "@/lib/db/schema"
 import { requireAdmin } from "@/lib/session"
 import { accrueIncomeForAll } from "@/lib/income-engine"
@@ -515,4 +516,61 @@ export async function getAllTransactions(opts?: { type?: string; limit?: number 
     .where(where)
     .orderBy(desc(transaction.createdAt))
     .limit(limit)
+}
+
+// ===================== PROMOTER CODES =====================
+
+function genPromoCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+  let s = "PROMO"
+  for (let i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * chars.length)]
+  return s
+}
+
+export async function getPromoterCodes() {
+  await requireAdmin()
+  return db.select().from(promoterCode).orderBy(desc(promoterCode.createdAt)).limit(100)
+}
+
+export async function createPromoterCode(data: { code?: string; label?: string }) {
+  await requireAdmin()
+
+  let code = data.code?.trim().toUpperCase().replace(/\s+/g, "")
+  if (code) {
+    const exists = await db.select().from(promoterCode).where(eq(promoterCode.code, code))
+    if (exists.length > 0) return { ok: false, message: "That code already exists" }
+  } else {
+    code = genPromoCode()
+    for (let i = 0; i < 5; i++) {
+      const clash = await db.select().from(promoterCode).where(eq(promoterCode.code, code!))
+      if (clash.length === 0) break
+      code = genPromoCode()
+    }
+  }
+
+  await db.insert(promoterCode).values({
+    code: code!,
+    label: data.label?.trim() || null,
+    isActive: true,
+  })
+
+  revalidatePath("/admin")
+  return { ok: true, message: `Promoter code ${code} created` }
+}
+
+export async function togglePromoterCode(id: number) {
+  await requireAdmin()
+  const [existing] = await db.select().from(promoterCode).where(eq(promoterCode.id, id))
+  if (!existing) return { ok: false, message: "Code not found" }
+
+  await db.update(promoterCode).set({ isActive: !existing.isActive }).where(eq(promoterCode.id, id))
+  revalidatePath("/admin")
+  return { ok: true, message: existing.isActive ? "Code deactivated" : "Code activated" }
+}
+
+export async function deletePromoterCode(id: number) {
+  await requireAdmin()
+  await db.delete(promoterCode).where(eq(promoterCode.id, id))
+  revalidatePath("/admin")
+  return { ok: true, message: "Promoter code deleted" }
 }

@@ -222,3 +222,14 @@ export const milestoneClaim = pgTable("milestone_claim", {
   rewardAmount: numeric("rewardAmount", { precision: 14, scale: 2 }).notNull(),
   claimedAt: timestamp("claimedAt").notNull().defaultNow(),
 })
+
+// Admin-created promoter codes. Anyone registering with one of these codes
+// is automatically tagged as a promoter.
+export const promoterCode = pgTable("promoter_code", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  label: text("label"),
+  isActive: boolean("isActive").notNull().default(true),
+  signups: integer("signups").notNull().default(0),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
