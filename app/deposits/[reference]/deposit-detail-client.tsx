@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useTransition, useEffect } from "react"
+import { useState, useTransition, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Copy, Check, User, ShieldCheck, Loader2, Clock, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Copy, Check, User, ShieldCheck, Loader2, Clock, AlertTriangle, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
@@ -23,42 +23,82 @@ type DepositData = {
   createdAt: Date | string
 }
 
+type CheckStatus = {
+  status: "pending" | "approved" | "expired" | "cancelled" | "needs_review" | "no_api_key" | "checking"
+  message?: string
+  checkedAt?: string
+}
+
 export default function DepositDetailClient({ deposit }: { deposit: DepositData }) {
   const router = useRouter()
   const [copied, setCopied] = useState(false)
   const [senderName, setSenderName] = useState(deposit.senderName || "")
   const [pending, startTransition] = useTransition()
   const [showNamePrompt, setShowNamePrompt] = useState(false)
-  const [timeElapsed, setTimeElapsed] = useState(0)
+  const [checkStatus, setCheckStatus] = useState<CheckStatus | null>(null)
+  const [nextCheckIn, setNextCheckIn] = useState(180) // seconds until next poll
 
   const isExpired = deposit.expiresAt && new Date(deposit.expiresAt) < new Date()
   const isProcessing = deposit.status === "processing"
-  const isPending = deposit.status === "pending"
+  const isPending = deposit.status === "pending" || deposit.status === "processing"
 
-  // Track time elapsed for sender name prompt
+  // Poll the Sabuss check endpoint
+  const pollCheck = useCallback(async () => {
+    setCheckStatus({ status: "checking" })
+    try {
+      const res = await fetch(`/api/deposits/check?reference=${deposit.reference}`)
+      const data: CheckStatus & { ok: boolean } = await res.json()
+
+      if (data.status === "approved") {
+        toast.success("Payment confirmed! Your wallet has been credited.")
+        router.refresh()
+        return
+      }
+      if (data.status === "expired" || data.status === "cancelled") {
+        toast.error("Deposit expired and was cancelled.")
+        router.refresh()
+        return
+      }
+      if (data.status === "needs_review") {
+        toast("Payment found but flagged for review.", { icon: "?" })
+        router.refresh()
+        return
+      }
+      setCheckStatus(data)
+      setNextCheckIn(180) // reset 3-min countdown
+    } catch {
+      setCheckStatus({ status: "pending", message: "Could not reach check server" })
+    }
+  }, [deposit.reference, router])
+
+  // Countdown timer + trigger poll every 3 minutes
   useEffect(() => {
     if (!isPending) return
-    
-    const created = new Date(deposit.createdAt).getTime()
-    const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - created) / 1000 / 60) // minutes
-      setTimeElapsed(elapsed)
-      
-      // Show name prompt after 3-5 minutes if no sender name
-      if (elapsed >= 3 && !deposit.senderName && !senderName.trim()) {
-        setShowNamePrompt(true)
-      }
-    }, 30000) // Check every 30 seconds
 
-    // Initial check
-    const elapsed = Math.floor((Date.now() - created) / 1000 / 60)
-    setTimeElapsed(elapsed)
-    if (elapsed >= 3 && !deposit.senderName && !senderName.trim()) {
-      setShowNamePrompt(true)
+    // Run first check after 30 seconds (give user time to transfer)
+    const firstCheck = setTimeout(() => pollCheck(), 30_000)
+
+    const countdown = setInterval(() => {
+      setNextCheckIn((s) => {
+        if (s <= 1) {
+          pollCheck()
+          return 180
+        }
+        return s - 1
+      })
+    }, 1000)
+
+    // Show name prompt after 3 minutes if no sender name
+    const namePrompt = setTimeout(() => {
+      if (!deposit.senderName && !senderName.trim()) setShowNamePrompt(true)
+    }, 3 * 60 * 1000)
+
+    return () => {
+      clearTimeout(firstCheck)
+      clearInterval(countdown)
+      clearTimeout(namePrompt)
     }
-
-    return () => clearInterval(interval)
-  }, [isPending, deposit.createdAt, deposit.senderName, senderName])
+  }, [isPending, deposit.senderName, senderName, pollCheck])
 
   function handleCopyAccount() {
     if (!deposit.assignedAccountNumber) return
@@ -343,6 +383,40 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
           </p>
         </div>
 
+        {/* Auto-check status panel */}
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Auto-Detection</p>
+            <button
+              onClick={pollCheck}
+              disabled={checkStatus?.status === "checking"}
+              className="flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3 w-3 ${checkStatus?.status === "checking" ? "animate-spin" : ""}`} />
+              Check Now
+            </button>
+          </div>
+
+          {checkStatus?.status === "checking" && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking Sabuss for your payment...
+            </div>
+          )}
+          {checkStatus?.status === "pending" && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              {checkStatus.message ?? "Payment not found yet."}
+              <span className="ml-auto font-mono text-[10px]">next check in {Math.floor(nextCheckIn / 60)}:{String(nextCheckIn % 60).padStart(2, "0")}</span>
+            </div>
+          )}
+          {checkStatus?.status === "no_api_key" && (
+            <p className="text-xs text-muted-foreground">{checkStatus.message}</p>
+          )}
+          {!checkStatus && (
+            <p className="text-xs text-muted-foreground">System will auto-check every 3 minutes. First check in 30 seconds.</p>
+          )}
+        </div>
+
         {/* Mark as Paid Button */}
         <button
           onClick={handleMarkAsPaid}
@@ -355,7 +429,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
 
         <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
           <ShieldCheck className="h-4 w-4 text-success" />
-          Payment will be processed within 0-15 minutes
+          Payment will be auto-detected or processed within 0-30 minutes
         </p>
       </div>
     </main>

