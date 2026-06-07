@@ -1123,92 +1123,87 @@ export async function adminCheckDeposit(reference: string) {
     }
   }
 
-  // Sabuss query API: POST form-encoded to /vtu/api/query/{API_KEY}
-  // - If we have the Sabuss reference (stored when webhook arrived), query by reference → precise match
-  // - Otherwise query without reference → Sabuss returns all recent transactions → match by amount + sender
-  const sabussQueryRef = dep.sabussRef ?? null
+  // Sabuss query API: POST form-encoded (pin only, no reference) to get all recent
+  // transactions, then match by amount + sender name. References are Sabuss-internal
+  // and cannot be used for lookup from our side.
+  const depositAmount = Math.round(Number(dep.amount))
+  const createdAt = new Date(dep.createdAt)
 
-  const doSabussQuery = async (extraFields: Record<string, string>) => {
+  let sabussRaw = ""
+  let sabussData: Record<string, unknown> | null = null
+  try {
     const formBody = new URLSearchParams()
     formBody.append("pin", acc.sabussPin!)
-    for (const [k, v] of Object.entries(extraFields)) formBody.append(k, v)
     const res = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussApiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: formBody.toString(),
       signal: AbortSignal.timeout(10000),
     })
-    const text = await res.text()
-    try { return { data: JSON.parse(text) as Record<string, unknown>, raw: text } } catch { return { data: null, raw: text } }
+    sabussRaw = await res.text()
+    try { sabussData = JSON.parse(sabussRaw) } catch { /* not JSON */ }
+  } catch (e) {
+    return { ok: false, message: `Could not reach Sabuss API: ${e instanceof Error ? e.message : String(e)}` }
   }
 
-  const depositAmount = Math.round(Number(dep.amount))
-  const createdAt = new Date(dep.createdAt)
+  if (!sabussData) {
+    return { ok: false, message: `Sabuss returned non-JSON: ${sabussRaw.slice(0, 200)}` }
+  }
 
+  const sabussStatus = String(sabussData.status ?? "").toLowerCase()
+  if (sabussStatus === "error") {
+    return { ok: false, message: `Sabuss error: ${String(sabussData.response ?? sabussData.message ?? sabussRaw.slice(0, 200))}` }
+  }
+
+  // Collect all transaction rows — Sabuss may return them in various shapes
+  const rows: Record<string, unknown>[] = []
+  for (const v of Object.values(sabussData)) {
+    if (Array.isArray(v)) rows.push(...(v as Record<string, unknown>[]).filter(Boolean))
+  }
+  if (rows.length === 0 && sabussData.response) {
+    if (Array.isArray(sabussData.response)) rows.push(...(sabussData.response as Record<string, unknown>[]))
+    else if (typeof sabussData.response === "object") rows.push(sabussData.response as Record<string, unknown>)
+  }
+
+  // Match by amount (exact or minus ₦50 Sabuss fee) + sender name + not before deposit creation
+  const expectedNet = depositAmount - 50
   let tx: Record<string, unknown> | null = null
 
-  if (sabussQueryRef) {
-    // Mode 1: query by Sabuss's own reference — direct lookup
-    const { data, raw } = await doSabussQuery({ reference: sabussQueryRef })
-    if (!data) return { ok: false, message: `Sabuss returned non-JSON: ${raw.slice(0, 200)}` }
+  for (const row of rows) {
+    const rowAmt = Math.round(Number(row.amount ?? row.credit ?? row.value ?? row.credited_amount ?? 0))
+    if (rowAmt !== depositAmount && rowAmt !== expectedNet) continue
 
-    const status = String(data.status ?? "").toLowerCase()
-    if (status === "success" && data.response && typeof data.response === "object") {
-      tx = Array.isArray(data.response) ? data.response[0] : data.response as Record<string, unknown>
-    } else {
-      return {
-        ok: true, found: false,
-        message: `Sabuss: reference ${sabussQueryRef} not found. Status: ${status}. Response: ${raw.slice(0, 200)}`,
-      }
-    }
-  } else {
-    // Mode 2: no Sabuss reference stored — query all recent transactions and match by amount + sender
-    const { data, raw } = await doSabussQuery({})
-    if (!data) return { ok: false, message: `Sabuss returned non-JSON: ${raw.slice(0, 200)}` }
-
-    const status = String(data.status ?? "").toLowerCase()
-    if (status === "error") {
-      return { ok: false, message: `Sabuss error: ${String(data.response ?? data.message ?? raw.slice(0, 200))}` }
+    // Sender name check — soft match: at least one word of the stored name appears in the Sabuss sender field
+    const senderFields = [row.sender, row.account_name, row.narration, row.name].filter(Boolean).join(" ").toLowerCase()
+    if (dep.senderName && senderFields) {
+      const parts = dep.senderName.toLowerCase().split(/\s+/).filter((p) => p.length > 1)
+      const nameMatch = parts.some((p) => senderFields.includes(p))
+      if (!nameMatch) continue
     }
 
-    // Collect all transaction rows from any array in the response
-    const rows: Record<string, unknown>[] = []
-    for (const v of Object.values(data)) {
-      if (Array.isArray(v)) rows.push(...v.filter((r) => r && typeof r === "object"))
-    }
-    if (rows.length === 0 && data.response && typeof data.response === "object") {
-      if (Array.isArray(data.response)) {
-        rows.push(...(data.response as Record<string, unknown>[]))
-      } else {
-        rows.push(data.response as Record<string, unknown>)
-      }
+    // Not before the deposit was created
+    const rowDate = row.date ?? row.created_at ?? row.transaction_date ?? row.time ?? null
+    if (rowDate) {
+      const d = new Date(String(rowDate))
+      if (!isNaN(d.getTime()) && d < createdAt) continue
     }
 
-    // Match by amount (exact or minus ₦50 fee) + after deposit creation time
-    const expectedNet = depositAmount - 50
-    for (const row of rows) {
-      const rowAmt = Math.round(Number(row.amount ?? row.credit ?? row.value ?? 0))
-      if (rowAmt !== depositAmount && rowAmt !== expectedNet) continue
-      const rowDate = row.date ?? row.created_at ?? row.transaction_date ?? null
-      if (rowDate) {
-        const d = new Date(String(rowDate))
-        if (!isNaN(d.getTime()) && d < createdAt) continue
-      }
-      tx = row
-      break
-    }
+    tx = row
+    break
+  }
 
-    if (!tx) {
-      const amounts = rows.map((r) => Math.round(Number(r.amount ?? r.credit ?? r.value ?? 0))).filter(Boolean).join(", ")
-      return {
-        ok: true, found: false,
-        message: `Sabuss checked — no match for ₦${depositAmount.toLocaleString()} after ${createdAt.toLocaleTimeString("en-NG")}. ${rows.length} rows scanned. Amounts seen: [${amounts || "none"}]. Tip: the Sabuss reference will be auto-saved next time this account receives via webhook.`,
-      }
+  if (!tx) {
+    const amounts = rows
+      .map((r) => Math.round(Number(r.amount ?? r.credit ?? r.value ?? r.credited_amount ?? 0)))
+      .filter(Boolean).join(", ")
+    return {
+      ok: true,
+      found: false,
+      message: `Sabuss checked — no match for ₦${depositAmount.toLocaleString()} from "${dep.senderName ?? "unknown sender"}". ${rows.length} row(s) scanned. Amounts seen: [${amounts || "none"}].`,
     }
   }
 
-  // ── Transaction found — shared completion logic ──
-  if (!tx) return { ok: true, found: false, message: "Transaction not found in Sabuss." }
+  // ── Transaction found ──
   const txAmount = Math.round(Number(tx.amount ?? tx.credit ?? tx.value ?? 0))
   const senderInfo = tx.sender
     ? `Sender: ${tx.sender}`
