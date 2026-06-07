@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { X, Dices, Ticket, ChevronRight, Sparkles, Trophy, Zap } from "lucide-react"
+import { X, Dices, Ticket, ChevronRight, Sparkles, Trophy, Zap, Lock } from "lucide-react"
 
 type Props = {
   open: boolean
@@ -21,14 +21,15 @@ export function GamesPopup({
 }: Props) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [showInvestFirst, setShowInvestFirst] = useState(false)
 
   useEffect(() => {
     if (open) {
-      // Slight delay so CSS transition fires
       const id = setTimeout(() => setMounted(true), 10)
       return () => clearTimeout(id)
     } else {
       setMounted(false)
+      setShowInvestFirst(false)
     }
   }, [open])
 
@@ -48,6 +49,10 @@ export function GamesPopup({
   }
 
   const handleLuckyDraw = () => {
+    if (!hasActiveInvestment) {
+      setShowInvestFirst(true)
+      return
+    }
     onClose()
     router.push("/games?tab=draw")
   }
@@ -149,51 +154,79 @@ export function GamesPopup({
           </button>
 
           {/* Lucky Draw */}
-          <button
-            onClick={handleLuckyDraw}
-            className="group relative overflow-hidden rounded-2xl border border-emerald-500/25 p-4 text-left transition-all active:scale-[0.98]"
+          <div
+            className="relative overflow-hidden rounded-2xl border border-emerald-500/25"
             style={{ background: "linear-gradient(135deg, oklch(0.22 0.025 264) 0%, oklch(0.24 0.05 160) 100%)" }}
           >
-            {/* Glow ring */}
-            <div className="pointer-events-none absolute inset-0 rounded-2xl border border-emerald-500/30 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {/* Icon container */}
-                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/15">
-                  <Ticket className="h-7 w-7 text-emerald-400" />
+            {/* Invest-first overlay */}
+            {showInvestFirst && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl bg-card/95 p-5 backdrop-blur-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/30 bg-amber-400/15">
+                  <Lock className="h-6 w-6 text-amber-400" />
                 </div>
-
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <p className="font-black text-base text-foreground">Lucky Draw</p>
-                    <span className="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                      DAILY
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Enter slots, top 3 win cash prizes
+                <div className="text-center">
+                  <p className="font-black text-base text-foreground">Active Investment Required</p>
+                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                    You need an active investment plan to enter the Lucky Draw.
                   </p>
-                  {/* Prize split */}
-                  <div className="mt-2 flex gap-2">
-                    {[{ place: "1st", pct: "35%" }, { place: "2nd", pct: "20%" }, { place: "3rd", pct: "15%" }].map((p) => (
-                      <div key={p.place} className="flex items-center gap-0.5">
-                        <Trophy className="h-2.5 w-2.5 text-emerald-400" />
-                        <span className="font-mono text-[10px] font-bold text-emerald-400">{p.pct}</span>
-                      </div>
-                    ))}
+                </div>
+                <div className="flex gap-2 w-full">
+                  <button
+                    onClick={() => setShowInvestFirst(false)}
+                    className="flex-1 rounded-xl border border-border bg-secondary py-2.5 text-xs font-bold text-muted-foreground"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => { onClose(); router.push("/invest") }}
+                    className="flex-1 rounded-xl bg-amber-400 py-2.5 text-xs font-black text-black"
+                  >
+                    Invest Now
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleLuckyDraw}
+              className="group w-full p-4 text-left transition-all active:scale-[0.98]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/15">
+                    <Ticket className="h-7 w-7 text-emerald-400" />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="font-black text-base text-foreground">Lucky Draw</p>
+                      <span className="rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                        DAILY
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Enter slots, top 3 win cash prizes
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      {[{ place: "1st", pct: "35%" }, { place: "2nd", pct: "20%" }, { place: "3rd", pct: "15%" }].map((p) => (
+                        <div key={p.place} className="flex items-center gap-0.5">
+                          <Trophy className="h-2.5 w-2.5 text-emerald-400" />
+                          <span className="font-mono text-[10px] font-bold text-emerald-400">{p.pct}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex flex-col items-center gap-1.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                  <ChevronRight className="h-4 w-4" />
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                    <ChevronRight className="h-4 w-4" />
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-400">ENTER</span>
                 </div>
-                <span className="text-[10px] font-bold text-emerald-400">ENTER</span>
               </div>
-            </div>
-          </button>
+            </button>
+          </div>
 
           {/* Nudge line */}
           <p className="text-center text-[11px] text-muted-foreground">
