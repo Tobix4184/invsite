@@ -1113,25 +1113,43 @@ export async function adminCheckDeposit(reference: string) {
     .where(eq(bankAccount.id, dep.bankAccountId))
 
   if (!acc?.sabussApiKey) {
-    return { ok: false, message: "No Sabuss API key on this account — manual only" }
+    return { ok: false, message: "No Sabuss account linked — manual only" }
   }
 
+  // sabussPin is repurposed to store the Sabuss Query API key (separate from the webhook api_key).
+  // You get this from your Sabuss dashboard → Profile → API Key / Query Key.
   if (!acc.sabussPin) {
-    return { ok: false, message: "No Sabuss Transaction PIN set — edit the account and add your PIN" }
+    return {
+      ok: false,
+      message: "No Sabuss Query API Key set. Edit this bank account and paste the Sabuss Query API Key (from your Sabuss dashboard → Profile) into the 'Sabuss Query API Key' field.",
+    }
   }
 
+  // The Sabuss query API uses the Query Key as the URL path segment AND in the body
   let sabussData: Record<string, unknown> | null = null
   let rawText = ""
   try {
-    const res = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussApiKey}`, {
+    // Try with queryKey in the URL (most common Sabuss pattern)
+    const res = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussPin}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "credit", pin: acc.sabussPin }),
+      body: JSON.stringify({ type: "credit" }),
       signal: AbortSignal.timeout(10000),
     })
     rawText = await res.text()
-    console.log("[v0] Sabuss raw response:", rawText.slice(0, 500))
     try { sabussData = JSON.parse(rawText) } catch { /* not JSON */ }
+
+    // If that fails with invalid key, try the original api_key in URL + queryKey as pin in body
+    if ((sabussData as Record<string, unknown>)?.status === "error") {
+      const res2 = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussApiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "credit", pin: acc.sabussPin }),
+        signal: AbortSignal.timeout(10000),
+      })
+      rawText = await res2.text()
+      try { sabussData = JSON.parse(rawText) } catch { /* not JSON */ }
+    }
   } catch (e) {
     return { ok: false, message: `Could not reach Sabuss API: ${e instanceof Error ? e.message : String(e)}` }
   }

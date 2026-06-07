@@ -1565,11 +1565,14 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-              Sabuss Transaction PIN <span className="font-normal text-muted-foreground">(required to query transactions)</span>
+              Sabuss Query API Key
             </label>
+            <p className="mb-1.5 text-xs text-muted-foreground">
+              Get this from your Sabuss dashboard → Profile → API / Query Key. This is different from the webhook API key above.
+            </p>
             <input
               type="password"
-              placeholder="Sabuss PIN"
+              placeholder="Sabuss Query API Key"
               value={form.sabussPin}
               onChange={(e) => setForm((f) => ({ ...f, sabussPin: e.target.value }))}
               className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
@@ -1645,11 +1648,12 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-                      Sabuss Transaction PIN
+                      Sabuss Query API Key
                     </label>
+                    <p className="mb-1.5 text-xs text-muted-foreground">From Sabuss dashboard → Profile → Query API Key</p>
                     <input
                       type="password"
-                      placeholder="Sabuss PIN"
+                      placeholder="Sabuss Query API Key"
                       value={editForm.sabussPin}
                       onChange={(e) => setEditForm((f) => ({ ...f, sabussPin: e.target.value }))}
                       className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
