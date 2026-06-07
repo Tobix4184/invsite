@@ -32,9 +32,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
   }
 
-  // Already resolved
-  if (dep.status === "success") return NextResponse.json({ ok: true, status: "approved" })
-  if (dep.status === "failed") return NextResponse.json({ ok: true, status: "cancelled" })
+  // Already resolved — no need to hit Sabuss at all
+  if (dep.status === "success" || dep.status === "approved") {
+    return NextResponse.json({ ok: true, status: "approved", message: "Deposit already confirmed" })
+  }
+  if (dep.status === "failed" || dep.status === "rejected") {
+    return NextResponse.json({ ok: true, status: "cancelled" })
+  }
 
   const now = new Date()
 
@@ -70,9 +74,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, status: "pending", message: "Could not reach Sabuss API" })
   }
 
-  // Sabuss returns { code, status, response } where response may be an array of transactions
-  // We scan for a credit matching our amount within the deposit window
-  const expectedAmount = Math.round(Number(dep.amount))
+  // Sabuss deducts a ₦50 platform fee on all transactions above ₦1,000.
+  // So a user sending ₦3,000 will show as ₦2,950 in the Sabuss ledger.
+  // We match against (depositAmount - 50) to account for this.
+  const depositAmount = Math.round(Number(dep.amount))
+  const expectedAmount = depositAmount - 50   // what Sabuss actually records
   const createdAt = new Date(dep.createdAt)
 
   let matchedTransaction: Record<string, unknown> | null = null
@@ -115,29 +121,30 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Found a match — auto-approve
+  // Found a match — auto-approve.
+  // Always credit the full depositAmount the user intended, not the Sabuss net amount.
   await db.update(deposit).set({
     status: "success",
     senderName: dep.senderName ?? (matchedTransaction.sender ? String(matchedTransaction.sender) : dep.senderName),
   }).where(eq(deposit.reference, reference))
 
   await db.update(wallet).set({
-    balance: sql`${wallet.balance} + ${expectedAmount}`,
-    totalDeposited: sql`${wallet.totalDeposited} + ${expectedAmount}`,
+    balance: sql`${wallet.balance} + ${depositAmount}`,
+    totalDeposited: sql`${wallet.totalDeposited} + ${depositAmount}`,
     updatedAt: new Date(),
   }).where(eq(wallet.userId, userId))
 
   await db.insert(transaction).values({
     userId,
     type: "deposit",
-    amount: String(expectedAmount),
+    amount: String(depositAmount),
     status: "completed",
     reference,
     description: `Auto-approved via Sabuss poll. Sender: ${matchedTransaction.sender ?? "unknown"}`,
   })
 
   await db.update(bankAccount).set({
-    totalDeposits: sql`${bankAccount.totalDeposits} + ${expectedAmount}`,
+    totalDeposits: sql`${bankAccount.totalDeposits} + ${depositAmount}`,
     depositCount: sql`${bankAccount.depositCount} + 1`,
   }).where(eq(bankAccount.id, dep.bankAccountId))
 
