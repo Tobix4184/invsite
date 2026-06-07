@@ -340,8 +340,11 @@ export function AdminDashboard(initial: AdminData) {
   const [data, setData] = useState<AdminData>(initial)
   const [tab, setTab] = useState<Tab>("Overview")
   const [refreshing, setRefreshing] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Set initial timestamp only on the client to prevent SSR/hydration mismatch
+  useEffect(() => { setLastUpdated(new Date()) }, [])
 
   const refresh = useCallback(async (showSpinner = false) => {
     if (showSpinner) setRefreshing(true)
@@ -373,7 +376,7 @@ export function AdminDashboard(initial: AdminData) {
           <div>
             <h1 className="text-lg font-bold tracking-tight">Admin Console</h1>
             <p className="text-xs text-muted-foreground">
-              Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Loading..."}
             </p>
           </div>
           <div className="flex items-center gap-2">
