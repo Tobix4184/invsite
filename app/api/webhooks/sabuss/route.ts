@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
     // Name mismatch — flag for manual review but don't auto-reject
     await db
       .update(deposit)
-      .set({ status: "needs_review", senderName: sender ?? chosen.senderName })
+      .set({ status: "needs_review", senderName: sender ?? chosen.senderName, sabussRef: sabussRef ?? null })
       .where(eq(deposit.reference, chosen.reference))
     return NextResponse.json({ ok: true, status: "flagged_for_review", reference: chosen.reference })
   }
@@ -151,6 +151,7 @@ export async function POST(req: NextRequest) {
     .set({
       status: "success",
       senderName: sender ?? chosen.senderName,
+      sabussRef: sabussRef ?? null,  // store Sabuss's own transaction ID for future queries
     })
     .where(eq(deposit.reference, chosen.reference))
 
