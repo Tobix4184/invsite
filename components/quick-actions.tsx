@@ -1,12 +1,41 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowDownToLine, ArrowUpFromLine, ChevronRight, Gift, LogIn, UserPlus, Gamepad2 } from "lucide-react"
+import { ArrowDownToLine, ArrowUpFromLine, ChevronRight, Gift, LogIn, UserPlus, Gamepad2, TrendingUp, Star } from "lucide-react"
 import { toast } from "sonner"
 import { dailySignIn } from "@/app/actions/account"
 import { SITE } from "@/lib/plans"
 import { GamesPopup } from "@/components/games/games-popup"
+
+// Two showcase plans — VIP 1 and VIP 3
+const SHOWCASE_PLANS = [
+  {
+    id: 1,
+    name: "VIP 1",
+    price: 3000,
+    daily: 1000,
+    total: 30000,
+    color: "amber",
+    borderColor: "border-amber-400/30",
+    bgColor: "bg-amber-400/10",
+    textColor: "text-amber-400",
+    badgeBg: "bg-amber-400/15",
+  },
+  {
+    id: 3,
+    name: "VIP 3",
+    price: 10000,
+    daily: 3334,
+    total: 100020,
+    color: "primary",
+    borderColor: "border-primary/30",
+    bgColor: "bg-primary/10",
+    textColor: "text-primary",
+    badgeBg: "bg-primary/15",
+    popular: true,
+  },
+]
 
 export function QuickActions({
   signedInToday = false,
@@ -23,6 +52,15 @@ export function QuickActions({
   const [pending, startTransition] = useTransition()
   const [done, setDone] = useState(signedInToday)
   const [gamesOpen, setGamesOpen] = useState(false)
+  const [activeSlide, setActiveSlide] = useState(0)
+  const slideRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    slideRef.current = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % SHOWCASE_PLANS.length)
+    }, 3000)
+    return () => { if (slideRef.current) clearInterval(slideRef.current) }
+  }, [])
 
   function handleSignIn() {
     if (done) {
@@ -137,6 +175,62 @@ export function QuickActions({
           <span className="text-[11px] font-medium leading-tight text-muted-foreground">Invite</span>
         </button>
       </section>
+
+      {/* Investment plan showcase — auto-swipes between VIP 1 and VIP 3 */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
+        <div
+          className="flex transition-transform duration-500 ease-in-out"
+          style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+        >
+          {SHOWCASE_PLANS.map((plan) => (
+            <button
+              key={plan.id}
+              onClick={() => router.push("/products")}
+              className={`min-w-full px-4 py-3 text-left transition-all active:scale-[0.99]`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${plan.borderColor} ${plan.bgColor}`}>
+                    <TrendingUp className={`h-5 w-5 ${plan.textColor}`} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-black text-sm text-foreground">{plan.name}</p>
+                      {plan.popular && (
+                        <span className={`flex items-center gap-0.5 rounded-full ${plan.badgeBg} px-1.5 py-0.5 text-[9px] font-black ${plan.textColor}`}>
+                          <Star className="h-2 w-2" />
+                          POPULAR
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-xs font-bold ${plan.textColor}`}>
+                      ₦{plan.daily.toLocaleString()}/day · ₦{plan.total.toLocaleString()} total
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`rounded-xl ${plan.bgColor} ${plan.textColor} border ${plan.borderColor} px-3 py-1.5 text-xs font-black`}>
+                    ₦{plan.price.toLocaleString()}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">Invest now</span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+        {/* Dot indicators */}
+        <div className="flex justify-center gap-1.5 pb-2">
+          {SHOWCASE_PLANS.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveSlide(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i === activeSlide ? "w-4 bg-primary" : "w-1.5 bg-border"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
 
       {/* Games CTA banner */}
       <button

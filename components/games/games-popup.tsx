@@ -1,8 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { X, Dices, Ticket, ChevronRight, Sparkles, Trophy, Zap, Lock } from "lucide-react"
+import { X, Dices, Ticket, ChevronRight, Sparkles, Trophy, Zap, Lock, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { buyDrawSlots } from "@/app/actions/games"
 
 type Props = {
   open: boolean
@@ -20,6 +22,7 @@ export function GamesPopup({
   drawOpen = true,
 }: Props) {
   const router = useRouter()
+  const [pending, startTransition] = useTransition()
   const [mounted, setMounted] = useState(false)
   const [showInvestFirst, setShowInvestFirst] = useState(false)
 
@@ -53,8 +56,17 @@ export function GamesPopup({
       setShowInvestFirst(true)
       return
     }
-    onClose()
-    router.push("/games?tab=draw")
+    // Buy 1 slot, debit wallet, then navigate
+    startTransition(async () => {
+      const res = await buyDrawSlots(1)
+      if (!res.ok) {
+        toast.error(res.message)
+        return
+      }
+      toast.success("Slot entered! Good luck!")
+      onClose()
+      router.push("/games?tab=draw")
+    })
   }
 
   return (
@@ -189,12 +201,16 @@ export function GamesPopup({
 
             <button
               onClick={handleLuckyDraw}
-              className="group w-full p-4 text-left transition-all active:scale-[0.98]"
+              disabled={pending}
+              className="group w-full p-4 text-left transition-all active:scale-[0.98] disabled:opacity-70"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/15">
-                    <Ticket className="h-7 w-7 text-emerald-400" />
+                    {pending
+                      ? <Loader2 className="h-6 w-6 text-emerald-400 animate-spin" />
+                      : <Ticket className="h-7 w-7 text-emerald-400" />
+                    }
                   </div>
 
                   <div>
@@ -205,7 +221,7 @@ export function GamesPopup({
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Enter slots, top 3 win cash prizes
+                      {pending ? "Buying slot..." : "Enter slots, top 3 win cash prizes"}
                     </p>
                     <div className="mt-2 flex gap-2">
                       {[{ place: "1st", pct: "35%" }, { place: "2nd", pct: "20%" }, { place: "3rd", pct: "15%" }].map((p) => (
@@ -220,9 +236,14 @@ export function GamesPopup({
 
                 <div className="flex flex-col items-center gap-1.5">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                    <ChevronRight className="h-4 w-4" />
+                    {pending
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <ChevronRight className="h-4 w-4" />
+                    }
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-400">ENTER</span>
+                  <span className="text-[10px] font-bold text-emerald-400">
+                    {pending ? "..." : "ENTER"}
+                  </span>
                 </div>
               </div>
             </button>
