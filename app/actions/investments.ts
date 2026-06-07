@@ -5,7 +5,7 @@ import { investment, wallet, transaction, profile, referral } from "@/lib/db/sch
 import { PLANS, SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { accrueIncomeForUser } from "@/lib/income-engine"
-import { desc, eq, sql } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
 export async function buyPlan(planId: number) {
@@ -95,6 +95,12 @@ export async function getInvestments() {
   return db
     .select()
     .from(investment)
-    .where(eq(investment.userId, userId))
+    .where(
+      and(
+        eq(investment.userId, userId),
+        // Never show cancelled or admin-deleted investments to the user
+        sql`${investment.status} NOT IN ('cancelled', 'deleted')`
+      )
+    )
     .orderBy(desc(investment.createdAt))
 }

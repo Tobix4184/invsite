@@ -598,6 +598,14 @@ export async function setWithdrawalsPaused(paused: boolean) {
 
 // ===================== TRANSACTIONS FEED =====================
 
+/** Admin: permanently delete a single transaction row from both admin and user view. */
+export async function adminDeleteTransaction(id: number) {
+  await requireAdmin()
+  await db.delete(transaction).where(eq(transaction.id, id))
+  revalidatePath("/admin")
+  return { ok: true, message: "Transaction deleted" }
+}
+
 /** Admin: site-wide transaction feed, optionally filtered by type. */
 export async function getAllTransactions(opts?: { type?: string; limit?: number }) {
   await requireAdmin()
@@ -787,9 +795,22 @@ export async function adminDeleteInvestment(id: number) {
   const [inv] = await db.select().from(investment).where(eq(investment.id, id))
   if (!inv) return { ok: false, message: "Investment not found" }
 
-  await db.update(investment).set({ status: "deleted" }).where(eq(investment.id, id))
+  // Hard delete the investment row — completely gone, user sees nothing
+  await db.delete(investment).where(eq(investment.id, id))
+
+  // Also wipe all transactions whose description references this investment plan
+  // (earnings, refund, cancellation notices) so no trace on user or admin side.
+  // We match by userId + investment-related types to avoid nuking unrelated rows.
+  await db.delete(transaction).where(
+    and(
+      eq(transaction.userId, inv.userId),
+      sql`${transaction.description} ILIKE ${"%" + inv.planName + "%"}`
+    )
+  )
+
   revalidatePath("/admin")
-  return { ok: true, message: "Investment removed" }
+  revalidatePath("/dashboard")
+  return { ok: true, message: "Investment and all related transactions permanently deleted." }
 }
 
 export async function adminExtendInvestment(id: number, extraDays: number) {
