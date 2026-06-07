@@ -22,7 +22,7 @@ import {
 } from "@/lib/db/schema"
 import { requireAdmin } from "@/lib/session"
 import { accrueIncomeForAll } from "@/lib/income-engine"
-import { getPauseFlags, setSetting, getGameConfig, SETTING_KEYS } from "@/app/actions/settings"
+import { getPauseFlags, setSetting, getGameConfig, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
 import { and, asc, desc, eq, gt, sql, sum } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
@@ -85,21 +85,53 @@ export async function approveWithdrawal(id: number) {
   const [w] = await db.select().from(withdrawal).where(eq(withdrawal.id, id))
   if (!w || w.status !== "pending") return { ok: false, message: "Not a pending withdrawal" }
 
+  const grossAmount = Math.round(Number(w.amount))
+
+  // Re-calculate charge using CURRENT admin setting (not the rate at request time).
+  // This ensures any rate change the admin makes applies to pending withdrawals immediately.
+  const liveChargePercent = await getLiveWithdrawalCharge()
+  const liveCharge = Math.round((grossAmount * liveChargePercent) / 100)
+  const liveNet = grossAmount - liveCharge
+
+  const oldCharge = Math.round(Number(w.charge))
+  const chargeDiff = liveCharge - oldCharge // positive = user pays more, negative = user pays less
+
+  // If charge changed, adjust the wallet balance for the difference.
+  // (Gross was already deducted at request time — only the charge delta changes.)
+  if (chargeDiff !== 0) {
+    // Positive diff: charge went UP → deduct the extra from wallet (user gets less)
+    // Negative diff: charge went DOWN → refund the savings back to wallet (user gets more)
+    await db
+      .update(wallet)
+      .set({ balance: sql`${wallet.balance} - ${chargeDiff}`, updatedAt: new Date() })
+      .where(eq(wallet.userId, w.userId))
+  }
+
   await db
     .update(withdrawal)
-    .set({ status: "approved", processedAt: new Date() })
+    .set({
+      status: "approved",
+      processedAt: new Date(),
+      charge: String(liveCharge),
+      netAmount: String(liveNet),
+    })
     .where(eq(withdrawal.id, id))
+
   await db
     .update(wallet)
-    .set({ totalWithdrawn: sql`${wallet.totalWithdrawn} + ${Number(w.amount)}`, updatedAt: new Date() })
+    .set({ totalWithdrawn: sql`${wallet.totalWithdrawn} + ${grossAmount}`, updatedAt: new Date() })
     .where(eq(wallet.userId, w.userId))
+
   await db
     .update(transaction)
     .set({ status: "completed" })
-    .where(eq(transaction.userId, w.userId))
+    .where(and(eq(transaction.userId, w.userId), eq(transaction.status, "pending")))
 
   revalidatePath("/admin")
-  return { ok: true, message: "Withdrawal approved" }
+  return {
+    ok: true,
+    message: `Withdrawal approved. Net: ₦${liveNet.toLocaleString()} (${liveChargePercent}% fee = ₦${liveCharge.toLocaleString()}).`,
+  }
 }
 
 export async function rejectWithdrawal(id: number) {
@@ -955,6 +987,7 @@ export async function saveGameConfig(updates: {
   vaultBonus30?: number
   vaultPenalty?: number
   vaultMin?: number
+  withdrawalCharge?: number  // percent e.g. 18 — applies immediately to all pending withdrawals
 }) {
   await requireAdmin()
   const g = SETTING_KEYS
@@ -970,6 +1003,7 @@ export async function saveGameConfig(updates: {
   if (updates.vaultBonus30 !== undefined) pairs.push([g.vaultBonus30, String(updates.vaultBonus30)])
   if (updates.vaultPenalty !== undefined) pairs.push([g.vaultPenalty, String(updates.vaultPenalty)])
   if (updates.vaultMin !== undefined) pairs.push([g.vaultMin, String(updates.vaultMin)])
+  if (updates.withdrawalCharge !== undefined) pairs.push([g.withdrawalCharge, String(updates.withdrawalCharge)])
 
   for (const [key, value] of pairs) {
     await setSetting(key, value)
@@ -1145,15 +1179,23 @@ export async function adminCheckDeposit(reference: string) {
 
   const depositAmount = Math.round(Number(dep.amount))
 
-  // ── Already confirmed by webhook ──
-  // The Sabuss webhook fires when payment lands and stores the sender name + amount.
-  // If status is already success/approved, the webhook already verified it — confirm that.
+  // ── Already completed: be honest about HOW it was approved ──
   if (isCompleted) {
-    const senderProof = dep.senderName ? `Sender on record: ${dep.senderName}.` : ""
+    if (dep.sabussRef) {
+      // Was auto-approved via Sabuss webhook — we have their transaction ID as proof
+      const senderProof = dep.senderName ? ` Sender: ${dep.senderName}.` : ""
+      return {
+        ok: true,
+        found: true,
+        message: `Verified: auto-approved by Sabuss webhook (ref: ${dep.sabussRef}).${senderProof} ₦${depositAmount.toLocaleString()} credited.`,
+      }
+    }
+    // No sabussRef = was manually approved by admin, NOT webhook-verified
+    const senderProof = dep.senderName ? ` Sender on record: ${dep.senderName}.` : ""
     return {
       ok: true,
-      found: true,
-      message: `Payment confirmed. ₦${depositAmount.toLocaleString()} was verified and approved via Sabuss webhook. ${senderProof}`.trim(),
+      found: false,
+      message: `This deposit was manually approved by admin — no Sabuss webhook reference on record.${senderProof} If you did NOT verify payment before approving, check your Sabuss dashboard manually.`,
     }
   }
 
