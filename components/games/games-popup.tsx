@@ -1,15 +1,12 @@
 "use client"
 
-import { useState, useTransition, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { X, Dices, Ticket, ChevronRight, Sparkles, Trophy, Zap, Loader2 } from "lucide-react"
-import { toast } from "sonner"
-import { claimFreeDrawSlot } from "@/app/actions/games"
+import { X, Dices, Ticket, ChevronRight, Sparkles, Trophy, Zap } from "lucide-react"
 
 type Props = {
   open: boolean
   onClose: () => void
-  // Lucky draw state — passed from server so we can auto-enter
   freeSlotAvailable?: boolean
   hasActiveInvestment?: boolean
   drawOpen?: boolean
@@ -23,7 +20,6 @@ export function GamesPopup({
   drawOpen = true,
 }: Props) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -52,25 +48,8 @@ export function GamesPopup({
   }
 
   const handleLuckyDraw = () => {
-    if (!drawOpen) {
-      toast.error("Draw is already closed for today. Come back tomorrow!")
-      return
-    }
-
-    // If free slot is available, auto-claim it then navigate
-    if (freeSlotAvailable && hasActiveInvestment) {
-      startTransition(async () => {
-        const res = await claimFreeDrawSlot()
-        if (res.ok) {
-          toast.success("Free slot entered! Navigating to Lucky Draw...")
-        }
-        onClose()
-        router.push("/games?tab=draw")
-      })
-    } else {
-      onClose()
-      router.push("/games?tab=draw")
-    }
+    onClose()
+    router.push("/games?tab=draw")
   }
 
   return (
@@ -172,33 +151,17 @@ export function GamesPopup({
           {/* Lucky Draw */}
           <button
             onClick={handleLuckyDraw}
-            disabled={pending}
-            className="group relative overflow-hidden rounded-2xl border border-emerald-500/25 p-4 text-left transition-all active:scale-[0.98] disabled:opacity-70"
+            className="group relative overflow-hidden rounded-2xl border border-emerald-500/25 p-4 text-left transition-all active:scale-[0.98]"
             style={{ background: "linear-gradient(135deg, oklch(0.22 0.025 264) 0%, oklch(0.24 0.05 160) 100%)" }}
           >
             {/* Glow ring */}
             <div className="pointer-events-none absolute inset-0 rounded-2xl border border-emerald-500/30 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 
-            {/* "FREE SLOT" badge — only if available */}
-            {freeSlotAvailable && hasActiveInvestment && drawOpen && (
-              <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2.5 py-1">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                </span>
-                <span className="text-[10px] font-black text-emerald-400">FREE SLOT</span>
-              </div>
-            )}
-
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {/* Icon container */}
                 <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/15">
-                  {pending ? (
-                    <Loader2 className="h-7 w-7 text-emerald-400 animate-spin" />
-                  ) : (
-                    <Ticket className="h-7 w-7 text-emerald-400" />
-                  )}
+                  <Ticket className="h-7 w-7 text-emerald-400" />
                 </div>
 
                 <div>
