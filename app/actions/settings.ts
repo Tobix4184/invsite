@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm"
 import { SITE } from "@/lib/plans"
 
 export const SETTING_KEYS = {
+  siteFrozen: "site_frozen",               // "true" = entire site frozen for all non-admin users
   depositsPaused: "deposits_paused",
   withdrawalsPaused: "withdrawals_paused",
   // Withdrawal charge — stored in DB so admin can change it and it applies immediately
@@ -90,11 +91,12 @@ export async function getLiveWithdrawalCharge(): Promise<number> {
   return isNaN(parsed) ? SITE.withdrawalCharge : parsed
 }
 
-/** Convenience: returns both pause flags. */
-export async function getPauseFlags(): Promise<{ depositsPaused: boolean; withdrawalsPaused: boolean }> {
+/** Convenience: returns pause flags + site freeze state. */
+export async function getPauseFlags(): Promise<{ depositsPaused: boolean; withdrawalsPaused: boolean; siteFrozen: boolean }> {
   const rows = await db.select().from(siteSetting)
   const map = new Map(rows.map((r) => [r.key, r.value]))
   return {
+    siteFrozen: map.get(SETTING_KEYS.siteFrozen) === "true",
     depositsPaused: map.get(SETTING_KEYS.depositsPaused) === "true",
     withdrawalsPaused: map.get(SETTING_KEYS.withdrawalsPaused) === "true",
   }

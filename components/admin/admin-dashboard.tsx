@@ -41,6 +41,7 @@ import {
   CalendarPlus,
   ChevronDown,
   Zap,
+  Unlock,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
@@ -59,6 +60,7 @@ import {
   updateMilestone,
   deleteMilestone,
   toggleMilestoneStatus,
+  setSiteFrozen,
   setDepositsPaused,
   setWithdrawalsPaused,
   createPromoterCode,
@@ -178,10 +180,11 @@ type Milestone = {
   isActive: boolean
 }
 
-type Controls = {
-  depositsPaused: boolean
-  withdrawalsPaused: boolean
-}
+  type Controls = {
+    siteFrozen: boolean
+    depositsPaused: boolean
+    withdrawalsPaused: boolean
+  }
 
 type Txn = {
   id: number
@@ -522,12 +525,15 @@ function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => vo
 
 function Overview({ stats, controls, onAction }: { stats: Stats; controls: Controls; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
+  const [siteFrozen, setSiteFrozenState] = useState(controls.siteFrozen)
   const [depositsPaused, setDepPaused] = useState(controls.depositsPaused)
   const [withdrawalsPaused, setWdPaused] = useState(controls.withdrawalsPaused)
+  const [savingFreeze, startFreezeTransition] = useTransition()
   const [savingDep, startDepTransition] = useTransition()
   const [savingWd, startWdTransition] = useTransition()
 
-  // Keep local pause state in sync when polled data arrives
+  // Keep local state in sync when polled data arrives
+  useEffect(() => { setSiteFrozenState(controls.siteFrozen) }, [controls.siteFrozen])
   useEffect(() => { setDepPaused(controls.depositsPaused) }, [controls.depositsPaused])
   useEffect(() => { setWdPaused(controls.withdrawalsPaused) }, [controls.withdrawalsPaused])
 
@@ -540,9 +546,19 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
     })
   }
 
+  function toggleFreeze() {
+    const next = !siteFrozen
+    setSiteFrozenState(next)
+    startFreezeTransition(async () => {
+      const res = await setSiteFrozen(next)
+      toast[res.ok ? "success" : "error"](res.message)
+      onAction()
+    })
+  }
+
   function toggleDeposits() {
-    const next = !depositsPaused
-    setDepPaused(next)
+  const next = !depositsPaused
+  setDepPaused(next)
     startDepTransition(async () => {
       const res = await setDepositsPaused(next)
       if (res.ok) toast.success(res.message)
@@ -596,9 +612,31 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
           Pausing hides the action from users entirely and blocks new requests.
         </p>
         <div className="mt-3 flex flex-col gap-2">
-          <button
-            onClick={toggleDeposits}
-            disabled={savingDep}
+        {/* Site Freeze — single button that locks everything for non-admin users */}
+        <button
+          onClick={toggleFreeze}
+          disabled={savingFreeze}
+          className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-sm font-semibold transition-colors disabled:opacity-60 ${
+            siteFrozen
+              ? "border-red-500/60 bg-red-500/15 text-red-400"
+              : "border-border bg-card text-muted-foreground"
+          }`}
+        >
+          <span>Freeze Entire Site</span>
+          <span className="flex items-center gap-1.5">
+            {savingFreeze ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : siteFrozen ? (
+              <><Lock className="h-4 w-4" /> Frozen</>
+            ) : (
+              <><Unlock className="h-4 w-4" /> Live</>
+            )}
+          </span>
+        </button>
+
+        <button
+          onClick={toggleDeposits}
+          disabled={savingDep}
             className={`flex items-center justify-between rounded-xl border px-3 py-3 text-sm font-semibold transition-colors disabled:opacity-60 ${
               depositsPaused
                 ? "border-destructive/40 bg-destructive/10 text-destructive"
@@ -2696,6 +2734,17 @@ function InvestmentsTab({ items, onAction }: { items: InvestmentRow[]; onAction:
                   <Trash2 className="h-3.5 w-3.5" /> Delete
                 </button>
               </div>
+            )}
+
+            {/* Cancelled investments can be fully deleted to remove all traces */}
+            {inv.status === "cancelled" && (
+              <button
+                onClick={() => handleDelete(inv.id)}
+                disabled={pending}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-destructive/30 bg-destructive/10 py-2 text-xs font-bold text-destructive disabled:opacity-60"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete Record
+              </button>
             )}
 
             {extendId === inv.id && (

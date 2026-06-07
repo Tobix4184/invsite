@@ -582,6 +582,15 @@ export async function getSiteControls() {
   return getPauseFlags()
 }
 
+/** Admin: freeze or unfreeze the entire site for non-admin users. */
+export async function setSiteFrozen(frozen: boolean) {
+  await requireAdmin()
+  await setSetting(SETTING_KEYS.siteFrozen, frozen ? "true" : "false")
+  revalidatePath("/")
+  revalidatePath("/dashboard")
+  return { ok: true, message: frozen ? "Site frozen — all users locked out" : "Site unfrozen — users can access normally" }
+}
+
 export async function setDepositsPaused(paused: boolean) {
   await requireAdmin()
   await setSetting(SETTING_KEYS.depositsPaused, paused ? "true" : "false")
@@ -794,6 +803,7 @@ export async function adminDeleteInvestment(id: number) {
   await requireAdmin()
   const [inv] = await db.select().from(investment).where(eq(investment.id, id))
   if (!inv) return { ok: false, message: "Investment not found" }
+  // Allow deletion of any status — active, cancelled, completed, deleted
 
   // Hard delete the investment row — completely gone, user sees nothing
   await db.delete(investment).where(eq(investment.id, id))
