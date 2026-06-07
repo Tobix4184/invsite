@@ -9,6 +9,8 @@ import {
   wallet,
   transaction,
   investment,
+  user as userTable,
+  referral,
 } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getGameConfig } from "@/app/actions/settings"
@@ -193,6 +195,78 @@ export async function claimFreeDrawSlot() {
 
   revalidatePath("/games")
   return { ok: true, message: "Free slot entered!" }
+}
+
+// Public: last 3 draw winners with masked names — shown on the draw page for FOMO
+export async function getRecentDrawWinners() {
+  const recent = await db
+    .select()
+    .from(luckyDrawRound)
+    .where(eq(luckyDrawRound.status, "drawn"))
+    .orderBy(desc(luckyDrawRound.drawDate))
+    .limit(5)
+
+  const results: { name: string; amount: number; drawDate: string; place: number }[] = []
+
+  for (const round of recent) {
+    const pairs = [
+      { uid: round.winner1Id, amt: round.winner1Amount, place: 1 },
+      { uid: round.winner2Id, amt: round.winner2Amount, place: 2 },
+      { uid: round.winner3Id, amt: round.winner3Amount, place: 3 },
+    ] as const
+
+    for (const { uid, amt, place } of pairs) {
+      if (!uid || !amt) continue
+      const [u] = await db.select({ name: userTable.name, email: userTable.email }).from(userTable).where(eq(userTable.id, uid))
+      const displayName = u
+        ? maskName(u.name ?? u.email ?? "User")
+        : "Someone"
+      results.push({ name: displayName, amount: Number(amt), drawDate: round.drawDate, place })
+    }
+    if (results.length >= 6) break
+  }
+
+  return results.slice(0, 6)
+}
+
+function maskName(full: string): string {
+  // "Jonathan salvation" → "J*** s***"
+  return full.split(/\s+/).map((w) => w[0] + "*".repeat(Math.max(1, w.length - 1))).join(" ")
+}
+
+// Referral bonus: if a user referred someone who has deposited, they get 1 free bonus slot per referral
+export async function claimReferralDrawSlot() {
+  const userId = await getUserId()
+  const today = todayStr()
+
+  const round = await getOrCreateRound(today)
+  if (round.status !== "open") return { ok: false, message: "Draw already closed for today" }
+
+  // Qualifying referral = referrer has earned commission > 0 (means referred user deposited)
+  const qualifying = await db
+    .select()
+    .from(referral)
+    .where(and(eq(referral.referrerId, userId), sql`${referral.totalCommission} > 0`))
+
+  if (qualifying.length === 0) {
+    return { ok: false, message: "No qualifying referrals yet. Refer a friend who deposits to earn a bonus slot." }
+  }
+
+  // How many referral slots have been claimed so far (across all dates)?
+  const claimed = await db
+    .select()
+    .from(luckyDrawSlot)
+    .where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.source, "referral")))
+
+  const remaining = qualifying.length - claimed.length
+  if (remaining <= 0) return { ok: false, message: "All referral bonus slots already claimed." }
+
+  // Grant exactly 1 referral slot for today's draw
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await db.insert(luckyDrawSlot).values({ userId, source: "referral" as any, drawDate: today })
+
+  revalidatePath("/games")
+  return { ok: true, message: `Referral bonus slot entered! You have ${remaining - 1} more referral slot${remaining - 1 === 1 ? "" : "s"} to claim.` }
 }
 
 export async function buyDrawSlots(count: number) {

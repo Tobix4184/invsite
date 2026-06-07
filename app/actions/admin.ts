@@ -837,7 +837,9 @@ export async function getLuckyDrawRounds() {
   return db.select().from(luckyDrawRound).orderBy(desc(luckyDrawRound.drawDate)).limit(30)
 }
 
-export async function executeLuckyDraw(drawDate: string) {
+// pickedWinnerIds: optional list of up to 3 user IDs admin wants to force as winners.
+// Any remaining slots (up to 3) are filled randomly from actual slot entrants.
+export async function executeLuckyDraw(drawDate: string, pickedWinnerIds: string[] = []) {
   await requireAdmin()
 
   const [round] = await db
@@ -856,16 +858,28 @@ export async function executeLuckyDraw(drawDate: string) {
 
   if (slots.length === 0) return { ok: false, message: "No slots entered for this draw" }
 
-  // Shuffle slots to pick 3 unique winners
-  const shuffled = slots.sort(() => Math.random() - 0.5)
+  // Build unique user list from slots
+  const slotUserIds = [...new Set(slots.map((s) => s.userId))]
+
+  // Start with admin-picked winners (must have a slot in this draw)
   const seenUsers = new Set<string>()
-  const winners: typeof slots = []
-  for (const slot of shuffled) {
-    if (!seenUsers.has(slot.userId)) {
-      seenUsers.add(slot.userId)
-      winners.push(slot)
-      if (winners.length === 3) break
-    }
+  const winners: { userId: string }[] = []
+
+  for (const uid of pickedWinnerIds) {
+    if (winners.length >= 3) break
+    if (!slotUserIds.includes(uid)) continue // must have entered this draw
+    if (seenUsers.has(uid)) continue
+    seenUsers.add(uid)
+    winners.push({ userId: uid })
+  }
+
+  // Fill remaining spots randomly from slot entrants
+  const shuffled = [...slotUserIds].sort(() => Math.random() - 0.5)
+  for (const uid of shuffled) {
+    if (winners.length >= 3) break
+    if (seenUsers.has(uid)) continue
+    seenUsers.add(uid)
+    winners.push({ userId: uid })
   }
 
   const pool = Number(round.prizePool)
@@ -908,7 +922,24 @@ export async function executeLuckyDraw(drawDate: string) {
   const platformEarned = pool - totalPaid
 
   revalidatePath("/admin")
-  return { ok: true, message: `Draw executed. ${winners.length} winners paid ₦${totalPaid.toLocaleString()} (platform retained ₦${platformEarned.toLocaleString()}).` }
+  revalidatePath("/games")
+  return { ok: true, message: `Draw executed. ${winners.length} winner${winners.length > 1 ? "s" : ""} paid ₦${totalPaid.toLocaleString()} (platform retained ₦${platformEarned.toLocaleString()}).` }
+}
+
+// Returns slot entrants for a given draw date — used by admin winner picker
+export async function getDrawSlotUsers(drawDate: string) {
+  await requireAdmin()
+  const slots = await db
+    .select({ userId: luckyDrawSlot.userId })
+    .from(luckyDrawSlot)
+    .where(eq(luckyDrawSlot.drawDate, drawDate))
+  const userIds = [...new Set(slots.map((s) => s.userId))]
+  if (userIds.length === 0) return []
+  const userRows = await db
+    .select({ id: userTable.id, email: userTable.email, name: userTable.name })
+    .from(userTable)
+    .where(sql`${userTable.id} = ANY(ARRAY[${sql.raw(userIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(","))}]::text[])`)
+  return userRows
 }
 
 // ── Admin: Game Config ────────────────────────────────────────────────────────

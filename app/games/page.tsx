@@ -3,10 +3,11 @@
 import { getSession } from "@/lib/session"
 import { redirect } from "next/navigation"
 import { db } from "@/lib/db"
-import { wallet, investment, lockVault, luckyDrawSlot, luckyDrawRound } from "@/lib/db/schema"
-import { eq, and, desc, gt } from "drizzle-orm"
+import { wallet, investment, lockVault, luckyDrawSlot, luckyDrawRound, referral } from "@/lib/db/schema"
+import { eq, and, desc, gt, sql } from "drizzle-orm"
 import { SITE } from "@/lib/plans"
 import { getGameConfig } from "@/app/actions/settings"
+import { getRecentDrawWinners } from "@/app/actions/games"
 import { GamesHub } from "@/components/games/games-hub"
 import { BottomNav } from "@/components/bottom-nav"
 
@@ -29,15 +30,19 @@ export default async function GamesPage() {
 
   const today = new Date().toISOString().slice(0, 10)
 
-  const [round, todaySlots, freeSlotsClaimed] = await Promise.all([
+  const [round, todaySlots, freeSlotsClaimed, referralSlotsClaimedRows, qualifyingReferrals, recentWinners] = await Promise.all([
     db.select().from(luckyDrawRound).where(eq(luckyDrawRound.drawDate, today)).then((r) => r[0] ?? null),
     db.select().from(luckyDrawSlot).where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.drawDate, today))),
-    // Lifetime check — has a free slot ever been claimed?
     db.select().from(luckyDrawSlot).where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.source, "free"))),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    db.select().from(luckyDrawSlot).where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.source, "referral" as any))),
+    db.select().from(referral).where(and(eq(referral.referrerId, userId), sql`${referral.totalCommission} > 0`)),
+    getRecentDrawWinners(),
   ])
 
   const hasActiveInvestment = activeInvestments.length > 0
   const freeSlotAvailable = hasActiveInvestment && freeSlotsClaimed.length === 0
+  const referralSlotsAvailable = Math.max(0, qualifyingReferrals.length - referralSlotsClaimedRows.length)
 
   return (
     <>
@@ -50,6 +55,8 @@ export default async function GamesPage() {
         todaySlotsCount={todaySlots.length}
         freeSlotAvailable={freeSlotAvailable}
         hasActiveInvestment={hasActiveInvestment}
+        referralSlotsAvailable={referralSlotsAvailable}
+        recentWinners={recentWinners}
         vaults={vaults}
         features={SITE.features}
         vaultTiers={cfg.vaultTiers}
