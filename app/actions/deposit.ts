@@ -1,11 +1,12 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { deposit, wallet, transaction, user as userTable } from "@/lib/db/schema"
+import { deposit, wallet, transaction, user as userTable, bankAccount } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { eq, sql, desc, and } from "drizzle-orm"
 import { getBoolSetting, pickWeightedBankAccount, SETTING_KEYS } from "@/app/actions/settings"
+import { revalidatePath } from "next/cache"
 
 function baseUrl() {
   return (
@@ -105,6 +106,18 @@ export async function approveDeposit(reference: string) {
     description: `Deposit approved: ₦${amount.toLocaleString()}`,
   })
 
+  // Update the bank account stats so admin sees correct deposit count and total
+  if (dep.bankAccountId) {
+    await db
+      .update(bankAccount)
+      .set({
+        totalDeposits: sql`${bankAccount.totalDeposits} + ${amount}`,
+        depositCount: sql`${bankAccount.depositCount} + 1`,
+      })
+      .where(eq(bankAccount.id, dep.bankAccountId))
+  }
+
+  revalidatePath("/admin")
   return { ok: true, message: `Deposit ₦${amount.toLocaleString()} approved` }
 }
 
