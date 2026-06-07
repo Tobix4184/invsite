@@ -18,6 +18,10 @@ const DAY_MS = 24 * 60 * 60 * 1000
  * capped at the plan's duration, and completes the investment when fully paid.
  */
 export async function accrueIncomeForUser(userId: string): Promise<number> {
+  // Sweep any already-credited earnings back into investments for users with
+  // autoReinvest=true (handles earnings that dropped before the feature existed)
+  await backfillReinvestForUser(userId)
+
   // Cheap, unlocked read just to find candidate investment ids.
   const actives = await db
     .select({ id: investment.id })
@@ -80,11 +84,11 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
           [newDurationDays, newTotalEarning, newDaysPaid, newLast, newStatus, id],
         )
 
-        // Log the reinvestment as a transaction so user sees it in history
+        // Log the reinvestment backdated to the payout time so history is accurate
         await client.query(
-          `INSERT INTO transaction ("userId", type, amount, description, status)
-           VALUES ($1, 'reinvest', $2, $3, 'completed')`,
-          [userId, String(credit), `Earnings reinvested into ${inv.planName}`],
+          `INSERT INTO transaction ("userId", type, amount, description, status, "createdAt")
+           VALUES ($1, 'reinvest', $2, $3, 'completed', $4)`,
+          [userId, String(credit), `Earnings reinvested into ${inv.planName}`, newLast],
         )
       } else {
         // NORMAL: credit wallet with earnings
@@ -123,6 +127,103 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
   }
 
   return totalCredited
+}
+
+/**
+ * Backfill: find `earning` transactions that were credited to the wallet
+ * before auto-reinvest existed, and pull them back into the matching investment.
+ *
+ * Only runs for users whose active investment has autoReinvest=true.
+ * For each unmatched `earning` transaction (no corresponding `reinvest` with
+ * the same amount on the same day), we:
+ *   1. Deduct the amount from the wallet
+ *   2. Extend the investment's duration by 1 day per earning
+ *   3. Replace the `earning` transaction with a `reinvest` one, keeping the
+ *      original createdAt so history timestamps are accurate
+ */
+export async function backfillReinvestForUser(userId: string): Promise<void> {
+  const client = await pool.connect()
+  try {
+    await client.query("BEGIN")
+
+    // Find active investments with autoReinvest ON for this user
+    const { rows: invRows } = await client.query(
+      `SELECT id, "planName", "dailyEarning", "durationDays", "daysPaid", "totalEarning"
+       FROM investment
+       WHERE "userId" = $1 AND status = 'active' AND "autoReinvest" = true`,
+      [userId],
+    )
+    if (invRows.length === 0) {
+      await client.query("COMMIT")
+      return
+    }
+
+    for (const inv of invRows) {
+      const daily = Number(inv.dailyEarning)
+
+      // Find earning transactions for this user that were NOT already reinvested
+      // (no reinvest tx with same amount exists on same calendar day)
+      const { rows: earningRows } = await client.query(
+        `SELECT t.id, t.amount, t."createdAt"
+         FROM transaction t
+         WHERE t."userId" = $1
+           AND t.type = 'earning'
+           AND t.description ILIKE $2
+           AND NOT EXISTS (
+             SELECT 1 FROM transaction r
+             WHERE r."userId" = t."userId"
+               AND r.type = 'reinvest'
+               AND r.amount = t.amount
+               AND DATE(r."createdAt") = DATE(t."createdAt")
+           )
+         ORDER BY t."createdAt" ASC`,
+        [userId, `%${inv.planName}%`],
+      )
+
+      if (earningRows.length === 0) continue
+
+      for (const earning of earningRows) {
+        const amount = Number(earning.amount)
+        const originalAt = earning.createdAt
+
+        // 1. Deduct from wallet (clamp at 0 to avoid negative)
+        await client.query(
+          `UPDATE wallet
+           SET balance = GREATEST(balance - $1, 0),
+               "totalEarned" = GREATEST("totalEarned" - $1, 0),
+               "updatedAt" = now()
+           WHERE "userId" = $2`,
+          [amount, userId],
+        )
+
+        // 2. Extend investment by 1 day, add credit to totalEarning
+        const extraDays = Math.round(amount / Math.max(daily, 1))
+        await client.query(
+          `UPDATE investment
+           SET "durationDays" = "durationDays" + $1,
+               "totalEarning" = "totalEarning" + $2
+           WHERE id = $3`,
+          [extraDays, amount, inv.id],
+        )
+
+        // 3. Convert the earning transaction to reinvest (keep original createdAt)
+        await client.query(
+          `UPDATE transaction
+           SET type = 'reinvest',
+               description = $1
+           WHERE id = $2`,
+          [`Earnings reinvested into ${inv.planName}`, earning.id],
+        )
+      }
+    }
+
+    await client.query("COMMIT")
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {})
+    console.error("[v0] backfillReinvestForUser failed:", err)
+  } finally {
+    client.release()
+  }
 }
 
 /** Accrues income for every user with active investments. Used by cron. */
