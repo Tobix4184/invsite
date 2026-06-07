@@ -29,10 +29,15 @@ export default async function GamesPage() {
 
   const today = new Date().toISOString().slice(0, 10)
 
-  const [round, todaySlots] = await Promise.all([
+  const [round, todaySlots, freeSlotsClaimed] = await Promise.all([
     db.select().from(luckyDrawRound).where(eq(luckyDrawRound.drawDate, today)).then((r) => r[0] ?? null),
     db.select().from(luckyDrawSlot).where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.drawDate, today))),
+    // Lifetime check — has a free slot ever been claimed?
+    db.select().from(luckyDrawSlot).where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.source, "free"))),
   ])
+
+  const hasActiveInvestment = activeInvestments.length > 0
+  const freeSlotAvailable = hasActiveInvestment && freeSlotsClaimed.length === 0
 
   return (
     <>
@@ -43,7 +48,8 @@ export default async function GamesPage() {
         today={today}
         round={round}
         todaySlotsCount={todaySlots.length}
-        freeSlotsTotal={activeInvestments.length * SITE.luckyDrawFreePerInvestment}
+        freeSlotAvailable={freeSlotAvailable}
+        hasActiveInvestment={hasActiveInvestment}
         vaults={vaults}
         features={SITE.features}
         vaultTiers={cfg.vaultTiers}

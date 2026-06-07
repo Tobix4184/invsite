@@ -126,15 +126,25 @@ export async function getLuckyDrawState() {
 
   const round = await getOrCreateRound(today)
 
-  // Count today's investments as free slots
+  // Count active investments
   const activeInvestments = await db
     .select()
     .from(investment)
     .where(and(eq(investment.userId, userId), eq(investment.status, "active")))
 
-  const freeSlots = activeInvestments.length * SITE.luckyDrawFreePerInvestment
+  // 1 free slot per investment — lifetime (not per day). Check if ANY free slot
+  // has ever been claimed by this user (across all draw dates).
+  const freeSlotsClaimed = await db
+    .select()
+    .from(luckyDrawSlot)
+    .where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.source, "free")))
 
-  // Count slots already entered today
+  const hasUsedFreeSlot = freeSlotsClaimed.length > 0
+  const hasActiveInvestment = activeInvestments.length > 0
+  // Free slot is available only if they have an active investment AND haven't used it yet
+  const freeSlotAvailable = hasActiveInvestment && !hasUsedFreeSlot
+
+  // Count slots entered for today's draw
   const existingSlots = await db
     .select()
     .from(luckyDrawSlot)
@@ -145,15 +155,15 @@ export async function getLuckyDrawState() {
   return {
     round,
     today,
-    freeSlots,
+    freeSlotAvailable,
+    hasActiveInvestment,
     slotsEntered: existingSlots.length,
     balance: Number(w?.balance ?? 0),
     slotCost: SITE.luckyDrawSlotCost,
-    hasActiveInvestment: activeInvestments.length > 0,
   }
 }
 
-export async function claimFreeDrawSlots() {
+export async function claimFreeDrawSlot() {
   const userId = await getUserId()
   const today = todayStr()
 
@@ -166,35 +176,23 @@ export async function claimFreeDrawSlots() {
     .where(and(eq(investment.userId, userId), eq(investment.status, "active")))
 
   if (activeInvestments.length === 0) {
-    return { ok: false, message: "You need an active investment to get free slots" }
+    return { ok: false, message: "You need an active investment to use your free slot" }
   }
 
-  const freeSlots = activeInvestments.length * SITE.luckyDrawFreePerInvestment
-
-  // How many free slots have been claimed today already
+  // Check if free slot has EVER been used (lifetime, not per day)
   const existing = await db
     .select()
     .from(luckyDrawSlot)
-    .where(
-      and(
-        eq(luckyDrawSlot.userId, userId),
-        eq(luckyDrawSlot.drawDate, today),
-        eq(luckyDrawSlot.source, "free")
-      )
-    )
+    .where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.source, "free")))
 
-  const remainingFree = freeSlots - existing.length
-  if (remainingFree <= 0) return { ok: false, message: "Free slots already claimed for today" }
+  if (existing.length > 0) {
+    return { ok: false, message: "Free slot already used" }
+  }
 
-  const rows = Array.from({ length: remainingFree }, () => ({
-    userId,
-    source: "free" as const,
-    drawDate: today,
-  }))
-  await db.insert(luckyDrawSlot).values(rows)
+  await db.insert(luckyDrawSlot).values({ userId, source: "free", drawDate: today })
 
   revalidatePath("/games")
-  return { ok: true, message: `${remainingFree} free slot${remainingFree > 1 ? "s" : ""} added` }
+  return { ok: true, message: "Free slot entered!" }
 }
 
 export async function buyDrawSlots(count: number) {

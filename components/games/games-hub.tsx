@@ -33,7 +33,8 @@ type Props = {
   today: string
   round: Round
   todaySlotsCount: number
-  freeSlotsTotal: number
+  freeSlotAvailable: boolean
+  hasActiveInvestment: boolean
   vaults: Vault[]
   features: { stakeAndSpin: boolean; luckyDraw: boolean; lockVault: boolean }
   vaultTiers: { days: number; bonusPercent: number; penaltyPercent: number }[]
@@ -145,8 +146,8 @@ export function GamesHub(props: Props) {
                 today={props.today}
                 round={props.round}
                 todaySlotsCount={props.todaySlotsCount}
-                freeSlotsTotal={props.freeSlotsTotal}
-                activeInvestments={props.activeInvestments}
+                freeSlotAvailable={props.freeSlotAvailable}
+                hasActiveInvestment={props.hasActiveInvestment}
                 slotCost={props.slotCost}
               />
             )}
