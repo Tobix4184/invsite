@@ -6,6 +6,8 @@ import { SITE } from "@/lib/plans"
 export const SETTING_KEYS = {
   depositsPaused: "deposits_paused",
   withdrawalsPaused: "withdrawals_paused",
+  // Withdrawal charge — stored in DB so admin can change it and it applies immediately
+  withdrawalCharge: "withdrawal_charge_percent",  // percent e.g. "18"
   // Game config — stored in site_setting, override SITE defaults at runtime
   stakeHouseEdge: "game_stake_house_edge",       // fraction e.g. "0.70"
   stakeMin: "game_stake_min",                     // naira e.g. "500"
@@ -50,6 +52,7 @@ export async function getGameConfig() {
   const g = SETTING_KEYS
   const raw = (k: string, def: string) => map.get(k) ?? def
 
+  const withdrawalChargePct = parseFloat(raw(g.withdrawalCharge, String(SITE.withdrawalCharge)))
   const houseEdge = parseFloat(raw(g.stakeHouseEdge, String(SITE.stakeHouseEdge)))
   const stakeMin = parseInt(raw(g.stakeMin, String(SITE.stakeMin)), 10)
   const stakeMax = parseInt(raw(g.stakeMax, String(SITE.stakeMax)), 10)
@@ -62,6 +65,7 @@ export async function getGameConfig() {
   const vaultMin = parseInt(raw(g.vaultMin, String(SITE.vaultMin)), 10)
 
   return {
+    withdrawalCharge: withdrawalChargePct,
     stakeHouseEdge: houseEdge,
     stakeMin,
     stakeMax,
@@ -74,6 +78,16 @@ export async function getGameConfig() {
     ],
     vaultMin,
   }
+}
+
+/**
+ * Returns the current withdrawal charge percent from DB (falls back to SITE default).
+ * Called at approval time so admin changes apply to pending withdrawals immediately.
+ */
+export async function getLiveWithdrawalCharge(): Promise<number> {
+  const v = await getSetting(SETTING_KEYS.withdrawalCharge)
+  const parsed = v ? parseFloat(v) : NaN
+  return isNaN(parsed) ? SITE.withdrawalCharge : parsed
 }
 
 /** Convenience: returns both pause flags. */

@@ -5,6 +5,9 @@ import { getSession } from "@/lib/session"
 import { getDashboardData } from "@/app/actions/account"
 import { getInvestments } from "@/app/actions/investments"
 import { getPendingDeposits } from "@/app/actions/deposit"
+import { db } from "@/lib/db"
+import { luckyDrawSlot, luckyDrawRound, investment } from "@/lib/db/schema"
+import { eq, and } from "drizzle-orm"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { BalanceCard } from "@/components/balance-card"
@@ -22,11 +25,21 @@ export default async function DashboardPage() {
   const session = await getSession()
   if (!session?.user) redirect("/")
 
-  const [data, investments, pendingDeposits] = await Promise.all([
+  const userId = session.user.id
+  const today = new Date().toISOString().slice(0, 10)
+
+  const [data, investments, pendingDeposits, activeInvestments, freeSlotsClaimed, todayRound] = await Promise.all([
     getDashboardData(),
     getInvestments(),
     getPendingDeposits(),
+    db.select().from(investment).where(and(eq(investment.userId, userId), eq(investment.status, "active"))),
+    db.select().from(luckyDrawSlot).where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.source, "free"))),
+    db.select().from(luckyDrawRound).where(eq(luckyDrawRound.drawDate, today)).then((r) => r[0] ?? null),
   ])
+
+  const hasActiveInvestment = activeInvestments.length > 0
+  const freeSlotAvailable = hasActiveInvestment && freeSlotsClaimed.length === 0
+  const drawOpen = !todayRound || todayRound.status !== "drawn"
 
   const todayIncome = investments
     .filter((i) => i.status === "active")
@@ -52,7 +65,12 @@ export default async function DashboardPage() {
         </div>
 
         <BalanceCard balance={data.balance} todayIncome={todayIncome} />
-        <QuickActions signedInToday={data.signedInToday} />
+        <QuickActions
+          signedInToday={data.signedInToday}
+          freeSlotAvailable={freeSlotAvailable}
+          hasActiveInvestment={hasActiveInvestment}
+          drawOpen={drawOpen}
+        />
         <HeroInfo isPromoter={data.isPromoter} />
 
         <ActiveInvestments investments={investments} />

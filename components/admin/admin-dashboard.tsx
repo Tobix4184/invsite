@@ -71,6 +71,7 @@ import {
   adminDeleteInvestment,
   adminExtendInvestment,
   executeLuckyDraw,
+  getDrawSlotUsers,
   saveGameConfig,
   getAdminReferralsForUser,
   testSabussWebhook,
@@ -268,6 +269,7 @@ type GameStats = {
 }
 
 type GameConfig = {
+  withdrawalCharge: number
   stakeHouseEdge: number
   stakeMin: number
   stakeMax: number
@@ -2016,6 +2018,19 @@ function GamesAdminTab({
   const [spinFilter, setSpinFilter] = useState<"all" | "win" | "lose">("all")
   const [vaultFilter, setVaultFilter] = useState<"all" | "locked" | "completed" | "broken">("all")
 
+  // Withdrawal charge state — stored in DB so changes apply to ALL pending withdrawals immediately
+  const [wChargePct, setWChargePct] = useState(String(gameConfig.withdrawalCharge))
+
+  const saveWithdrawalCharge = () => {
+    const pct = parseFloat(wChargePct)
+    if (isNaN(pct) || pct < 0 || pct > 100) { toast.error("Enter a valid percentage (0–100)"); return }
+    startTransition(async () => {
+      const res = await saveGameConfig({ withdrawalCharge: pct })
+      toast[res.ok ? "success" : "error"](res.message)
+      onAction()
+    })
+  }
+
   // Spin config state — initialised from live DB config
   const [houseEdgePct, setHouseEdgePct] = useState(String(Math.round(gameConfig.stakeHouseEdge * 100)))
   const [stakeMin, setStakeMin] = useState(String(gameConfig.stakeMin))
@@ -2170,6 +2185,37 @@ function GamesAdminTab({
             </div>
           </div>
 
+          {/* Withdrawal charge editor — changes apply instantly to pending withdrawals */}
+          <div className="rounded-2xl border border-amber-400/30 bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <p className="font-bold text-sm">Withdrawal Charge</p>
+              <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">LIVE</span>
+            </div>
+            <p className="mb-3 text-[11px] text-muted-foreground">
+              Changes apply immediately — even to withdrawals already pending approval.
+            </p>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="number" min="0" max="100" step="0.5"
+                  value={wChargePct}
+                  onChange={(e) => setWChargePct(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm pr-8"
+                  placeholder={String(gameConfig.withdrawalCharge)}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+              </div>
+              <button
+                onClick={saveWithdrawalCharge}
+                disabled={pending}
+                className="flex items-center gap-1.5 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-black disabled:opacity-60"
+              >
+                {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                Save
+              </button>
+            </div>
+          </div>
+
           {/* Live config summary */}
           <div className="rounded-2xl border border-primary/20 bg-card p-4">
             <div className="mb-3 flex items-center justify-between">
@@ -2178,6 +2224,7 @@ function GamesAdminTab({
             </div>
             <div className="flex flex-col gap-2 text-sm">
               {[
+                { label: "Withdrawal Charge", value: `${gameConfig.withdrawalCharge}%`, highlight: true },
                 { label: "House Edge (Spin)", value: `${Math.round(gameConfig.stakeHouseEdge * 100)}% lose chance` },
                 { label: "Stake Range", value: `₦${gameConfig.stakeMin.toLocaleString()} – ₦${gameConfig.stakeMax.toLocaleString()}` },
                 { label: "Multipliers", value: gameConfig.stakeMultipliers.map((m) => `${m}x`).join(", ") },
@@ -2187,11 +2234,11 @@ function GamesAdminTab({
               ].map((r) => (
                 <div key={r.label} className="flex justify-between border-b border-border/50 pb-2 last:border-0 last:pb-0">
                   <span className="text-muted-foreground">{r.label}</span>
-                  <span className="font-mono font-bold">{r.value}</span>
+                  <span className={`font-mono font-bold ${"highlight" in r && r.highlight ? "text-amber-400" : ""}`}>{r.value}</span>
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-[11px] text-muted-foreground">Edit in Stake &amp; Spin / Vault / Draw sub-tabs.</p>
+            <p className="mt-3 text-[11px] text-muted-foreground">Edit in Stake &amp; Spin / Vault / Draw sub-tabs. Withdrawal charge applies immediately to all pending withdrawals.</p>
           </div>
         </div>
       )}
@@ -2662,18 +2709,46 @@ function InvestmentsTab({ items, onAction }: { items: InvestmentRow[]; onAction:
 // ── Lucky Draw Admin Tab ──────────────────────────────────────────────────────
 function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
+  const [slotUsers, setSlotUsers] = useState<{ id: string; email: string; name: string | null }[]>([])
+  const [pickedIds, setPickedIds] = useState<string[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [search, setSearch] = useState("")
 
-  const handleDraw = (drawDate: string) => {
-    if (!confirm(`Execute the Lucky Draw for ${drawDate}? This cannot be undone.`)) return
+  const today = new Date().toISOString().slice(0, 10)
+  const todayRound = rounds.find((r) => r.drawDate === today)
+
+  const loadSlotUsers = () => {
+    setLoadingUsers(true)
     startTransition(async () => {
-      const res = await executeLuckyDraw(drawDate)
+      const rows = await getDrawSlotUsers(today)
+      setSlotUsers(rows)
+      setLoadingUsers(false)
+    })
+  }
+
+  const togglePick = (uid: string) => {
+    setPickedIds((prev) =>
+      prev.includes(uid) ? prev.filter((id) => id !== uid) : prev.length < 3 ? [...prev, uid] : prev
+    )
+  }
+
+  const handleDraw = () => {
+    const mode = pickedIds.length > 0
+      ? `Execute draw with ${pickedIds.length} pre-selected winner${pickedIds.length > 1 ? "s" : ""} + random fill?`
+      : "Execute draw with fully random winners? This cannot be undone."
+    if (!confirm(mode)) return
+    startTransition(async () => {
+      const res = await executeLuckyDraw(today, pickedIds)
       toast[res.ok ? "success" : "error"](res.message)
+      setPickedIds([])
       onAction()
     })
   }
 
-  const today = new Date().toISOString().slice(0, 10)
-  const todayRound = rounds.find((r) => r.drawDate === today)
+  const filtered = slotUsers.filter((u) => {
+    const q = search.toLowerCase()
+    return u.email.toLowerCase().includes(q) || (u.name ?? "").toLowerCase().includes(q)
+  })
 
   return (
     <div className="flex flex-col gap-4">
@@ -2681,11 +2756,12 @@ function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () 
       <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4">
         <div className="mb-3 flex items-center gap-2">
           <Ticket className="h-5 w-5 text-primary" />
-          <p className="font-bold text-primary">Today&apos;s Draw ({today})</p>
+          <p className="font-bold text-primary">Today&apos;s Draw — {today}</p>
         </div>
+
         {todayRound ? (
-          <div>
-            <div className="mb-3 flex gap-3">
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-3">
               <div className="flex-1 rounded-xl bg-background/60 p-3 text-center">
                 <p className="font-mono text-lg font-bold">₦{Number(todayRound.prizePool).toLocaleString()}</p>
                 <p className="text-[10px] text-muted-foreground">Prize Pool</p>
@@ -2697,26 +2773,104 @@ function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () 
                 <p className="text-[10px] text-muted-foreground">Status</p>
               </div>
             </div>
+
             {todayRound.status !== "drawn" && (
-              <button
-                onClick={() => handleDraw(today)}
-                disabled={pending}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60"
-              >
-                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarCheck className="h-4 w-4" />}
-                Execute Draw
-              </button>
+              <>
+                {/* Winner picker */}
+                <div className="rounded-xl border border-border bg-background/60 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-bold">Pick Winners (optional — up to 3)</p>
+                    <button
+                      onClick={loadSlotUsers}
+                      disabled={loadingUsers || pending}
+                      className="rounded-lg bg-secondary px-3 py-1 text-xs font-semibold text-muted-foreground"
+                    >
+                      {loadingUsers ? "Loading..." : "Load Entrants"}
+                    </button>
+                  </div>
+
+                  {pickedIds.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {pickedIds.map((uid, i) => {
+                        const u = slotUsers.find((x) => x.id === uid)
+                        return (
+                          <span key={uid} className="flex items-center gap-1 rounded-full bg-primary/20 px-2.5 py-1 text-xs font-bold text-primary">
+                            {i + 1}. {u?.name ?? u?.email ?? uid}
+                            <button onClick={() => togglePick(uid)} className="ml-1 text-primary/60 hover:text-primary">×</button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {slotUsers.length > 0 && (
+                    <>
+                      <input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search by name or email..."
+                        className="mb-2 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-xs outline-none"
+                      />
+                      <div className="max-h-48 overflow-y-auto flex flex-col gap-1">
+                        {filtered.map((u) => {
+                          const picked = pickedIds.includes(u.id)
+                          const pickIndex = pickedIds.indexOf(u.id)
+                          return (
+                            <button
+                              key={u.id}
+                              onClick={() => togglePick(u.id)}
+                              disabled={!picked && pickedIds.length >= 3}
+                              className={`flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors ${
+                                picked
+                                  ? "bg-primary/20 text-primary"
+                                  : "bg-secondary/50 text-foreground hover:bg-secondary disabled:opacity-40"
+                              }`}
+                            >
+                              <span>
+                                <span className="font-semibold">{u.name ?? "—"}</span>
+                                <span className="ml-2 text-muted-foreground">{u.email}</span>
+                              </span>
+                              {picked && (
+                                <span className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-black text-primary-foreground">
+                                  {pickIndex + 1}
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })}
+                        {filtered.length === 0 && (
+                          <p className="py-2 text-center text-xs text-muted-foreground">No entrants found</p>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {slotUsers.length === 0 && !loadingUsers && (
+                    <p className="text-xs text-muted-foreground">
+                      Load entrants to pick specific winners. Leave empty for fully random draw.
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleDraw}
+                  disabled={pending}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60"
+                >
+                  {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarCheck className="h-4 w-4" />}
+                  {pickedIds.length > 0 ? `Execute Draw (${pickedIds.length} picked + random)` : "Execute Draw (random)"}
+                </button>
+              </>
             )}
+
             {todayRound.status === "drawn" && (
               <div className="rounded-xl border border-success/30 bg-success/10 p-3 text-center">
-                <p className="text-xs font-bold text-success">Draw complete. Winners have been paid.</p>
+                <p className="text-xs font-bold text-success">Draw complete — winners paid.</p>
               </div>
             )}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            No entries yet for today. Users need to enter slots first.
-          </p>
+          <p className="text-sm text-muted-foreground">No entries yet for today. Users need to enter slots first.</p>
         )}
       </div>
 
@@ -2724,12 +2878,23 @@ function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () 
       <p className="text-sm font-bold">Draw History</p>
       {rounds.length === 0 && <Empty label="No draws yet" />}
       {rounds.map((r) => (
-        <div key={r.id} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
-          <div>
-            <p className="text-sm font-bold">{r.drawDate}</p>
-            <p className="text-xs text-muted-foreground">Pool: ₦{Number(r.prizePool).toLocaleString()}</p>
+        <div key={r.id} className="rounded-xl border border-border bg-card px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold">{r.drawDate}</p>
+              <p className="text-xs text-muted-foreground">Pool: ₦{Number(r.prizePool).toLocaleString()}</p>
+            </div>
+            <StatusBadge status={r.status === "drawn" ? "completed" : "pending"} />
           </div>
-          <StatusBadge status={r.status === "drawn" ? "completed" : "pending"} />
+          {r.status === "drawn" && (r.winner1Id || r.winner2Id || r.winner3Id) && (
+            <div className="mt-2 flex flex-col gap-0.5">
+              {[r.winner1Id, r.winner2Id, r.winner3Id].filter(Boolean).map((uid, i) => (
+                <p key={uid} className="text-[11px] text-muted-foreground">
+                  {i + 1}. {uid}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
