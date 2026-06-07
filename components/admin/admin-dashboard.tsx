@@ -41,7 +41,6 @@ import {
   CalendarPlus,
   ChevronDown,
   Zap,
-  RefreshCw,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
