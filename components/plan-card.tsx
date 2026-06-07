@@ -11,10 +11,11 @@ export function PlanCard({ plan }: { plan: Plan }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [confirm, setConfirm] = useState(false)
+  const [autoReinvest, setAutoReinvest] = useState(true)
 
   function handleBuy() {
     startTransition(async () => {
-      const res = await buyPlan(plan.id)
+      const res = await buyPlan(plan.id, { autoReinvest })
       if (res.ok) {
         toast.success(res.message)
         setConfirm(false)
@@ -55,22 +56,36 @@ export function PlanCard({ plan }: { plan: Plan }) {
       </div>
 
       {confirm ? (
-        <div className="mt-4 flex gap-2">
-          <button
-            onClick={() => setConfirm(false)}
-            disabled={pending}
-            className="flex-1 rounded-xl border border-border bg-secondary py-3 text-sm font-bold text-foreground"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleBuy}
-            disabled={pending}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-success py-3 text-sm font-bold text-success-foreground disabled:opacity-60"
-          >
-            {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Confirm
-          </button>
+        <div className="mt-4 flex flex-col gap-3">
+          {/* Auto-reinvest checkbox — small and unobtrusive */}
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={autoReinvest}
+              onChange={(e) => setAutoReinvest(e.target.checked)}
+              disabled={pending}
+              className="h-3.5 w-3.5 cursor-pointer rounded border-border bg-secondary text-success"
+            />
+            <span className="text-[11px] text-muted-foreground">Auto-reinvest earnings</span>
+          </label>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setConfirm(false)}
+              disabled={pending}
+              className="flex-1 rounded-xl border border-border bg-secondary py-3 text-sm font-bold text-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleBuy}
+              disabled={pending}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-success py-3 text-sm font-bold text-success-foreground disabled:opacity-60"
+            >
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Confirm
+            </button>
+          </div>
         </div>
       ) : (
         <button

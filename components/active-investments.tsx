@@ -1,8 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useTransition } from "react"
 import { formatNaira } from "@/lib/plans"
-import { Clock } from "lucide-react"
+import { Clock, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { toggleAutoReinvest } from "@/app/actions/investments"
 
 type Inv = {
   id: number
@@ -13,6 +15,7 @@ type Inv = {
   daysPaid: number
   durationDays: number
   status: string
+  autoReinvest: boolean
   lastPayoutAt: Date | string
 }
 
@@ -35,12 +38,23 @@ function getTimeUntilNextPayout(lastPayoutAt: Date | string): string {
 
 export function ActiveInvestments({ investments }: { investments: Inv[] }) {
   const [, setTick] = useState(0)
+  const [pending, startTransition] = useTransition()
+  const [togglingId, setTogglingId] = useState<number | null>(null)
   
   // Update every minute to refresh countdown
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 60000)
     return () => clearInterval(interval)
   }, [])
+
+  function handleToggleReinvest(invId: number) {
+    setTogglingId(invId)
+    startTransition(async () => {
+      const res = await toggleAutoReinvest(invId)
+      toast[res.ok ? "success" : "error"](res.message)
+      setTogglingId(null)
+    })
+  }
 
   if (investments.length === 0) return null
 
@@ -82,6 +96,28 @@ export function ActiveInvestments({ investments }: { investments: Inv[] }) {
                   <span>Next payout: {timeUntil}</span>
                 </div>
               )}
+
+              {/* Auto-reinvest toggle */}
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">Auto-reinvest</span>
+                <button
+                  onClick={() => handleToggleReinvest(inv.id)}
+                  disabled={pending && togglingId === inv.id}
+                  className={`relative h-4 w-7 rounded-full transition-colors ${
+                    inv.autoReinvest ? "bg-success/30" : "bg-secondary"
+                  } disabled:opacity-50`}
+                >
+                  {pending && togglingId === inv.id ? (
+                    <Loader2 className="absolute left-1 top-0.5 h-3 w-3 animate-spin text-success" />
+                  ) : (
+                    <div
+                      className={`absolute top-0.5 h-3 w-3 rounded-full bg-success transition-all ${
+                        inv.autoReinvest ? "left-3.5" : "left-1"
+                      }`}
+                    />
+                  )}
+                </button>
+              </div>
               
               <div className="mt-3">
                 <div className="h-2 overflow-hidden rounded-full bg-secondary">

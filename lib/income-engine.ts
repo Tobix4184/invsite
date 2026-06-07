@@ -33,7 +33,7 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
 
       // Lock this investment row. Any concurrent accrual for the same row waits here.
       const { rows } = await client.query(
-        `SELECT id, "planName", "dailyEarning", "durationDays", "daysPaid", "lastPayoutAt", status
+        `SELECT id, "planName", "dailyEarning", "durationDays", "daysPaid", "lastPayoutAt", status, "autoReinvest"
          FROM investment WHERE id = $1 FOR UPDATE`,
         [id],
       )
@@ -48,6 +48,7 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
       const daysPaid = Number(inv.daysPaid)
       const last = new Date(inv.lastPayoutAt).getTime()
       const now = Date.now()
+      const autoReinvest = inv.autoReinvest === true
 
       const elapsedDays = Math.floor((now - last) / DAY_MS)
       const remainingDays = duration - daysPaid
@@ -63,29 +64,53 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
       }
 
       const credit = daily * payDays
-      const newDaysPaid = daysPaid + payDays
-      const newStatus = newDaysPaid >= duration ? "completed" : "active"
       const newLast = new Date(last + payDays * DAY_MS)
 
-      await client.query(
-        `UPDATE investment
-         SET "daysPaid" = $1, "amountEarned" = "amountEarned" + $2, "lastPayoutAt" = $3, status = $4
-         WHERE id = $5`,
-        [newDaysPaid, credit, newLast, newStatus, id],
-      )
+      if (autoReinvest) {
+        // REINVEST: extend investment instead of crediting wallet
+        const newDurationDays = duration + payDays
+        const newTotalEarning = inv.totalEarning + credit
+        const newStatus = "active" // reset to active so it keeps earning
+        const newDaysPaid = 0 // reset days paid counter since we extended duration
 
-      await client.query(
-        `UPDATE wallet
-         SET balance = balance + $1, "totalEarned" = "totalEarned" + $1, "updatedAt" = now()
-         WHERE "userId" = $2`,
-        [credit, userId],
-      )
+        await client.query(
+          `UPDATE investment
+           SET "durationDays" = $1, "totalEarning" = $2, "daysPaid" = $3, "lastPayoutAt" = $4, status = $5
+           WHERE id = $6`,
+          [newDurationDays, newTotalEarning, newDaysPaid, newLast, newStatus, id],
+        )
 
-      await client.query(
-        `INSERT INTO transaction ("userId", type, amount, description)
-         VALUES ($1, 'earning', $2, $3)`,
-        [userId, String(credit), `Daily income from ${inv.planName} (${payDays} day${payDays > 1 ? "s" : ""})`],
-      )
+        // Log the reinvestment as a transaction so user sees it in history
+        await client.query(
+          `INSERT INTO transaction ("userId", type, amount, description, status)
+           VALUES ($1, 'reinvest', $2, $3, 'completed')`,
+          [userId, String(credit), `Earnings reinvested into ${inv.planName}`],
+        )
+      } else {
+        // NORMAL: credit wallet with earnings
+        const newDaysPaid = daysPaid + payDays
+        const newStatus = newDaysPaid >= duration ? "completed" : "active"
+
+        await client.query(
+          `UPDATE investment
+           SET "daysPaid" = $1, "amountEarned" = "amountEarned" + $2, "lastPayoutAt" = $3, status = $4
+           WHERE id = $5`,
+          [newDaysPaid, credit, newLast, newStatus, id],
+        )
+
+        await client.query(
+          `UPDATE wallet
+           SET balance = balance + $1, "totalEarned" = "totalEarned" + $1, "updatedAt" = now()
+           WHERE "userId" = $2`,
+          [credit, userId],
+        )
+
+        await client.query(
+          `INSERT INTO transaction ("userId", type, amount, description)
+           VALUES ($1, 'earning', $2, $3)`,
+          [userId, String(credit), `Daily income from ${inv.planName} (${payDays} day${payDays > 1 ? "s" : ""})`],
+        )
+      }
 
       await client.query("COMMIT")
       totalCredited += credit
