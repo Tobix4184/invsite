@@ -69,47 +69,59 @@ export async function GET(req: NextRequest) {
       body: JSON.stringify({ type: "credit" }),
       signal: AbortSignal.timeout(8000),
     })
-    sabussData = await res.json()
+    const text = await res.text()
+    try { sabussData = JSON.parse(text) } catch { /* not JSON */ }
   } catch {
     return NextResponse.json({ ok: true, status: "pending", message: "Could not reach Sabuss API" })
   }
 
-  // Sabuss deducts a ₦50 platform fee on all transactions above ₦1,000.
-  // So a user sending ₦3,000 will show as ₦2,950 in the Sabuss ledger.
-  // We match against (depositAmount - 50) to account for this.
+  if (!sabussData) {
+    return NextResponse.json({ ok: true, status: "pending", message: "Sabuss returned invalid response" })
+  }
+
   const depositAmount = Math.round(Number(dep.amount))
-  const expectedAmount = depositAmount - 50   // what Sabuss actually records
+  // Check both the exact amount AND fee-deducted amount (Sabuss charges ₦50)
+  const expectedExact = depositAmount
+  const expectedNet   = depositAmount - 50
   const createdAt = new Date(dep.createdAt)
+
+  // Collect all transaction rows from any array in the response
+  const rows: Record<string, unknown>[] = []
+  for (const v of Object.values(sabussData)) {
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        if (item && typeof item === "object") rows.push(item as Record<string, unknown>)
+      }
+    }
+  }
 
   let matchedTransaction: Record<string, unknown> | null = null
 
-  const rows = Array.isArray(sabussData?.response)
-    ? (sabussData.response as Record<string, unknown>[])
-    : Array.isArray(sabussData?.data)
-      ? (sabussData.data as Record<string, unknown>[])
-      : null
+  for (const row of rows) {
+    const rawAmt = row.amount ?? row.credit ?? row.value ?? row.credited_amount ?? row.transaction_amount ?? 0
+    const rowAmount = Math.round(Number(rawAmt))
+    const amountMatches = rowAmount === expectedExact || rowAmount === expectedNet
+    if (!amountMatches) continue
 
-  if (rows) {
-    for (const row of rows) {
-      const rowAmount = Math.round(Number(row.amount ?? row.credit ?? row.value ?? 0))
-      const rowDate = row.date ? new Date(String(row.date)) : null
-      if (rowAmount !== expectedAmount) continue
-      if (rowDate && rowDate < createdAt) continue // transaction predates this deposit
-      // Check sender name if we have one
-      if (dep.senderName && row.sender) {
-        const stored = dep.senderName.toLowerCase()
-        const incoming = String(row.sender).toLowerCase()
-        const parts = stored.split(/\s+/)
-        const nameOk = parts.some((p) => incoming.includes(p) || p.includes(incoming.split(/\s+/)[0]))
-        if (!nameOk) {
-          // Name mismatch — flag for review, don't auto-approve
-          await db.update(deposit).set({ status: "needs_review" }).where(eq(deposit.reference, reference))
-          return NextResponse.json({ ok: true, status: "needs_review", message: "Payment found but name mismatch — flagged for admin review" })
-        }
-      }
-      matchedTransaction = row
-      break
+    const rowDateRaw = row.date ?? row.created_at ?? row.transaction_date ?? row.time ?? null
+    if (rowDateRaw) {
+      const d = new Date(String(rowDateRaw))
+      if (!isNaN(d.getTime()) && d < createdAt) continue
     }
+
+    // Name check — only soft-block if sender clearly doesn't match
+    if (dep.senderName && (row.sender || row.account_name)) {
+      const stored = dep.senderName.toLowerCase()
+      const incoming = String(row.sender ?? row.account_name ?? "").toLowerCase()
+      const parts = stored.split(/\s+/)
+      const nameOk = parts.some((p) => p.length > 1 && incoming.includes(p))
+      if (!nameOk) {
+        await db.update(deposit).set({ status: "needs_review" }).where(eq(deposit.reference, reference))
+        return NextResponse.json({ ok: true, status: "needs_review", message: "Payment found but name mismatch — flagged for admin review" })
+      }
+    }
+    matchedTransaction = row
+    break
   }
 
   if (!matchedTransaction) {

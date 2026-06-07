@@ -1113,6 +1113,7 @@ export async function adminCheckDeposit(reference: string) {
   }
 
   let sabussData: Record<string, unknown> | null = null
+  let rawText = ""
   try {
     const res = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussApiKey}`, {
       method: "POST",
@@ -1120,45 +1121,81 @@ export async function adminCheckDeposit(reference: string) {
       body: JSON.stringify({ type: "credit" }),
       signal: AbortSignal.timeout(10000),
     })
-    sabussData = await res.json()
-  } catch {
-    return { ok: false, message: "Could not reach Sabuss API — check internet or API key" }
+    rawText = await res.text()
+    console.log("[v0] Sabuss raw response:", rawText.slice(0, 500))
+    try { sabussData = JSON.parse(rawText) } catch { /* not JSON */ }
+  } catch (e) {
+    return { ok: false, message: `Could not reach Sabuss API: ${e instanceof Error ? e.message : String(e)}` }
+  }
+
+  if (!sabussData) {
+    return { ok: false, message: `Sabuss returned non-JSON response: ${rawText.slice(0, 200)}` }
   }
 
   const depositAmount = Math.round(Number(dep.amount))
-  const expectedAmount = depositAmount - 50 // Sabuss deducts ₦50 fee
+  // Sabuss deducts ₦50 fee — check both exact and fee-deducted amounts
+  const expectedExact = depositAmount
+  const expectedNet   = depositAmount - 50
   const createdAt = new Date(dep.createdAt)
 
-  const rows = Array.isArray(sabussData?.response)
-    ? (sabussData.response as Record<string, unknown>[])
-    : Array.isArray(sabussData?.data)
-      ? (sabussData.data as Record<string, unknown>[])
-      : null
+  // Sabuss can return rows under many key names — scan all of them
+  const allValues = Object.values(sabussData)
+  const rows: Record<string, unknown>[] = []
+  for (const v of allValues) {
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        if (item && typeof item === "object") rows.push(item as Record<string, unknown>)
+      }
+    }
+  }
 
-  if (!rows || rows.length === 0) {
+  console.log("[v0] Sabuss rows found:", rows.length, "looking for amount:", expectedExact, "or", expectedNet, "after", createdAt.toISOString())
+
+  if (rows.length === 0) {
     return {
       ok: true,
       found: false,
-      message: `Sabuss checked — no transactions found on this account yet. (Looking for ₦${expectedAmount.toLocaleString()} credited after ${createdAt.toLocaleTimeString("en-NG")})`,
+      message: `Sabuss responded but no transaction rows found. Raw keys: [${Object.keys(sabussData).join(", ")}]. Response: ${rawText.slice(0, 300)}`,
     }
   }
 
   for (const row of rows) {
-    const rowAmount = Math.round(Number(row.amount ?? row.credit ?? row.value ?? 0))
-    const rowDate = row.date ? new Date(String(row.date)) : null
-    if (rowAmount !== expectedAmount) continue
-    if (rowDate && rowDate < createdAt) continue
+    // Try every common amount field name Sabuss might use
+    const rawAmt =
+      row.amount ?? row.credit ?? row.value ?? row.credited_amount ??
+      row.transaction_amount ?? row.dr_cr_amount ?? row.narration_amount ?? 0
+    const rowAmount = Math.round(Number(rawAmt))
 
-    const senderInfo = row.sender ? `Sender: ${row.sender}` : ""
+    console.log("[v0] Row:", JSON.stringify(row).slice(0, 200), "rowAmount:", rowAmount)
+
+    // Match exact OR fee-deducted amount
+    const amountMatches = rowAmount === expectedExact || rowAmount === expectedNet
+    if (!amountMatches) continue
+
+    // Only skip rows that are clearly before the deposit was created
+    const rowDate = row.date ?? row.created_at ?? row.transaction_date ?? row.time ?? null
+    if (rowDate) {
+      const d = new Date(String(rowDate))
+      if (!isNaN(d.getTime()) && d < createdAt) continue
+    }
+
+    const senderInfo = row.sender
+      ? `Sender: ${row.sender}`
+      : row.narration
+        ? `Narration: ${row.narration}`
+        : row.account_name
+          ? `Account: ${row.account_name}`
+          : ""
+
     if (isCompleted) {
       return {
         ok: true,
         found: true,
-        message: `Transaction verified in Sabuss. Amount: ₦${rowAmount.toLocaleString()}. ${senderInfo}`,
+        message: `Transaction verified in Sabuss. Matched ₦${rowAmount.toLocaleString()}. ${senderInfo}`.trim(),
       }
     }
 
-    // Auto-approve if still pending
+    // Auto-approve pending deposit
     await db.update(deposit).set({ status: "success" }).where(eq(deposit.reference, reference))
     await db.update(wallet).set({
       balance: sql`${wallet.balance} + ${depositAmount}`,
@@ -1171,7 +1208,7 @@ export async function adminCheckDeposit(reference: string) {
       amount: String(depositAmount),
       status: "completed",
       reference,
-      description: `Auto-approved via admin Sabuss check. Sender: ${row.sender ?? "unknown"}`,
+      description: `Auto-approved via admin Sabuss check. ${senderInfo}`,
     })
     await db.update(bankAccount).set({
       totalDeposits: sql`${bankAccount.totalDeposits} + ${depositAmount}`,
@@ -1181,14 +1218,20 @@ export async function adminCheckDeposit(reference: string) {
     return {
       ok: true,
       found: true,
-      message: `Payment found and auto-approved! Amount: ₦${rowAmount.toLocaleString()}. ${senderInfo} Wallet credited.`,
+      message: `Payment found and auto-approved! Matched ₦${rowAmount.toLocaleString()}. ${senderInfo} Wallet credited.`.trim(),
     }
   }
+
+  // Not matched — show all row amounts so we can debug what Sabuss actually returns
+  const scannedAmounts = rows
+    .map((r) => Math.round(Number(r.amount ?? r.credit ?? r.value ?? r.credited_amount ?? r.transaction_amount ?? 0)))
+    .filter((n) => n > 0)
+    .join(", ")
 
   return {
     ok: true,
     found: false,
-    message: `Sabuss checked — no matching ₦${expectedAmount.toLocaleString()} credit found after ${createdAt.toLocaleTimeString("en-NG")}. ${rows.length} transaction(s) scanned.`,
+    message: `Sabuss checked — ${rows.length} transaction(s) scanned, no match for ₦${expectedExact.toLocaleString()} or ₦${expectedNet.toLocaleString()} after ${createdAt.toLocaleTimeString("en-NG")}. Amounts seen: [${scannedAmounts || "none"}]`,
   }
 }
 
