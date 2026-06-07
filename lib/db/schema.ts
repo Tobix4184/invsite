@@ -130,6 +130,9 @@ export const deposit = pgTable("deposit", {
   assignedAccountName: text("assignedAccountName"),
   // Sender name for verification (optional)
   senderName: text("senderName"),
+  // Sabuss's own transaction reference (e.g. 000010260606070124411111104069021)
+  // stored when the webhook arrives — used to query Sabuss by their reference
+  sabussRef: text("sabussRef"),
   expiresAt: timestamp("expiresAt"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })

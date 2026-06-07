@@ -70,25 +70,27 @@ export async function POST(req: NextRequest) {
 
   const now = new Date()
 
-  // 2. Find all pending deposits for this bank account with matching amount
-  const candidates = await db
+  // 2. Find all pending deposits for this bank account
+  // Sabuss deducts a ₦50 fee before notifying — so incoming ₦2,950 matches a ₦3,000 deposit.
+  // We fetch all non-expired pending deposits and match by amount (exact OR incoming+50).
+  const allPending = await db
     .select()
     .from(deposit)
-    .where(
-      and(
-        eq(deposit.bankAccountId, matchedAccount.id),
-        eq(deposit.amount, String(incoming))
-      )
-    )
+    .where(eq(deposit.bankAccountId, matchedAccount.id))
 
-  const pending = candidates.filter((d) => {
+  const candidates = allPending.filter((d) => {
     if (!["pending", "processing"].includes(d.status)) return false
-    if (!d.expiresAt) return true
-    // Allow 30 min grace after official expiry
-    const grace = new Date(d.expiresAt)
-    grace.setMinutes(grace.getMinutes() + 30)
-    return now < grace
+    if (d.expiresAt) {
+      const grace = new Date(d.expiresAt)
+      grace.setMinutes(grace.getMinutes() + 30)
+      if (now >= grace) return false
+    }
+    const depAmt = Math.round(Number(d.amount))
+    // Match exact amount OR gross amount (Sabuss fee ₦50 already deducted)
+    return depAmt === incoming || depAmt === incoming + 50
   })
+
+  const pending = candidates
 
   if (pending.length === 0) {
     // No matching pending deposit — could be a manual transfer or duplicate
@@ -140,25 +142,29 @@ export async function POST(req: NextRequest) {
     // Name mismatch — flag for manual review but don't auto-reject
     await db
       .update(deposit)
-      .set({ status: "needs_review", senderName: sender ?? chosen.senderName })
+      .set({ status: "needs_review", senderName: sender ?? chosen.senderName, sabussRef: sabussRef ?? null })
       .where(eq(deposit.reference, chosen.reference))
     return NextResponse.json({ ok: true, status: "flagged_for_review", reference: chosen.reference })
   }
 
-  // 5. Auto-approve — credit the wallet
+  // 5. Auto-approve — credit the wallet with the DEPOSIT amount (what the user expects),
+  // not the incoming amount (which may be ₦50 less due to Sabuss fee).
+  const depositAmount = Math.round(Number(chosen.amount))
+
   await db
     .update(deposit)
     .set({
       status: "success",
       senderName: sender ?? chosen.senderName,
+      sabussRef: sabussRef ?? null,
     })
     .where(eq(deposit.reference, chosen.reference))
 
   await db
     .update(wallet)
     .set({
-      balance: sql`${wallet.balance} + ${incoming}`,
-      totalDeposited: sql`${wallet.totalDeposited} + ${incoming}`,
+      balance: sql`${wallet.balance} + ${depositAmount}`,
+      totalDeposited: sql`${wallet.totalDeposited} + ${depositAmount}`,
       updatedAt: new Date(),
     })
     .where(eq(wallet.userId, chosen.userId))
@@ -166,7 +172,7 @@ export async function POST(req: NextRequest) {
   await db.insert(transaction).values({
     userId: chosen.userId,
     type: "deposit",
-    amount: String(incoming),
+    amount: String(depositAmount),
     status: "completed",
     reference: chosen.reference,
     description: `Auto-approved deposit via Sabuss webhook. Sender: ${sender ?? "unknown"}`,
@@ -176,7 +182,7 @@ export async function POST(req: NextRequest) {
   await db
     .update(bankAccount)
     .set({
-      totalDeposits: sql`${bankAccount.totalDeposits} + ${incoming}`,
+      totalDeposits: sql`${bankAccount.totalDeposits} + ${depositAmount}`,
       depositCount: sql`${bankAccount.depositCount} + 1`,
     })
     .where(eq(bankAccount.id, matchedAccount.id))
