@@ -146,11 +146,14 @@ export async function backfillReinvestForUser(userId: string): Promise<void> {
   try {
     await client.query("BEGIN")
 
-    // Find active investments with autoReinvest ON for this user
+    // Find investments with autoReinvest ON for this user — active OR completed
+    // (completed investments may still have un-backfilled earnings sitting in wallet)
     const { rows: invRows } = await client.query(
       `SELECT id, "planName", "dailyEarning", "durationDays", "daysPaid", "totalEarning"
        FROM investment
-       WHERE "userId" = $1 AND status = 'active' AND "autoReinvest" = true`,
+       WHERE "userId" = $1
+         AND "autoReinvest" = true
+         AND status IN ('active', 'completed')`,
       [userId],
     )
     if (invRows.length === 0) {
@@ -161,10 +164,11 @@ export async function backfillReinvestForUser(userId: string): Promise<void> {
     for (const inv of invRows) {
       const daily = Number(inv.dailyEarning)
 
-      // Find earning transactions for this user that were NOT already reinvested
-      // (no reinvest tx with same amount exists on same calendar day)
+      // Find earning transactions not yet converted to reinvest.
+      // Use ::numeric cast to ensure amount comparison works across text/numeric types.
+      // Also check no reinvest with same description already exists on that day.
       const { rows: earningRows } = await client.query(
-        `SELECT t.id, t.amount, t."createdAt"
+        `SELECT t.id, t.amount::numeric AS amount, t."createdAt"
          FROM transaction t
          WHERE t."userId" = $1
            AND t.type = 'earning'
@@ -173,7 +177,7 @@ export async function backfillReinvestForUser(userId: string): Promise<void> {
              SELECT 1 FROM transaction r
              WHERE r."userId" = t."userId"
                AND r.type = 'reinvest'
-               AND r.amount = t.amount
+               AND r.amount::numeric = t.amount::numeric
                AND DATE(r."createdAt") = DATE(t."createdAt")
            )
          ORDER BY t."createdAt" ASC`,
@@ -186,7 +190,7 @@ export async function backfillReinvestForUser(userId: string): Promise<void> {
         const amount = Number(earning.amount)
         const originalAt = earning.createdAt
 
-        // 1. Deduct from wallet (clamp at 0 to avoid negative)
+        // 1. Deduct from wallet (clamp at 0 to avoid going negative)
         await client.query(
           `UPDATE wallet
            SET balance = GREATEST(balance - $1, 0),
@@ -196,17 +200,18 @@ export async function backfillReinvestForUser(userId: string): Promise<void> {
           [amount, userId],
         )
 
-        // 2. Extend investment by 1 day, add credit to totalEarning
-        const extraDays = Math.round(amount / Math.max(daily, 1))
+        // 2. Extend investment: +1 day per earning, +amount to totalEarning
+        const extraDays = Math.max(1, Math.round(amount / Math.max(daily, 1)))
         await client.query(
           `UPDATE investment
            SET "durationDays" = "durationDays" + $1,
-               "totalEarning" = "totalEarning" + $2
+               "totalEarning"  = "totalEarning"  + $2,
+               status = 'active'
            WHERE id = $3`,
           [extraDays, amount, inv.id],
         )
 
-        // 3. Convert the earning transaction to reinvest (keep original createdAt)
+        // 3. Convert the earning tx to reinvest, keeping original createdAt for accurate history
         await client.query(
           `UPDATE transaction
            SET type = 'reinvest',

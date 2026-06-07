@@ -21,7 +21,7 @@ import {
   lockVault,
 } from "@/lib/db/schema"
 import { requireAdmin } from "@/lib/session"
-import { accrueIncomeForAll } from "@/lib/income-engine"
+import { accrueIncomeForAll, backfillReinvestForUser } from "@/lib/income-engine"
 import { getPauseFlags, setSetting, getGameConfig, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
 import { and, asc, desc, eq, gt, sql, sum } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
@@ -335,6 +335,25 @@ export async function processAllIncome() {
     ok: true,
     message: `Processed ${result.users} users, credited ₦${result.credited.toLocaleString()} total`,
   }
+}
+
+/** Admin: run reinvest backfill for all users with autoReinvest ON — converts past earnings to reinvest. */
+export async function runReinvestBackfillAll() {
+  await requireAdmin()
+  
+  const rows = await db
+    .selectDistinct({ userId: investment.userId })
+    .from(investment)
+    .where(eq(investment.autoReinvest, true))
+
+  let processed = 0
+  for (const r of rows) {
+    await backfillReinvestForUser(r.userId)
+    processed++
+  }
+  
+  revalidatePath("/admin")
+  return { ok: true, message: `Backfilled ${processed} user(s) — converted past earnings to reinvest` }
 }
 
 // ===================== BANK ACCOUNT MANAGEMENT =====================

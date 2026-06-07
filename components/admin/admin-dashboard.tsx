@@ -51,6 +51,7 @@ import {
   adjustBalance,
   createGiftCode,
   processAllIncome,
+  runReinvestBackfillAll,
   addBankAccount,
   updateBankAccount,
   deleteBankAccount,
@@ -546,6 +547,15 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
     })
   }
 
+  const [backfillPending, startBackfillTransition] = useTransition()
+  function handleBackfillReinvest() {
+    startBackfillTransition(async () => {
+      const res = await runReinvestBackfillAll()
+      toast[res.ok ? "success" : "error"](res.message)
+      onAction()
+    })
+  }
+
   function toggleFreeze() {
     const next = !siteFrozen
     setSiteFrozenState(next)
@@ -601,6 +611,15 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
       >
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
         Process All Income
+      </button>
+
+      <button
+        onClick={handleBackfillReinvest}
+        disabled={backfillPending}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-success/30 bg-success/10 py-3 text-sm font-bold text-success transition-opacity hover:opacity-90 disabled:opacity-60"
+      >
+        {backfillPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+        Backfill Reinvest Earnings
       </button>
 
       <div className="rounded-2xl border border-border bg-card p-4">
