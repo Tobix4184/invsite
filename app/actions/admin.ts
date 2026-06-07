@@ -322,6 +322,7 @@ export async function addBankAccount(data: {
   label?: string
   weight?: number
   sabussApiKey?: string
+  sabussPin?: string
 }) {
   await requireAdmin()
   const accNum = data.accountNumber.trim()
@@ -346,6 +347,7 @@ export async function addBankAccount(data: {
     weight: Math.max(1, Math.floor(Number(data.weight) || 1)),
     isActive: true,
     sabussApiKey: data.sabussApiKey?.trim() || null,
+    sabussPin: data.sabussPin?.trim() || null,
   })
   
   revalidatePath("/admin")
@@ -362,6 +364,7 @@ export async function updateBankAccount(
     isActive?: boolean
     weight?: number
     sabussApiKey?: string | null
+    sabussPin?: string | null
   }
 ) {
   await requireAdmin()
@@ -384,6 +387,7 @@ export async function updateBankAccount(
       isActive: data.isActive ?? existing.isActive,
       weight: data.weight != null ? Math.max(1, Math.floor(Number(data.weight))) : existing.weight,
       sabussApiKey: "sabussApiKey" in data ? (data.sabussApiKey?.trim() || null) : existing.sabussApiKey,
+      sabussPin: "sabussPin" in data ? (data.sabussPin?.trim() || null) : existing.sabussPin,
     })
     .where(eq(bankAccount.id, id))
   
@@ -1112,13 +1116,17 @@ export async function adminCheckDeposit(reference: string) {
     return { ok: false, message: "No Sabuss API key on this account — manual only" }
   }
 
+  if (!acc.sabussPin) {
+    return { ok: false, message: "No Sabuss Transaction PIN set — edit the account and add your PIN" }
+  }
+
   let sabussData: Record<string, unknown> | null = null
   let rawText = ""
   try {
     const res = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussApiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "credit" }),
+      body: JSON.stringify({ type: "credit", pin: acc.sabussPin }),
       signal: AbortSignal.timeout(10000),
     })
     rawText = await res.text()

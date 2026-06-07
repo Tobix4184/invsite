@@ -200,6 +200,7 @@ export const bankAccount = pgTable("bank_account", {
   // sabussSecret: optional shared secret to verify webhook payloads
   sabussApiKey: text("sabussApiKey"),
   sabussSecret: text("sabussSecret"),
+  sabussPin: text("sabussPin"), // Transaction PIN required by Sabuss query API
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })
 

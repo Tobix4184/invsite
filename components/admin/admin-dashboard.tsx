@@ -165,6 +165,7 @@ type BankAccount = {
   totalDeposits: string
   depositCount: number
   sabussApiKey: string | null
+  sabussPin: string | null
   createdAt: Date | string
 }
 
@@ -1395,20 +1396,22 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
   const [testResults, setTestResults] = useState<Record<number, { ok: boolean; message: string; status?: string }>>({})
   const [form, setForm] = useState({
     accountNumber: "",
-    bankName: "",
-    accountName: "",
-    label: "",
-    weight: "1",
-    sabussApiKey: "",
+  bankName: "",
+  accountName: "",
+  label: "",
+  weight: "1",
+  sabussApiKey: "",
+  sabussPin: "",
   })
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({
-    accountNumber: "",
-    bankName: "",
-    accountName: "",
-    label: "",
-    weight: "1",
-    sabussApiKey: "",
+  accountNumber: "",
+  bankName: "",
+  accountName: "",
+  label: "",
+  weight: "1",
+  sabussApiKey: "",
+  sabussPin: "",
   })
 
   function handleAdd() {
@@ -1416,7 +1419,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
       const res = await addBankAccount({ ...form, weight: Number(form.weight) || 1 })
       if (res.ok) {
         toast.success(res.message)
-        setForm({ accountNumber: "", bankName: "", accountName: "", label: "", weight: "1", sabussApiKey: "" })
+        setForm({ accountNumber: "", bankName: "", accountName: "", label: "", weight: "1", sabussApiKey: "", sabussPin: "" })
         router.refresh()
       } else {
         toast.error(res.message)
@@ -1450,8 +1453,9 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
       bankName: acc.bankName,
       accountName: acc.accountName,
       label: acc.label || "",
-      weight: String(acc.weight ?? 1),
-      sabussApiKey: acc.sabussApiKey || "",
+    weight: String(acc.weight ?? 1),
+    sabussApiKey: acc.sabussApiKey || "",
+    sabussPin: acc.sabussPin || "",
     })
   }
 
@@ -1465,11 +1469,12 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
 
   function handleSaveEdit(id: number) {
     startTransition(async () => {
-      const res = await updateBankAccount(id, {
-        ...editForm,
-        weight: Number(editForm.weight) || 1,
-        sabussApiKey: editForm.sabussApiKey || null,
-      })
+    const res = await updateBankAccount(id, {
+  ...editForm,
+  weight: Number(editForm.weight) || 1,
+  sabussApiKey: editForm.sabussApiKey || null,
+  sabussPin: editForm.sabussPin || null,
+  })
       if (res.ok) {
         toast.success(res.message)
         setEditingId(null)
@@ -1558,6 +1563,18 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
               className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
             />
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+              Sabuss Transaction PIN <span className="font-normal text-muted-foreground">(required to query transactions)</span>
+            </label>
+            <input
+              type="password"
+              placeholder="Sabuss PIN"
+              value={form.sabussPin}
+              onChange={(e) => setForm((f) => ({ ...f, sabussPin: e.target.value }))}
+              className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
+            />
+          </div>
           <button
             onClick={handleAdd}
             disabled={pending || !form.accountNumber || !form.bankName || !form.accountName}
@@ -1623,6 +1640,18 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                       placeholder="Paste Sabuss API key to enable auto-detection"
                       value={editForm.sabussApiKey}
                       onChange={(e) => setEditForm((f) => ({ ...f, sabussApiKey: e.target.value }))}
+                      className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-muted-foreground">
+                      Sabuss Transaction PIN
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Sabuss PIN"
+                      value={editForm.sabussPin}
+                      onChange={(e) => setEditForm((f) => ({ ...f, sabussPin: e.target.value }))}
                       className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
                     />
                   </div>
@@ -1963,7 +1992,7 @@ function Empty({ label }: { label: string }) {
   )
 }
 
-// ── Games Admin Tab ───────────────────────────────────────────────────────────
+// ── Games Admin Tab ────────────────────────────────────────���──────────────────
 
 type GameSubTab = "overview" | "spin" | "vault" | "draw"
 

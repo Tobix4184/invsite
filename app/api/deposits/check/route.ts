@@ -60,13 +60,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, status: "no_api_key", message: "Manual approval only — no Sabuss key on this account" })
   }
 
+  if (!acc.sabussPin) {
+    return NextResponse.json({ ok: true, status: "no_api_key", message: "No Sabuss Transaction PIN set — contact admin" })
+  }
+
   // Query Sabuss for recent transactions on this account
   let sabussData: Record<string, unknown> | null = null
   try {
     const res = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussApiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "credit" }),
+      body: JSON.stringify({ type: "credit", pin: acc.sabussPin }),
       signal: AbortSignal.timeout(8000),
     })
     const text = await res.text()
