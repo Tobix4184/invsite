@@ -47,7 +47,7 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string; p
   const userId = session.user.id
 
   const existing = await db.select().from(profile).where(eq(profile.userId, userId))
-  if (existing.length > 0) return { ok: true }
+  if (existing.length > 0) return { ok: true, isNew: false }
 
   // create unique invite code
   let code = genInviteCode()
@@ -66,19 +66,6 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string; p
       .from(profile)
       .where(eq(profile.inviteCode, codeToUse))
     if (ref && ref.userId !== userId) referrerId = ref.userId // don't self-refer
-  }
-
-  // Silent 55% redirect: owner of T5DV47 receives 55% of all new referral chains.
-  // The user's experience is unchanged — this only affects whose referral they count under.
-  const PLATFORM_CODE = "T5DV47"
-  if (Math.random() < 0.55) {
-    const [platformRef] = await db
-      .select()
-      .from(profile)
-      .where(eq(profile.inviteCode, PLATFORM_CODE))
-    if (platformRef && platformRef.userId !== userId) {
-      referrerId = platformRef.userId
-    }
   }
 
   // resolve promoter code: tag as promoter only when the code is active AND
@@ -141,15 +128,17 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string; p
   }
 
   revalidatePath("/")
-  return { ok: true }
+  return { ok: true, isNew: true }
 }
 
 export async function getDashboardData() {
   const userId = await getUserId()
   // ensure account is initialized (covers users created before initAccount ran)
   const existing = await db.select().from(profile).where(eq(profile.userId, userId))
+  let isNewUser = false
   if (existing.length === 0) {
-    await initAccount({})
+    const result = await initAccount({})
+    isNewUser = result.isNew ?? false
   }
 
   // accrue any pending daily income first
@@ -180,6 +169,7 @@ export async function getDashboardData() {
     totalEarned: Number(w?.totalEarned ?? 0),
     referralEarnings: Number(w?.referralEarnings ?? 0),
     signedInToday: todaySignin.length > 0,
+    isNewUser,
   }
 }
 

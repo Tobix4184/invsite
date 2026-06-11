@@ -21,18 +21,30 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'incomehh — Investment Platform',
+  title: 'Poco — Smart Investment Platform',
   description:
-    'incomehh (IHH) — daily income drops every 24 hours. Topup, withdraw, invite, and grow your earnings.',
+    'Poco — device-tier investment plans with daily returns. Invest, earn daily, invite friends, and grow your wealth.',
   generator: 'v0.app',
   icons: {
     icon: '/favicon.png',
     apple: '/logo.png',
   },
+  openGraph: {
+    title: 'Poco — Smart Investment Platform',
+    description: 'Earn daily returns on device-tier investment plans. Join Poco today.',
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Poco Investment Platform' }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Poco — Smart Investment Platform',
+    description: 'Earn daily returns on device-tier investment plans. Join Poco today.',
+    images: ['/og.png'],
+  },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#1a1730',
+  themeColor: '#1c1a17',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,

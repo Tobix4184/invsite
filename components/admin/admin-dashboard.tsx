@@ -1069,7 +1069,7 @@ function GiftCodesTab({ items }: { items: GiftCode[] }) {
         </p>
         <div className="flex flex-col gap-2">
           <input
-            placeholder="CODE (e.g. IHH500)"
+            placeholder="CODE (e.g. POCO500)"
             value={form.code}
             onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
             className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm font-mono outline-none focus:border-primary"
@@ -1573,11 +1573,11 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
         </p>
         <div className="flex items-center gap-2 rounded-lg bg-background px-3 py-2">
           <span className="flex-1 select-all font-mono text-xs text-foreground">
-            https://ihh.incumb.fun/api/webhooks/sabuss
+            {typeof window !== "undefined" ? `${window.location.origin}/api/webhooks/sabuss` : "/api/webhooks/sabuss"}
           </span>
           <button
             onClick={() => {
-              navigator.clipboard.writeText("https://ihh.incumb.fun/api/webhooks/sabuss")
+              navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/sabuss`)
               toast.success("Webhook URL copied")
             }}
             className="rounded-md bg-primary px-2 py-1 text-[10px] font-bold text-primary-foreground"

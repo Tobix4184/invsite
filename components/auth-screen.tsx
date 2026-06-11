@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, Phone, Lock, ShieldCheck, Tag, User, Loader2, Megaphone } from "lucide-react"
+import { Mail, Phone, Lock, ShieldCheck, Tag, User, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Logo } from "@/components/logo"
 import { SITE } from "@/lib/plans"
@@ -31,19 +31,20 @@ function Field({
   onChange: (v: string) => void
 }) {
   return (
-    <div>
-      <label htmlFor={id} className="mb-2 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-        {label} {hint && <span className="font-normal normal-case text-muted-foreground/60">({hint})</span>}
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+        {label}
+        {hint && <span className="ml-1 font-normal normal-case opacity-50">({hint})</span>}
       </label>
-      <div className="flex items-center gap-3 rounded-2xl border border-border bg-secondary/50 px-4 focus-within:border-primary">
-        <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
+      <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
         <input
           id={id}
           type={type}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
+          className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground/40"
         />
       </div>
     </div>
@@ -117,10 +118,10 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
         return
       }
       await initAccount({ phone: form.phone, inviteCode: form.invite, promoCode })
-      toast.success(`Welcome to ${SITE.name}! ₦${SITE.welcomeBonus} bonus added.`)
+      toast.success(`Welcome to ${SITE.name}!`)
       router.push("/dashboard")
       router.refresh()
-    } catch (err) {
+    } catch {
       toast.error("Something went wrong. Try again.")
     } finally {
       setLoading(false)
@@ -128,26 +129,66 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
   }
 
   return (
-    <div className="flex min-h-screen flex-col px-4 py-8">
-      <main className="mx-auto w-full max-w-md">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Logo className="h-16 w-16" />
-          <h1 className="text-3xl font-extrabold tracking-tight text-balance">
-            {mode === "sign-in" ? "Welcome Back" : "Create Account"}
-          </h1>
-          <p className="text-muted-foreground">
-            {mode === "sign-in" ? `Sign in to your ${SITE.name} account` : `Join ${SITE.name} today`}
-          </p>
-        </div>
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Top brand strip */}
+      <div className="px-5 pt-12 pb-8">
+        <div className="mx-auto max-w-md">
+          {/* Logo + wordmark */}
+          <div className="flex items-center gap-3 mb-8">
+            <Logo className="h-10 w-10 rounded-xl" />
+            <span className="text-lg font-black tracking-tight">{SITE.name}</span>
+          </div>
 
+          {mode === "sign-in" ? (
+            <>
+              <p className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Welcome back</p>
+              <h1 className="text-[2rem] font-black leading-tight tracking-tight text-balance">
+                Sign in to your account
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                Access your investments and daily earnings.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Get started</p>
+              <h1 className="text-[2rem] font-black leading-tight tracking-tight text-balance">
+                Start earning daily returns
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                Join {SITE.name} — invest, earn, and grow with device-tier plans.
+              </p>
+
+              {/* Perks row */}
+              <div className="mt-4 flex gap-3">
+                {[
+                  { val: "5%", sub: "daily max" },
+                  { val: "9", sub: "plan tiers" },
+                  { val: "₦" + SITE.welcomeBonus.toLocaleString(), sub: "sign-up bonus" },
+                ].map(({ val, sub }) => (
+                  <div key={sub} className="flex-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-center">
+                    <p className="text-sm font-black text-primary">{val}</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">{sub}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Form card */}
+      <main className="flex-1 px-5 pb-10 mx-auto w-full max-w-md">
         {/* Mode toggle */}
-        <div className="mt-7 grid grid-cols-2 gap-1 rounded-2xl border border-border bg-secondary/40 p-1">
+        <div className="flex gap-1 rounded-2xl border border-border bg-card p-1 mb-6">
           {(["sign-in", "sign-up"] as Mode[]).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`rounded-xl py-2.5 text-sm font-bold transition-colors ${
-                mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+              className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition-all ${
+                mode === m
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {m === "sign-in" ? "Sign In" : "Register"}
@@ -156,115 +197,51 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
         </div>
 
         <form
-          className="mt-5 flex flex-col gap-4 rounded-3xl border border-border bg-card/60 p-6"
+          className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault()
             mode === "sign-in" ? handleSignIn() : handleSignUp()
           }}
         >
-          {mode === "sign-up" && promoCode && (
-            <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3">
-              <Megaphone className="h-5 w-5 shrink-0 text-primary" />
-              <p className="text-sm text-foreground">
-                You&apos;re registering with a <span className="font-bold">Promoter</span> invite. Your account will be
-                tagged as a promoter automatically.
-              </p>
-            </div>
-          )}
-
           {mode === "sign-up" && (
-            <Field
-              id="name"
-              label="Full Name"
-              icon={User}
-              placeholder="John Doe"
-              value={form.name}
-              onChange={set("name")}
-            />
+            <Field id="name" label="Full Name" icon={User} placeholder="John Doe" value={form.name} onChange={set("name")} />
           )}
 
           {mode === "sign-in" ? (
-            <Field
-              id="identifier"
-              label="Email or Phone"
-              icon={Mail}
-              placeholder="email@example.com or 080..."
-              value={form.identifier}
-              onChange={set("identifier")}
-            />
+            <Field id="identifier" label="Email or Phone" icon={Mail} placeholder="email@example.com or 080..." value={form.identifier} onChange={set("identifier")} />
           ) : (
             <>
-              <Field
-                id="email"
-                label="Email Address"
-                icon={Mail}
-                type="email"
-                placeholder="example@email.com"
-                value={form.email}
-                onChange={set("email")}
-              />
-              <Field
-                id="phone"
-                label="Phone Number"
-                icon={Phone}
-                type="tel"
-                placeholder="080XXXXXXXX"
-                value={form.phone}
-                onChange={set("phone")}
-              />
+              <Field id="email" label="Email Address" icon={Mail} type="email" placeholder="example@email.com" value={form.email} onChange={set("email")} />
+              <Field id="phone" label="Phone Number" icon={Phone} type="tel" placeholder="080XXXXXXXX" value={form.phone} onChange={set("phone")} />
             </>
           )}
 
-          <Field
-            id="password"
-            label="Password"
-            icon={Lock}
-            type="password"
-            placeholder="••••••••"
-            value={form.password}
-            onChange={set("password")}
-          />
+          <Field id="password" label="Password" icon={Lock} type="password" placeholder="••••••••" value={form.password} onChange={set("password")} />
 
           {mode === "sign-up" && (
             <>
-              <Field
-                id="confirm"
-                label="Confirm Password"
-                icon={ShieldCheck}
-                type="password"
-                placeholder="••••••••"
-                value={form.confirm}
-                onChange={set("confirm")}
-              />
-              <Field
-                id="invite"
-                label="Invite Code"
-                hint="optional"
-                icon={Tag}
-                placeholder="Enter invite code"
-                value={form.invite}
-                onChange={set("invite")}
-              />
+              <Field id="confirm" label="Confirm Password" icon={ShieldCheck} type="password" placeholder="••••••••" value={form.confirm} onChange={set("confirm")} />
+              <Field id="invite" label="Invite Code" hint="optional" icon={Tag} placeholder="Enter invite code" value={form.invite} onChange={set("invite")} />
             </>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black text-primary-foreground transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
           >
-            {loading && <Loader2 className="h-5 w-5 animate-spin" />}
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {mode === "sign-in" ? "Sign In" : "Create Account"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          {mode === "sign-in" ? "Don't have an account? " : "Already have an account? "}
+        <p className="mt-5 text-center text-sm text-muted-foreground">
+          {mode === "sign-in" ? "No account yet? " : "Already registered? "}
           <button
             onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
-            className="font-bold text-primary"
+            className="font-black text-primary"
           >
-            {mode === "sign-in" ? "Register here" : "Sign in here"}
+            {mode === "sign-in" ? "Register free" : "Sign in"}
           </button>
         </p>
       </main>

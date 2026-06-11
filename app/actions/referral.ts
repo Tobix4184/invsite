@@ -7,36 +7,59 @@ import {
   milestoneClaim,
   wallet,
   transaction,
+  deposit,
 } from "@/lib/db/schema"
 import { getUserId } from "@/lib/session"
-import { eq, sql, and } from "drizzle-orm"
+import { eq, sql, and, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
+
+/**
+ * Returns the number of level-1 referrals that have made at least
+ * one confirmed deposit. Only these count toward milestone rewards.
+ */
+async function countDepositedReferrals(userId: string): Promise<number> {
+  const refs = await db
+    .select({ referredId: referral.referredId })
+    .from(referral)
+    .where(and(eq(referral.referrerId, userId), eq(referral.level, 1)))
+
+  if (refs.length === 0) return 0
+
+  const referredIds = refs.map(r => r.referredId)
+
+  const deposited = await db
+    .select({ userId: deposit.userId })
+    .from(deposit)
+    .where(
+      and(
+        inArray(deposit.userId, referredIds),
+        eq(deposit.status, "confirmed")
+      )
+    )
+
+  // One user counts once regardless of how many deposits they made
+  return new Set(deposited.map(d => d.userId)).size
+}
 
 export async function getAvailableMilestones() {
   const userId = await getUserId()
-  
-  // Get user's level 1 referral count
-  const referrals = await db
-    .select()
-    .from(referral)
-    .where(and(eq(referral.referrerId, userId), eq(referral.level, 1)))
-  const referralCount = referrals.length
-  
-  // Get all active milestones
+
+  // Only referrals who have completed a deposit count toward milestones
+  const referralCount = await countDepositedReferrals(userId)
+
   const milestones = await db
     .select()
     .from(referralMilestone)
     .where(eq(referralMilestone.isActive, true))
     .orderBy(referralMilestone.referralCount)
-  
-  // Get user's claimed milestones
+
   const claims = await db
     .select()
     .from(milestoneClaim)
     .where(eq(milestoneClaim.userId, userId))
-  
+
   const claimedIds = new Set(claims.map(c => c.milestoneId))
-  
+
   return {
     referralCount,
     milestones: milestones.map(m => ({
@@ -72,15 +95,11 @@ export async function claimMilestone(milestoneId: number) {
     return { ok: false, message: "You have already claimed this milestone" }
   }
   
-  // Get user's referral count
-  const referrals = await db
-    .select()
-    .from(referral)
-    .where(and(eq(referral.referrerId, userId), eq(referral.level, 1)))
-  const referralCount = referrals.length
-  
+  // Only deposited referrals count toward milestone eligibility
+  const referralCount = await countDepositedReferrals(userId)
+
   if (referralCount < milestone.referralCount) {
-    return { ok: false, message: `You need ${milestone.referralCount} referrals to claim this. You have ${referralCount}.` }
+    return { ok: false, message: `You need ${milestone.referralCount} deposited referrals to claim this. You have ${referralCount}.` }
   }
   
   const rewardAmount = Number(milestone.rewardAmount)

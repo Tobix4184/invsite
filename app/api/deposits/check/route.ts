@@ -6,7 +6,7 @@ import { eq, and, sql } from "drizzle-orm"
 import { getSession } from "@/lib/session"
 
 /**
- * GET /api/deposits/check?reference=IHH_xxx
+ * GET /api/deposits/check?reference=POCO_xxx
  *
  * Called by the deposit page every 3 minutes to check if Sabuss has received
  * the payment. Uses the Sabuss Query/Fetch Transaction API:

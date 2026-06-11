@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useTransition } from "react"
 import { formatNaira } from "@/lib/plans"
-import { Clock, Loader2 } from "lucide-react"
+import { Clock, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { toggleAutoReinvest } from "@/app/actions/investments"
+import useSWR from "swr"
+
+const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 type Inv = {
   id: number
@@ -19,38 +22,40 @@ type Inv = {
   lastPayoutAt: Date | string
 }
 
-function getTimeUntilNextPayout(lastPayoutAt: Date | string): string {
-  const last = new Date(lastPayoutAt).getTime()
-  const nextPayout = last + 24 * 60 * 60 * 1000 // 24 hours from last payout
-  const now = Date.now()
-  const diff = nextPayout - now
-  
-  if (diff <= 0) return "Ready!"
-  
-  const hours = Math.floor(diff / (60 * 60 * 1000))
-  const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000))
-  
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`
-  }
-  return `${minutes}m`
+function getCountdown(lastPayoutAt: Date | string): string {
+  const next = new Date(lastPayoutAt).getTime() + 24 * 60 * 60 * 1000
+  const diff = next - Date.now()
+  if (diff <= 0) return "Ready"
+  const h = Math.floor(diff / 3600000)
+  const m = Math.floor((diff % 3600000) / 60000)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
 
-export function ActiveInvestments({ investments }: { investments: Inv[] }) {
-  const [, setTick] = useState(0)
+export function ActiveInvestments({ investments: initialInvestments }: { investments: Inv[] }) {
   const [pending, startTransition] = useTransition()
   const [togglingId, setTogglingId] = useState<number | null>(null)
-  
-  // Update every minute to refresh countdown
+  const [, setTick] = useState(0)
+
+  // Share the same SWR key as BalanceCard — no extra network call
+  const { data } = useSWR('/api/live-balance', fetcher, {
+    fallbackData: { investments: initialInvestments },
+    refreshInterval: 10_000,
+    revalidateOnFocus: true,
+    dedupingInterval: 5_000,
+  })
+
+  const investments: Inv[] = data?.investments ?? initialInvestments
+
+  // Tick every minute to refresh countdown timers
   useEffect(() => {
-    const interval = setInterval(() => setTick(t => t + 1), 60000)
-    return () => clearInterval(interval)
+    const t = setInterval(() => setTick(n => n + 1), 60_000)
+    return () => clearInterval(t)
   }, [])
 
-  function handleToggleReinvest(invId: number) {
-    setTogglingId(invId)
+  function handleToggle(id: number) {
+    setTogglingId(id)
     startTransition(async () => {
-      const res = await toggleAutoReinvest(invId)
+      const res = await toggleAutoReinvest(id)
       toast[res.ok ? "success" : "error"](res.message)
       setTogglingId(null)
     })
@@ -60,28 +65,28 @@ export function ActiveInvestments({ investments }: { investments: Inv[] }) {
 
   return (
     <section>
-      <h2 className="mb-3 text-lg font-bold tracking-tight">My Investments</h2>
+      <h2 className="mb-3 text-sm font-black uppercase tracking-widest text-muted-foreground">Active Plans</h2>
       <div className="flex flex-col gap-3">
         {investments.map((inv) => {
           const pct = Math.min(100, Math.round((inv.daysPaid / inv.durationDays) * 100))
-          const timeUntil = getTimeUntilNextPayout(inv.lastPayoutAt)
-          const isReady = timeUntil === "Ready!"
-          
+          const countdown = getCountdown(inv.lastPayoutAt)
+          const isReady = countdown === "Ready"
+          const isToggling = pending && togglingId === inv.id
+
           return (
             <article key={inv.id} className="rounded-2xl border border-border bg-card p-4">
+              {/* Top row */}
               <div className="flex items-center justify-between">
                 <h3 className="font-bold">{inv.planName}</h3>
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
-                    inv.status === "active"
-                      ? "bg-success/15 text-success"
-                      : "bg-secondary text-muted-foreground"
-                  }`}
-                >
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                  inv.status === "active" ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground"
+                }`}>
                   {inv.status}
                 </span>
               </div>
-              <div className="mt-3 flex items-center justify-between text-sm">
+
+              {/* Earnings row */}
+              <div className="mt-2 flex items-center gap-4 text-xs">
                 <span className="text-muted-foreground">
                   Daily <span className="font-semibold text-success">{formatNaira(Number(inv.dailyEarning))}</span>
                 </span>
@@ -89,43 +94,52 @@ export function ActiveInvestments({ investments }: { investments: Inv[] }) {
                   Earned <span className="font-semibold text-foreground">{formatNaira(Number(inv.amountEarned))}</span>
                 </span>
               </div>
-              
+
+              {/* Countdown pill */}
               {inv.status === "active" && (
-                <div className={`mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${isReady ? "bg-success/15 text-success" : "bg-amber-400/15 text-amber-400"}`}>
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>Next payout: {timeUntil}</span>
+                <div className={`mt-2.5 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
+                  isReady ? "bg-success/15 text-success" : "bg-amber-400/10 text-amber-400"
+                }`}>
+                  <Clock className="h-3 w-3" />
+                  {isReady ? "Payout ready" : `Next in ${countdown}`}
                 </div>
               )}
 
-              {/* Auto-reinvest toggle */}
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">Auto-reinvest</span>
+              {/* Progress + auto-reinvest in one row */}
+              <div className="mt-3 flex items-center gap-3">
+                {/* Progress bar */}
+                <div className="flex-1">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="mt-1 text-[10px] text-muted-foreground tabular-nums">
+                    {inv.daysPaid}/{inv.durationDays}d
+                  </p>
+                </div>
+
+                {/* Vault auto-reinvest — tiny, ignorable */}
                 <button
-                  onClick={() => handleToggleReinvest(inv.id)}
-                  disabled={pending && togglingId === inv.id}
-                  className={`relative h-4 w-7 rounded-full transition-colors ${
-                    inv.autoReinvest ? "bg-success/30" : "bg-secondary"
-                  } disabled:opacity-50`}
+                  type="button"
+                  onClick={() => handleToggle(inv.id)}
+                  disabled={isToggling}
+                  className={`relative h-4 w-7 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
+                    inv.autoReinvest ? "bg-success/70" : "bg-muted"
+                  }`}
+                  title={inv.autoReinvest ? "Auto-reinvest into Vault: ON" : "Auto-reinvest into Vault: OFF"}
+                  role="switch"
+                  aria-checked={inv.autoReinvest}
                 >
-                  {pending && togglingId === inv.id ? (
-                    <Loader2 className="absolute left-1 top-0.5 h-3 w-3 animate-spin text-success" />
+                  {isToggling ? (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <RotateCcw className="h-2.5 w-2.5 animate-spin text-white" />
+                    </span>
                   ) : (
-                    <div
-                      className={`absolute top-0.5 h-3 w-3 rounded-full bg-success transition-all ${
-                        inv.autoReinvest ? "left-3.5" : "left-1"
-                      }`}
-                    />
+                    <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all ${
+                      inv.autoReinvest ? "left-3.5" : "left-0.5"
+                    }`} />
                   )}
                 </button>
-              </div>
-              
-              <div className="mt-3">
-                <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-                </div>
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  {inv.daysPaid}/{inv.durationDays} days · {formatNaira(Number(inv.totalEarning))} total
-                </p>
+                <span className="text-[9px] text-muted-foreground/50 whitespace-nowrap select-none">Vault</span>
               </div>
             </article>
           )

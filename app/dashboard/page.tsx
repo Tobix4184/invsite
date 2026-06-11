@@ -47,21 +47,24 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen pb-24">
-      <WelcomePopup />
+      <WelcomePopup isNewUser={data.isNewUser} />
       <PendingDepositPopup deposits={pendingDeposits} />
       <AppHeader />
 
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
-        <div>
-          <p className="text-sm text-muted-foreground">Welcome back,</p>
-          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
-            {data.name}
-            {data.isPromoter && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-400">
-                <Star className="h-3 w-3" /> Promoter
-              </span>
-            )}
-          </h1>
+        {/* Greeting */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-muted-foreground font-medium">Welcome back</p>
+            <h1 className="flex items-center gap-2 text-xl font-black tracking-tight">
+              {data.name.split(" ")[0]}
+              {data.isPromoter && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+                  <Star className="h-3 w-3" /> Partner
+                </span>
+              )}
+            </h1>
+          </div>
         </div>
 
         <BalanceCard balance={data.balance} todayIncome={todayIncome} />
@@ -71,19 +74,18 @@ export default async function DashboardPage() {
           hasActiveInvestment={hasActiveInvestment}
           drawOpen={drawOpen}
         />
-        <HeroInfo isPromoter={data.isPromoter} />
 
         <ActiveInvestments investments={investments} />
 
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold tracking-tight">IHH Plans</h2>
+            <h2 className="text-lg font-black tracking-tight">Poco Plans</h2>
             <Link href="/products" className="text-sm font-semibold text-primary">
               View all
             </Link>
           </div>
           <div className="flex flex-col gap-3">
-            {PLANS.slice(0, 6).map((plan) => (
+            {PLANS.slice(0, 4).map((plan) => (
               <PlanCard key={plan.id} plan={plan} />
             ))}
           </div>

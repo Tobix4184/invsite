@@ -5,14 +5,14 @@ export function Logo({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'relative flex items-center justify-center rounded-xl overflow-hidden',
+        'relative flex items-center justify-center rounded-xl overflow-hidden shrink-0',
         className,
       )}
-      aria-hidden="true"
+      aria-label="Poco logo"
     >
       <Image
         src="/logo.png"
-        alt="incomehh"
+        alt="Poco"
         fill
         className="object-cover"
         priority

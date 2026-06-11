@@ -4,16 +4,18 @@ import { useState, useEffect } from 'react'
 import { X, Gift, Send, MessageCircle } from 'lucide-react'
 import { SITE, formatNaira } from '@/lib/plans'
 
-export function WelcomePopup() {
+export function WelcomePopup({ isNewUser = false }: { isNewUser?: boolean }) {
   const [show, setShow] = useState(false)
 
   useEffect(() => {
+    // Show if the server says this is a brand-new account, OR if localStorage
+    // hasn't been set yet (covers edge cases like social auth).
     const hasSeenWelcome = localStorage.getItem('welcome_popup_seen')
-    if (!hasSeenWelcome) {
+    if (isNewUser || !hasSeenWelcome) {
       setShow(true)
-      localStorage.setItem('welcome_popup_seen', 'true')
     }
-  }, [])
+    localStorage.setItem('welcome_popup_seen', 'true')
+  }, [isNewUser])
 
   if (!show) return null
 
@@ -48,7 +50,7 @@ export function WelcomePopup() {
           <p className="text-xs font-semibold text-primary">How it works:</p>
           <ul className="mt-2 space-y-1 text-left text-xs text-muted-foreground">
             <li>1. Choose a plan and invest</li>
-            <li>2. Get {SITE.investmentBonusPercent}% instant bonus</li>
+            <li>2. Earn up to 5% daily returns</li>
             <li>3. Earn daily for 30 days</li>
             <li>4. Withdraw & invite friends</li>
           </ul>
