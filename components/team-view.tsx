@@ -111,7 +111,7 @@ export function TeamView({ data, milestonesData }: { data: TeamData; milestonesD
       )}
 
       <LevelBlock title="Level 1 Members" rate={level1Rate} tint={data.isPromoter ? "text-amber-400" : "text-primary"} bg={data.isPromoter ? "bg-amber-400/15" : "bg-primary/15"} members={data.level1} isPromoter={data.isPromoter} />
-      <LevelBlock title="Level 2 Members" rate={SITE.referralLevel2} tint="text-sky-400" bg="bg-sky-400/15" members={data.level2} />
+      <LevelBlock title="Level 2 Members" rate={SITE.referralLevel2} tint="text-primary" bg="bg-primary/15" members={data.level2} />
     </main>
   )
 }

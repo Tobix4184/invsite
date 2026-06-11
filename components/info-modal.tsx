@@ -30,8 +30,8 @@ const items = [
     icon: Clock,
     title: 'Withdrawal Hours',
     desc: SITE.withdrawalHours,
-    tint: 'text-sky-400',
-    bg: 'bg-sky-400/15',
+    tint: 'text-primary',
+    bg: 'bg-primary/15',
   },
 ]
 

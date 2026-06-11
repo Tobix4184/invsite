@@ -57,7 +57,7 @@ const TABS: {
 }[] = [
   { id: "spin",  label: "Stake & Spin", icon: Dices,  feature: "stakeAndSpin", activeColor: "text-amber-400",  inactiveColor: "text-amber-400/60",  delay: "0ms" },
   { id: "draw",  label: "Lucky Draw",   icon: Ticket, feature: "luckyDraw",    activeColor: "text-emerald-400", inactiveColor: "text-emerald-400/60", delay: "120ms" },
-  { id: "vault", label: "Lock Vault",   icon: Lock,   feature: "lockVault",    activeColor: "text-sky-400",     inactiveColor: "text-sky-400/60",     delay: "240ms" },
+  { id: "vault", label: "Lock Vault",   icon: Lock,   feature: "lockVault",    activeColor: "text-primary",     inactiveColor: "text-primary/60",     delay: "240ms" },
 ]
 
 export function GamesHub(props: Props) {
