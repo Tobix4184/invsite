@@ -10,7 +10,7 @@ import { eq, and, sql } from "drizzle-orm"
  * a bank account linked to one of your Sabuss VTU accounts.
  *
  * Set this URL in each Sabuss account profile:
- *   https://ihh.incumb.fun/api/webhooks/sabuss
+ *   https://<your-domain>/api/webhooks/sabuss
  *
  * Expected payload shape (from Sabuss docs):
  * {

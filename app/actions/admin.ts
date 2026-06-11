@@ -1338,7 +1338,7 @@ export async function testSabussWebhook(accountId: number) {
   }
 
   try {
-    const res = await fetch("https://ihh.incumb.fun/api/webhooks/sabuss", {
+    const res = await fetch(`${process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/webhooks/sabuss`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
