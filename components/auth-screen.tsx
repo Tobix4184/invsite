@@ -163,7 +163,7 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
               <div className="mt-4 flex gap-3">
                 {[
                   { val: "5%", sub: "daily max" },
-                  { val: "8", sub: "plan tiers" },
+                  { val: "9", sub: "plan tiers" },
                   { val: "₦" + SITE.welcomeBonus.toLocaleString(), sub: "sign-up bonus" },
                 ].map(({ val, sub }) => (
                   <div key={sub} className="flex-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-center">

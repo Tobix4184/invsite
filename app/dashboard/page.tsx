@@ -47,7 +47,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen pb-24">
-      <WelcomePopup />
+      <WelcomePopup isNewUser={data.isNewUser} />
       <PendingDepositPopup deposits={pendingDeposits} />
       <AppHeader />
 

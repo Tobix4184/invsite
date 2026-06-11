@@ -28,6 +28,18 @@ export const PLANS: Plan[] = [
   },
   {
     id: 2,
+    name: 'Iron',
+    tier: 'Entry',
+    device: 'Basic Smartphone',
+    deviceImage: '/devices/bronze.png',
+    price: 5000,
+    dailyReturnPercent: 29.63,
+    durationDays: 30,
+    accentColor: '#6B7280',
+    badgeClass: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  },
+  {
+    id: 4,
     name: 'Silver',
     tier: 'Basic',
     device: 'Mid-range Tablet',
@@ -39,7 +51,7 @@ export const PLANS: Plan[] = [
     badgeClass: 'bg-slate-400/20 text-slate-300 border-slate-400/30',
   },
   {
-    id: 3,
+    id: 5,
     name: 'Gold',
     tier: 'Standard',
     device: 'Premium Laptop',
@@ -52,7 +64,7 @@ export const PLANS: Plan[] = [
     badgeClass: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   },
   {
-    id: 4,
+    id: 6,
     name: 'Platinum',
     tier: 'Advanced',
     device: 'Gaming Desktop',
@@ -64,7 +76,7 @@ export const PLANS: Plan[] = [
     badgeClass: 'bg-gray-300/20 text-gray-300 border-gray-300/30',
   },
   {
-    id: 5,
+    id: 7,
     name: 'Diamond',
     tier: 'Professional',
     device: 'Workstation',
@@ -76,7 +88,7 @@ export const PLANS: Plan[] = [
     badgeClass: 'bg-cyan-400/20 text-cyan-300 border-cyan-400/30',
   },
   {
-    id: 6,
+    id: 8,
     name: 'Elite',
     tier: 'Expert',
     device: 'Enterprise Server',
@@ -88,7 +100,7 @@ export const PLANS: Plan[] = [
     badgeClass: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   },
   {
-    id: 7,
+    id: 9,
     name: 'Legend',
     tier: 'Master',
     device: 'Server Rack',
@@ -100,7 +112,7 @@ export const PLANS: Plan[] = [
     badgeClass: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   },
   {
-    id: 8,
+    id: 10,
     name: 'Sovereign',
     tier: 'Supreme',
     device: 'Data Center',

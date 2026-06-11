@@ -4,16 +4,18 @@ import { useState, useEffect } from 'react'
 import { X, Gift, Send, MessageCircle } from 'lucide-react'
 import { SITE, formatNaira } from '@/lib/plans'
 
-export function WelcomePopup() {
+export function WelcomePopup({ isNewUser = false }: { isNewUser?: boolean }) {
   const [show, setShow] = useState(false)
 
   useEffect(() => {
+    // Show if the server says this is a brand-new account, OR if localStorage
+    // hasn't been set yet (covers edge cases like social auth).
     const hasSeenWelcome = localStorage.getItem('welcome_popup_seen')
-    if (!hasSeenWelcome) {
+    if (isNewUser || !hasSeenWelcome) {
       setShow(true)
-      localStorage.setItem('welcome_popup_seen', 'true')
     }
-  }, [])
+    localStorage.setItem('welcome_popup_seen', 'true')
+  }, [isNewUser])
 
   if (!show) return null
 
