@@ -15,7 +15,7 @@ const META: Record<string, { icon: typeof Gift; tint: string; sign: string }> = 
   earning: { icon: TrendingUp, tint: "text-success", sign: "+" },
   referral: { icon: Users, tint: "text-primary", sign: "+" },
   bonus: { icon: Gift, tint: "text-pink-400", sign: "+" },
-  investment: { icon: Receipt, tint: "text-sky-400", sign: "-" },
+  investment: { icon: Receipt, tint: "text-primary", sign: "-" },
   refund: { icon: ArrowDownLeft, tint: "text-success", sign: "+" },
   credit: { icon: ArrowDownLeft, tint: "text-success", sign: "+" },
   debit: { icon: ArrowUpRight, tint: "text-destructive", sign: "-" },

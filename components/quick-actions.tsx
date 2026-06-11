@@ -68,15 +68,15 @@ export function QuickActions({
       label: "Gift Code",
       icon: Ticket,
       onClick: () => router.push("/gift-code"),
-      color: "text-amber-400",
-      bg: "bg-amber-400/12",
+      color: "text-primary",
+      bg: "bg-primary/12",
     },
     {
       label: "Invite",
       icon: UserRoundPlus,
       onClick: () => router.push("/team"),
-      color: "text-sky-400",
-      bg: "bg-sky-400/12",
+      color: "text-primary",
+      bg: "bg-primary/12",
     },
   ]
 

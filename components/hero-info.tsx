@@ -39,7 +39,7 @@ export function HeroInfo({ isPromoter = false }: { isPromoter?: boolean }) {
         />
         <Stat
           icon={Users}
-          tint="text-sky-400"
+          tint="text-primary"
           label="Referral L2"
           value={`${SITE.referralLevel2}%`}
         />
