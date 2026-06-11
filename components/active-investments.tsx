@@ -103,13 +103,13 @@ export function ActiveInvestments({ investments }: { investments: Inv[] }) {
                   </p>
                 </div>
 
-                {/* Auto-reinvest into vault toggle — compact */}
+                {/* Vault auto-reinvest — tiny, ignorable */}
                 <button
                   type="button"
                   onClick={() => handleToggle(inv.id)}
                   disabled={isToggling}
-                  className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-                    inv.autoReinvest ? "bg-success" : "bg-secondary"
+                  className={`relative h-4 w-7 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
+                    inv.autoReinvest ? "bg-success/70" : "bg-muted"
                   }`}
                   title={inv.autoReinvest ? "Auto-reinvest into Vault: ON" : "Auto-reinvest into Vault: OFF"}
                   role="switch"
@@ -117,15 +117,15 @@ export function ActiveInvestments({ investments }: { investments: Inv[] }) {
                 >
                   {isToggling ? (
                     <span className="absolute inset-0 flex items-center justify-center">
-                      <RotateCcw className="h-3 w-3 animate-spin text-white" />
+                      <RotateCcw className="h-2.5 w-2.5 animate-spin text-white" />
                     </span>
                   ) : (
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
-                      inv.autoReinvest ? "left-4" : "left-0.5"
+                    <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all ${
+                      inv.autoReinvest ? "left-3.5" : "left-0.5"
                     }`} />
                   )}
                 </button>
-                <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">Vault</span>
+                <span className="text-[9px] text-muted-foreground/50 whitespace-nowrap select-none">Vault</span>
               </div>
             </article>
           )

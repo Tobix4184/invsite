@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, RotateCcw } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { type Plan, formatNaira, getDailyEarning, getTotalEarning } from "@/lib/plans"
 import { buyPlan } from "@/app/actions/investments"
@@ -12,7 +12,7 @@ export function PlanCard({ plan }: { plan: Plan }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [confirm, setConfirm] = useState(false)
-  const [autoReinvest, setAutoReinvest] = useState(false)
+  const [autoReinvest, setAutoReinvest] = useState(true)
 
   const daily = getDailyEarning(plan)
   const total = getTotalEarning(plan)
@@ -73,23 +73,19 @@ export function PlanCard({ plan }: { plan: Plan }) {
 
         {confirm ? (
           <div className="flex flex-col gap-2">
-            {/* Auto-reinvest row — compact */}
-            <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2">
-              <div className="flex items-center gap-1.5">
-                <RotateCcw className="h-3 w-3 text-muted-foreground" />
-                <span className="text-[11px] text-muted-foreground">Auto-reinvest into Vault</span>
-              </div>
-              {/* Toggle */}
+            {/* Auto-reinvest — bare muted row, easy to ignore */}
+            <div className="flex items-center gap-2 px-0.5">
               <button
                 type="button"
                 onClick={() => setAutoReinvest(v => !v)}
                 disabled={pending}
-                className={`relative h-5 w-9 rounded-full transition-colors ${autoReinvest ? "bg-success" : "bg-secondary"}`}
+                className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${autoReinvest ? "bg-success/70" : "bg-muted"}`}
                 aria-checked={autoReinvest}
                 role="switch"
               >
-                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${autoReinvest ? "left-4" : "left-0.5"}`} />
+                <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all ${autoReinvest ? "left-3.5" : "left-0.5"}`} />
               </button>
+              <span className="text-[10px] text-muted-foreground/60 select-none">Auto-reinvest returns into Vault</span>
             </div>
 
             {/* Confirm / Cancel */}
