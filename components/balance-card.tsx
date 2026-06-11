@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, EyeOff, TrendingUp } from 'lucide-react'
+import Link from 'next/link'
+import { Eye, EyeOff, TrendingUp, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react'
 import { formatNaira } from '@/lib/plans'
 
 export function BalanceCard({
@@ -14,25 +15,48 @@ export function BalanceCard({
   const [show, setShow] = useState(true)
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/30 via-card to-card p-5 shadow-xl">
-      <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/20 blur-2xl" />
+    <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-5">
+      {/* Subtle glow */}
+      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/8 via-transparent to-transparent" />
+
       <div className="relative">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-muted-foreground">Available Balance</p>
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Available Balance</p>
           <button
             onClick={() => setShow((s) => !s)}
             aria-label={show ? 'Hide balance' : 'Show balance'}
-            className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="rounded-full p-1 text-muted-foreground transition-colors hover:text-foreground"
           >
-            {show ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            {show ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
           </button>
         </div>
-        <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">
-          {show ? formatNaira(balance) : '₦ • • • • •'}
+
+        <p className="text-4xl font-black tracking-tight tabular-nums">
+          {show ? formatNaira(balance) : '₦ ••••••'}
         </p>
-        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-success/15 px-3 py-1.5 text-sm font-semibold text-success">
-          <TrendingUp className="h-4 w-4" />
-          {show ? `+${formatNaira(todayIncome)}` : '+₦ • • •'} today
+
+        <div className="mt-3 flex items-center justify-between">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-success/25 bg-success/10 px-3 py-1 text-xs font-bold text-success">
+            <TrendingUp className="h-3.5 w-3.5" />
+            {show ? `+${formatNaira(todayIncome)}` : '+₦ •••'} today
+          </div>
+
+          <div className="flex gap-2">
+            <Link
+              href="/topup"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowDownToLine className="h-3 w-3" />
+              Deposit
+            </Link>
+            <Link
+              href="/withdraw"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowUpFromLine className="h-3 w-3" />
+              Withdraw
+            </Link>
+          </div>
         </div>
       </div>
     </section>

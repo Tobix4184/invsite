@@ -2,14 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, FolderClosed, Zap, Users, User, Dices } from 'lucide-react'
+import { Home, FolderClosed, Users, User, Dices } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
   { href: '/dashboard', label: 'Home', icon: Home },
-  { href: '/products', label: 'Products', icon: FolderClosed },
+  { href: '/products', label: 'Plans', icon: FolderClosed },
   { href: '/games', label: 'Games', icon: Dices },
-  { href: '/my-investments', label: 'Earnings', icon: Zap },
+  { href: '/team', label: 'Team', icon: Users },
   { href: '/profile', label: 'Profile', icon: User },
 ]
 

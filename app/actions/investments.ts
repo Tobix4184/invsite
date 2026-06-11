@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { investment, wallet, transaction, profile, referral } from "@/lib/db/schema"
-import { PLANS, SITE } from "@/lib/plans"
+import { PLANS, SITE, getDailyEarning, getTotalEarning } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { accrueIncomeForUser } from "@/lib/income-engine"
 import { and, desc, eq, sql } from "drizzle-orm"
@@ -21,6 +21,9 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
     return { ok: false, message: "Insufficient balance. Please top up your account." }
   }
 
+  const daily = getDailyEarning(plan)
+  const total = getTotalEarning(plan)
+
   // deduct price
   await db
     .update(wallet)
@@ -32,8 +35,8 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
     planId: plan.id,
     planName: plan.name,
     price: String(plan.price),
-    dailyEarning: String(plan.daily),
-    totalEarning: String(plan.total),
+    dailyEarning: String(daily),
+    totalEarning: String(total),
     durationDays: plan.durationDays,
     autoReinvest,
   })

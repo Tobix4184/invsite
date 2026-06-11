@@ -1,22 +1,20 @@
-import Image from 'next/image'
 import { cn } from '@/lib/utils'
 
 export function Logo({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'relative flex items-center justify-center rounded-xl overflow-hidden',
+        'relative flex items-center justify-center rounded-xl overflow-hidden bg-primary shrink-0',
         className,
       )}
-      aria-hidden="true"
+      aria-label="Poco logo"
     >
-      <Image
-        src="/logo.png"
-        alt="incomehh"
-        fill
-        className="object-cover"
-        priority
-      />
+      <span
+        className="text-primary-foreground font-black tracking-tighter select-none"
+        style={{ fontSize: '40%', lineHeight: 1 }}
+      >
+        P
+      </span>
     </div>
   )
 }

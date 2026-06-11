@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, Phone, Lock, ShieldCheck, Tag, User, Loader2, Megaphone } from "lucide-react"
+import { Mail, Phone, Lock, ShieldCheck, Tag, User, Loader2, TrendingUp, Zap, Shield } from "lucide-react"
 import { toast } from "sonner"
 import { Logo } from "@/components/logo"
 import { SITE } from "@/lib/plans"
@@ -32,18 +32,18 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-2 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
-        {label} {hint && <span className="font-normal normal-case text-muted-foreground/60">({hint})</span>}
+      <label htmlFor={id} className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        {label} {hint && <span className="font-normal normal-case opacity-60">({hint})</span>}
       </label>
-      <div className="flex items-center gap-3 rounded-2xl border border-border bg-secondary/50 px-4 focus-within:border-primary">
-        <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-secondary/60 px-4 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/30 transition-all">
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
         <input
           id={id}
           type={type}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
+          className="w-full bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground/60"
         />
       </div>
     </div>
@@ -117,10 +117,10 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
         return
       }
       await initAccount({ phone: form.phone, inviteCode: form.invite, promoCode })
-      toast.success(`Welcome to ${SITE.name}! ₦${SITE.welcomeBonus} bonus added.`)
+      toast.success(`Welcome to ${SITE.name}! ₦${SITE.welcomeBonus.toLocaleString()} bonus added.`)
       router.push("/dashboard")
       router.refresh()
-    } catch (err) {
+    } catch {
       toast.error("Something went wrong. Try again.")
     } finally {
       setLoading(false)
@@ -128,26 +128,52 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
   }
 
   return (
-    <div className="flex min-h-screen flex-col px-4 py-8">
-      <main className="mx-auto w-full max-w-md">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Logo className="h-16 w-16" />
-          <h1 className="text-3xl font-extrabold tracking-tight text-balance">
-            {mode === "sign-in" ? "Welcome Back" : "Create Account"}
+    <div className="flex min-h-screen flex-col">
+      {/* Hero strip */}
+      <div className="bg-card border-b border-border px-4 pt-10 pb-8">
+        <div className="mx-auto max-w-md">
+          <div className="flex items-center gap-3 mb-6">
+            <Logo className="h-10 w-10" />
+            <span className="text-xl font-black tracking-tight">{SITE.name}</span>
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-balance leading-tight">
+            {mode === "sign-in" ? "Welcome back" : "Start earning daily"}
           </h1>
-          <p className="text-muted-foreground">
-            {mode === "sign-in" ? `Sign in to your ${SITE.name} account` : `Join ${SITE.name} today`}
+          <p className="mt-2 text-muted-foreground text-sm leading-relaxed">
+            {mode === "sign-in"
+              ? "Sign in to access your investments and daily earnings."
+              : `Join ${SITE.name} and earn daily returns on device-tier investment plans.`}
           </p>
-        </div>
 
-        {/* Mode toggle */}
-        <div className="mt-7 grid grid-cols-2 gap-1 rounded-2xl border border-border bg-secondary/40 p-1">
+          {mode === "sign-up" && (
+            <div className="mt-5 flex gap-4">
+              {[
+                { icon: TrendingUp, label: "Up to 5% daily" },
+                { icon: Zap, label: "8 device tiers" },
+                { icon: Shield, label: "Secure platform" },
+              ].map(({ icon: Icon, label }) => (
+                <div key={label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Icon className="h-3.5 w-3.5 text-primary" />
+                  {label}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Form */}
+      <main className="flex-1 px-4 py-6 mx-auto w-full max-w-md">
+        {/* Tab toggle */}
+        <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-secondary/40 p-1 mb-6">
           {(["sign-in", "sign-up"] as Mode[]).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
-              className={`rounded-xl py-2.5 text-sm font-bold transition-colors ${
-                mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+              className={`rounded-lg py-2.5 text-sm font-bold transition-all ${
+                mode === m
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {m === "sign-in" ? "Sign In" : "Register"}
@@ -156,115 +182,48 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
         </div>
 
         <form
-          className="mt-5 flex flex-col gap-4 rounded-3xl border border-border bg-card/60 p-6"
+          className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault()
             mode === "sign-in" ? handleSignIn() : handleSignUp()
           }}
         >
-          {mode === "sign-up" && promoCode && (
-            <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3">
-              <Megaphone className="h-5 w-5 shrink-0 text-primary" />
-              <p className="text-sm text-foreground">
-                You&apos;re registering with a <span className="font-bold">Promoter</span> invite. Your account will be
-                tagged as a promoter automatically.
-              </p>
-            </div>
-          )}
-
           {mode === "sign-up" && (
-            <Field
-              id="name"
-              label="Full Name"
-              icon={User}
-              placeholder="John Doe"
-              value={form.name}
-              onChange={set("name")}
-            />
+            <Field id="name" label="Full Name" icon={User} placeholder="John Doe" value={form.name} onChange={set("name")} />
           )}
 
           {mode === "sign-in" ? (
-            <Field
-              id="identifier"
-              label="Email or Phone"
-              icon={Mail}
-              placeholder="email@example.com or 080..."
-              value={form.identifier}
-              onChange={set("identifier")}
-            />
+            <Field id="identifier" label="Email or Phone" icon={Mail} placeholder="email@example.com or 080..." value={form.identifier} onChange={set("identifier")} />
           ) : (
             <>
-              <Field
-                id="email"
-                label="Email Address"
-                icon={Mail}
-                type="email"
-                placeholder="example@email.com"
-                value={form.email}
-                onChange={set("email")}
-              />
-              <Field
-                id="phone"
-                label="Phone Number"
-                icon={Phone}
-                type="tel"
-                placeholder="080XXXXXXXX"
-                value={form.phone}
-                onChange={set("phone")}
-              />
+              <Field id="email" label="Email Address" icon={Mail} type="email" placeholder="example@email.com" value={form.email} onChange={set("email")} />
+              <Field id="phone" label="Phone Number" icon={Phone} type="tel" placeholder="080XXXXXXXX" value={form.phone} onChange={set("phone")} />
             </>
           )}
 
-          <Field
-            id="password"
-            label="Password"
-            icon={Lock}
-            type="password"
-            placeholder="••••••••"
-            value={form.password}
-            onChange={set("password")}
-          />
+          <Field id="password" label="Password" icon={Lock} type="password" placeholder="••••••••" value={form.password} onChange={set("password")} />
 
           {mode === "sign-up" && (
             <>
-              <Field
-                id="confirm"
-                label="Confirm Password"
-                icon={ShieldCheck}
-                type="password"
-                placeholder="••••••••"
-                value={form.confirm}
-                onChange={set("confirm")}
-              />
-              <Field
-                id="invite"
-                label="Invite Code"
-                hint="optional"
-                icon={Tag}
-                placeholder="Enter invite code"
-                value={form.invite}
-                onChange={set("invite")}
-              />
+              <Field id="confirm" label="Confirm Password" icon={ShieldCheck} type="password" placeholder="••••••••" value={form.confirm} onChange={set("confirm")} />
+              <Field id="invite" label="Invite Code" hint="optional" icon={Tag} placeholder="Enter invite code" value={form.invite} onChange={set("invite")} />
             </>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
           >
-            {loading && <Loader2 className="h-5 w-5 animate-spin" />}
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {mode === "sign-in" ? "Sign In" : "Create Account"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        <p className="mt-5 text-center text-sm text-muted-foreground">
           {mode === "sign-in" ? "Don't have an account? " : "Already have an account? "}
-          <button
-            onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
-            className="font-bold text-primary"
-          >
-            {mode === "sign-in" ? "Register here" : "Sign in here"}
+          <button onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")} className="font-bold text-primary">
+            {mode === "sign-in" ? "Register" : "Sign in"}
           </button>
         </p>
       </main>
