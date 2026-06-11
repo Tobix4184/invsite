@@ -2,13 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Layers, Swords, UsersRound, CircleUserRound } from 'lucide-react'
+import { LayoutDashboard, Layers, Lock, UsersRound, CircleUserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
   { href: '/dashboard', label: 'Home',    icon: LayoutDashboard },
   { href: '/products',  label: 'Plans',   icon: Layers },
-  { href: '/games',     label: 'Arena',   icon: Swords },
+  { href: '/games',     label: 'Vault',   icon: Lock },
   { href: '/team',      label: 'Network', icon: UsersRound },
   { href: '/profile',   label: 'Account', icon: CircleUserRound },
 ]
