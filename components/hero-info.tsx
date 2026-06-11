@@ -6,12 +6,12 @@ export function HeroInfo({ isPromoter = false }: { isPromoter?: boolean }) {
 
   return (
     <section className="overflow-hidden rounded-3xl border border-border bg-card">
-      <div className="relative bg-gradient-to-r from-success/25 via-primary/15 to-primary/30 p-5 text-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-success">
-          IHH Earnings
+      <div className="relative bg-gradient-to-r from-primary/20 via-primary/10 to-success/20 p-5 text-center">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+          {SITE.name} Earnings
         </p>
         <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-balance">
-          Income Drops Every 24 Hours
+          Earn Daily Returns on Every Plan
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Withdrawal window: {SITE.withdrawalHours}

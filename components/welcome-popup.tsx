@@ -48,7 +48,7 @@ export function WelcomePopup() {
           <p className="text-xs font-semibold text-primary">How it works:</p>
           <ul className="mt-2 space-y-1 text-left text-xs text-muted-foreground">
             <li>1. Choose a plan and invest</li>
-            <li>2. Get {SITE.investmentBonusPercent}% instant bonus</li>
+            <li>2. Earn up to 5% daily returns</li>
             <li>3. Earn daily for 30 days</li>
             <li>4. Withdraw & invite friends</li>
           </ul>

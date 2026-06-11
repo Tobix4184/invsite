@@ -159,6 +159,16 @@ export const SITE = {
     { days: 30, bonusPercent: 40, penaltyPercent: 10 },
   ] as { days: number; bonusPercent: number; penaltyPercent: number }[],
   vaultMin: 1000,
+
+  // Deposit payment expiry (minutes)
+  paymentExpiryMinutes: 60,
+
+  // Feature flags
+  features: {
+    stakeAndSpin: true,
+    luckyDraw: true,
+    lockVault: true,
+  },
 }
 
 export function formatNaira(value: number | string): string {
