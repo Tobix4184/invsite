@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { LogIn, UserPlus, Gamepad2, ChevronRight, Gift, Zap } from "lucide-react"
+import { CalendarCheck2, TrendingUp, Ticket, UserRoundPlus, Swords, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 import { dailySignIn } from "@/app/actions/account"
 import { SITE } from "@/lib/plans"
 import { GamesPopup } from "@/components/games/games-popup"
+import { cn } from "@/lib/utils"
 
 export function QuickActions({
   signedInToday = false,
@@ -46,11 +47,37 @@ export function QuickActions({
     })
   }
 
-  const gridActions = [
-    { label: "Sign In", icon: LogIn, onClick: handleSignIn, tint: "text-sky-400", bg: "bg-sky-400/15", pulse: !done, done },
-    { label: "Earn", icon: Zap, onClick: () => router.push("/my-investments"), tint: "text-success", bg: "bg-success/15" },
-    { label: "Gift Code", icon: Gift, onClick: () => router.push("/gift-code"), tint: "text-pink-400", bg: "bg-pink-400/15" },
-    { label: "Invite", icon: UserPlus, onClick: () => router.push("/team"), tint: "text-primary", bg: "bg-primary/15" },
+  const actions = [
+    {
+      label: done ? "Claimed" : "Check In",
+      icon: CalendarCheck2,
+      onClick: handleSignIn,
+      color: "text-primary",
+      bg: "bg-primary/12",
+      pulse: !done,
+      disabled: pending,
+    },
+    {
+      label: "Earnings",
+      icon: TrendingUp,
+      onClick: () => router.push("/my-investments"),
+      color: "text-success",
+      bg: "bg-success/12",
+    },
+    {
+      label: "Gift Code",
+      icon: Ticket,
+      onClick: () => router.push("/gift-code"),
+      color: "text-amber-400",
+      bg: "bg-amber-400/12",
+    },
+    {
+      label: "Invite",
+      icon: UserRoundPlus,
+      onClick: () => router.push("/team"),
+      color: "text-sky-400",
+      bg: "bg-sky-400/12",
+    },
   ]
 
   return (
@@ -64,71 +91,73 @@ export function QuickActions({
       />
 
       <div className="flex flex-col gap-3">
-        {/* Daily sign-in banner */}
+        {/* Daily check-in banner — only shown when not claimed */}
         {!done && (
           <button
             onClick={handleSignIn}
             disabled={pending}
-            className="flex w-full items-center gap-3 rounded-xl border border-sky-400/25 bg-sky-400/8 px-4 py-3 text-left transition-colors hover:bg-sky-400/12 disabled:opacity-60"
+            className="group flex w-full items-center gap-3 rounded-2xl border border-primary/20 bg-primary/8 px-4 py-3 text-left transition-all hover:bg-primary/12 active:scale-[0.98] disabled:opacity-60"
           >
-            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-400/20">
-              <LogIn className="h-5 w-5 text-sky-400 animate-shake" />
-              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-sky-400 text-[9px] font-black text-background">!</span>
+            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15">
+              <CalendarCheck2 className="h-5 w-5 text-primary animate-shake" />
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-black text-primary-foreground">!</span>
             </span>
-            <div className="flex flex-1 flex-col">
-              <span className="text-sm font-bold">Claim daily sign-in bonus</span>
-              <span className="text-xs text-sky-400 font-semibold">
-                Tap to earn <span className="font-black">₦{SITE.signInBonus}</span> now
+            <div className="flex flex-1 flex-col min-w-0">
+              <span className="text-sm font-black">Claim daily check-in bonus</span>
+              <span className="text-xs text-primary font-semibold">
+                Tap to earn <span className="font-black">₦{SITE.signInBonus.toLocaleString()}</span> now
               </span>
             </div>
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-400" />
+            {/* Pulse dot */}
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
             </span>
           </button>
         )}
 
         {/* 4-icon grid */}
         <div className="grid grid-cols-4 gap-2">
-          {gridActions.map((action) => (
+          {actions.map((action) => (
             <button
               key={action.label}
               onClick={action.onClick}
-              disabled={pending && action.label === "Sign In"}
-              className="relative flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card p-3 text-center transition-colors hover:bg-secondary disabled:opacity-60"
+              disabled={action.disabled}
+              className="relative flex flex-col items-center gap-2 rounded-2xl border border-border bg-card px-2 py-3 text-center transition-all hover:bg-surface active:scale-95 disabled:opacity-60"
             >
               {action.pulse && (
-                <span className="absolute -right-1 -top-1 flex h-3 w-3">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
-                  <span className="relative inline-flex h-3 w-3 rounded-full bg-sky-400" />
+                <span className="absolute -right-1 -top-1 flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-70" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
                 </span>
               )}
-              <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${action.bg}`}>
-                <action.icon className={`h-5 w-5 ${action.done === true ? "text-success" : action.tint}`} />
+              <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", action.bg)}>
+                <action.icon className={cn("h-5 w-5", action.color)} strokeWidth={1.8} />
               </span>
-              <span className="text-[11px] font-medium text-muted-foreground leading-tight">
-                {action.label === "Sign In" && done ? "Claimed" : action.label}
+              <span className="text-[10px] font-bold leading-tight text-muted-foreground">
+                {action.label}
               </span>
             </button>
           ))}
         </div>
 
-        {/* Games CTA */}
+        {/* Arena / Games CTA */}
         <button
           onClick={() => setGamesOpen(true)}
-          className="flex w-full items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-left transition-colors hover:bg-amber-500/12"
+          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left transition-all hover:bg-surface active:scale-[0.98]"
         >
-          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-500/25 bg-amber-500/15">
-            <Gamepad2 className="h-5 w-5 text-amber-400" />
-            <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400">
-              <span className="h-2 w-2 animate-ping rounded-full bg-amber-400 opacity-75" />
-            </span>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-400/12">
+            <Swords className="h-5 w-5 text-amber-400" strokeWidth={1.8} />
           </span>
-          <div className="flex flex-1 flex-col">
-            <span className="text-sm font-bold">Play &amp; Earn</span>
-            <span className="text-xs text-amber-400 font-medium">Stake &amp; Spin · Lucky Draw · Lock Vault</span>
+          <div className="flex flex-1 flex-col min-w-0">
+            <span className="text-sm font-black">Arena</span>
+            <span className="text-xs text-muted-foreground">Stake &amp; Spin &middot; Lucky Draw &middot; Lock Vault</span>
           </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          {/* Live badge */}
+          <span className="shrink-0 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-black text-success">
+            LIVE
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         </button>
       </div>
     </>
