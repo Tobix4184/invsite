@@ -4,15 +4,28 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Eye, EyeOff, ArrowDownLeft, ArrowUpRight, CircleDollarSign } from 'lucide-react'
 import { formatNaira } from '@/lib/plans'
+import useSWR from 'swr'
+
+const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 export function BalanceCard({
-  balance,
-  todayIncome,
+  balance: initialBalance,
+  todayIncome: initialTodayIncome,
 }: {
   balance: number
   todayIncome: number
 }) {
   const [show, setShow] = useState(true)
+
+  const { data } = useSWR('/api/live-balance', fetcher, {
+    fallbackData: { balance: initialBalance, todayIncome: initialTodayIncome },
+    refreshInterval: 10_000,   // poll every 10 seconds
+    revalidateOnFocus: true,   // also refresh when user tabs back in
+    dedupingInterval: 5_000,
+  })
+
+  const balance = data?.balance ?? initialBalance
+  const todayIncome = data?.todayIncome ?? initialTodayIncome
 
   return (
     <section
@@ -46,13 +59,13 @@ export function BalanceCard({
       </div>
 
       {/* Balance amount */}
-      <p className="relative mt-3 text-[2.6rem] font-black leading-none tracking-tight tabular-nums">
+      <p className="relative mt-3 text-[2.6rem] font-black leading-none tracking-tight tabular-nums transition-all duration-500">
         {show ? formatNaira(balance) : '₦ ••••••'}
       </p>
 
       {/* Today's income badge */}
       <div className="relative mt-3 inline-flex items-center gap-1.5 rounded-full bg-success/15 px-3 py-1 text-xs font-bold text-success">
-        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
         {show ? `+${formatNaira(todayIncome)}` : '+₦ •••'} today
       </div>
 

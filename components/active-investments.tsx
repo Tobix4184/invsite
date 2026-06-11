@@ -5,6 +5,9 @@ import { formatNaira } from "@/lib/plans"
 import { Clock, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import { toggleAutoReinvest } from "@/app/actions/investments"
+import useSWR from "swr"
+
+const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 type Inv = {
   id: number
@@ -28,13 +31,24 @@ function getCountdown(lastPayoutAt: Date | string): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
 
-export function ActiveInvestments({ investments }: { investments: Inv[] }) {
-  const [, setTick] = useState(0)
+export function ActiveInvestments({ investments: initialInvestments }: { investments: Inv[] }) {
   const [pending, startTransition] = useTransition()
   const [togglingId, setTogglingId] = useState<number | null>(null)
+  const [, setTick] = useState(0)
 
+  // Share the same SWR key as BalanceCard — no extra network call
+  const { data } = useSWR('/api/live-balance', fetcher, {
+    fallbackData: { investments: initialInvestments },
+    refreshInterval: 10_000,
+    revalidateOnFocus: true,
+    dedupingInterval: 5_000,
+  })
+
+  const investments: Inv[] = data?.investments ?? initialInvestments
+
+  // Tick every minute to refresh countdown timers
   useEffect(() => {
-    const t = setInterval(() => setTick(n => n + 1), 60000)
+    const t = setInterval(() => setTick(n => n + 1), 60_000)
     return () => clearInterval(t)
   }, [])
 
