@@ -324,6 +324,7 @@ type DrawRound = {
 }
 
 type AdminData = {
+  isModerator?: boolean
   stats: Stats
   withdrawals: Withdrawal[]
   users: AdminUser[]
@@ -345,6 +346,7 @@ type AdminData = {
 }
 
 export function AdminDashboard(initial: AdminData) {
+  const isModerator = initial.isModerator ?? false
   const [data, setData] = useState<AdminData>(initial)
   const [tab, setTab] = useState<Tab>("Overview")
   const [refreshing, setRefreshing] = useState(false)
@@ -382,7 +384,12 @@ export function AdminDashboard(initial: AdminData) {
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-2xl items-center justify-between px-4">
           <div>
-            <h1 className="text-lg font-bold tracking-tight">Admin Console</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold tracking-tight">Admin Console</h1>
+              {isModerator && (
+                <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">VIEW ONLY</span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Loading..."}
             </p>
@@ -417,7 +424,11 @@ export function AdminDashboard(initial: AdminData) {
         </div>
 
         <div className="no-scrollbar mb-5 flex gap-2 overflow-x-auto">
-          {TABS.map((t) => (
+          {TABS.filter(t => {
+            // Moderators cannot access destructive or sensitive config tabs
+            if (isModerator && (t === "Bank Accounts" || t === "Promoter Codes" || t === "Games" || t === "Lucky Draw")) return false
+            return true
+          }).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -430,25 +441,25 @@ export function AdminDashboard(initial: AdminData) {
           ))}
         </div>
 
-        {tab === "Overview" && <Overview stats={stats} controls={controls} onAction={() => refresh()} />}
+        {tab === "Overview" && <Overview stats={stats} controls={controls} isModerator={isModerator} onAction={() => refresh()} />}
         {tab === "Financials" && <FinancialsTab data={financials} />}
         {tab === "Games" && <GamesAdminTab spins={spins} vaults={vaults} drawSlots={drawSlots} drawRounds={drawRounds} gameStats={gameStats} gameConfig={gameConfig} onAction={() => refresh()} />}
-        {tab === "Investments" && <InvestmentsTab items={investments} onAction={() => refresh()} />}
-        {tab === "Transactions" && <TransactionsTab items={transactions} onAction={() => refresh()} />}
+        {tab === "Investments" && <InvestmentsTab items={investments} isModerator={isModerator} onAction={() => refresh()} />}
+        {tab === "Transactions" && <TransactionsTab items={transactions} isModerator={isModerator} onAction={() => refresh()} />}
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
         {tab === "Lucky Draw" && <LuckyDrawTab rounds={drawRounds} onAction={() => refresh()} />}
-        {tab === "Users" && <UsersTab items={users} />}
-        {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} />}
+        {tab === "Users" && <UsersTab items={users} isModerator={isModerator} />}
+        {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} isModerator={isModerator} />}
         {tab === "Promoter Codes" && <PromoterCodesTab items={promoterCodes} onAction={() => refresh()} />}
         {tab === "Deposits" && <DepositsTab items={deposits} onAction={() => refresh()} />}
         {tab === "Bank Accounts" && <BankAccountsTab items={bankAccounts} />}
-        {tab === "Milestones" && <MilestonesTab items={milestones} />}
+        {tab === "Milestones" && <MilestonesTab items={milestones} isModerator={isModerator} />}
       </div>
     </div>
   )
 }
 
-function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => void }) {
+function TransactionsTab({ items, onAction, isModerator = false }: { items: Txn[]; onAction: () => void; isModerator?: boolean }) {
   const [pending, startTransition] = useTransition()
   const [filter, setFilter] = useState<string>("all")
   const types = ["all", "deposit", "withdrawal", "earning", "bonus", "referral", "adjustment"]
@@ -501,14 +512,16 @@ function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => vo
                 <span className={`text-sm font-bold tabular-nums ${tint(t.type)}`}>
                   {formatNaira(Number(t.amount))}
                 </span>
-                <button
-                  onClick={() => handleDelete(t.id)}
-                  disabled={pending}
-                  className="ml-auto text-xs font-bold text-red-400 hover:text-red-300 disabled:opacity-50"
-                  title="Delete this transaction from all records"
-                >
-                  ✕
-                </button>
+                {!isModerator && (
+                  <button
+                    onClick={() => handleDelete(t.id)}
+                    disabled={pending}
+                    className="ml-auto text-xs font-bold text-red-400 hover:text-red-300 disabled:opacity-50"
+                    title="Delete this transaction from all records"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
               <p className="mt-1 truncate text-sm font-medium">{t.userName ?? t.userEmail ?? t.userId.slice(0, 10)}</p>
               {t.description && <p className="truncate text-xs text-muted-foreground">{t.description}</p>}
@@ -524,7 +537,7 @@ function TransactionsTab({ items, onAction }: { items: Txn[]; onAction: () => vo
   )
 }
 
-function Overview({ stats, controls, onAction }: { stats: Stats; controls: Controls; onAction: () => void }) {
+function Overview({ stats, controls, onAction, isModerator = false }: { stats: Stats; controls: Controls; onAction: () => void; isModerator?: boolean }) {
   const [pending, startTransition] = useTransition()
   const [siteFrozen, setSiteFrozenState] = useState(controls.siteFrozen)
   const [depositsPaused, setDepPaused] = useState(controls.depositsPaused)
@@ -604,25 +617,29 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
   ]
   return (
     <div className="flex flex-col gap-4">
-      <button
-        onClick={handleProcessIncome}
-        disabled={pending}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-      >
-        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
-        Process All Income
-      </button>
+      {!isModerator && (
+        <>
+          <button
+            onClick={handleProcessIncome}
+            disabled={pending}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
+            Process All Income
+          </button>
 
-      <button
-        onClick={handleBackfillReinvest}
-        disabled={backfillPending}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-success/30 bg-success/10 py-3 text-sm font-bold text-success transition-opacity hover:opacity-90 disabled:opacity-60"
-      >
-        {backfillPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-        Backfill Reinvest Earnings
-      </button>
+          <button
+            onClick={handleBackfillReinvest}
+            disabled={backfillPending}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-success/30 bg-success/10 py-3 text-sm font-bold text-success transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {backfillPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Backfill Reinvest Earnings
+          </button>
+        </>
+      )}
 
-      <div className="rounded-2xl border border-border bg-card p-4">
+      {!isModerator && <div className="rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-bold">Site Controls</h3>
@@ -706,7 +723,7 @@ function Overview({ stats, controls, onAction }: { stats: Stats; controls: Contr
             </span>
           </button>
         </div>
-      </div>
+      </div>}
       <div className="grid grid-cols-2 gap-3">
         {cards.map((c) => (
           <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
@@ -793,7 +810,7 @@ function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () =>
   )
 }
 
-function UsersTab({ items }: { items: AdminUser[] }) {
+function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModerator?: boolean }) {
   const [pending, startTransition] = useTransition()
   const [editing, setEditing] = useState<string | null>(null)
   const [amount, setAmount] = useState("")
@@ -905,7 +922,7 @@ function UsersTab({ items }: { items: AdminUser[] }) {
             </div>
           </div>
 
-          {editing === u.id ? (
+          {!isModerator && editing === u.id ? (
             <div className="mt-3 flex flex-col gap-2">
               <input
                 type="number"
@@ -936,7 +953,7 @@ function UsersTab({ items }: { items: AdminUser[] }) {
                 </button>
               </div>
             </div>
-          ) : (
+          ) : !isModerator ? (
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => setEditing(u.id)}
@@ -965,7 +982,7 @@ function UsersTab({ items }: { items: AdminUser[] }) {
                 </button>
               )}
             </div>
-          )}
+          ) : null}
           {commissionEditing === u.id && (
             <div className="mt-2 flex items-center gap-2">
               <input
@@ -1039,7 +1056,7 @@ function UsersTab({ items }: { items: AdminUser[] }) {
   )
 }
 
-function GiftCodesTab({ items }: { items: GiftCode[] }) {
+function GiftCodesTab({ items, isModerator = false }: { items: GiftCode[]; isModerator?: boolean }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [form, setForm] = useState({ code: "", amount: "", maxUses: "1" })
@@ -1063,7 +1080,7 @@ function GiftCodesTab({ items }: { items: GiftCode[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-2xl border border-border bg-card p-4">
+      {!isModerator && <div className="rounded-2xl border border-border bg-card p-4">
         <p className="mb-3 flex items-center gap-2 text-sm font-bold">
           <Plus className="h-4 w-4 text-primary" /> Create Gift Code
         </p>
@@ -1098,7 +1115,7 @@ function GiftCodesTab({ items }: { items: GiftCode[] }) {
             {pending && <Loader2 className="h-4 w-4 animate-spin" />} Create Code
           </button>
         </div>
-      </div>
+      </div>}
 
       {items.length === 0 ? (
         <Empty label="No gift codes yet" />
@@ -1861,7 +1878,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
   )
 }
 
-function MilestonesTab({ items }: { items: Milestone[] }) {
+function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isModerator?: boolean }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [form, setForm] = useState({ referralCount: "", rewardAmount: "" })
@@ -2033,9 +2050,11 @@ function MilestonesTab({ items }: { items: Milestone[] }) {
                     <button onClick={() => startEdit(m)} disabled={pending} className="flex items-center justify-center rounded-xl border border-border bg-secondary px-4 py-2.5 text-sm font-bold disabled:opacity-60">
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <button onClick={() => handleDelete(m.id)} disabled={pending} className="flex items-center justify-center rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-bold text-destructive disabled:opacity-60">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {!isModerator && (
+                      <button onClick={() => handleDelete(m.id)} disabled={pending} className="flex items-center justify-center rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-bold text-destructive disabled:opacity-60">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </>
               )}
@@ -2634,7 +2653,7 @@ function FinancialsTab({ data }: { data: Financials }) {
 }
 
 // ── Investments Tab ───────────────────────────────────────────────────────────
-function InvestmentsTab({ items, onAction }: { items: InvestmentRow[]; onAction: () => void }) {
+function InvestmentsTab({ items, onAction, isModerator = false }: { items: InvestmentRow[]; onAction: () => void; isModerator?: boolean }) {
   const [pending, startTransition] = useTransition()
   const [extendId, setExtendId] = useState<number | null>(null)
   const [extendDays, setExtendDays] = useState(7)
@@ -2729,7 +2748,7 @@ function InvestmentsTab({ items, onAction }: { items: InvestmentRow[]; onAction:
               </div>
             </div>
 
-            {inv.status === "active" && (
+            {inv.status === "active" && !isModerator && (
               <div className="flex gap-2">
                 <button
                   onClick={() => handleCancel(inv.id)}
@@ -2756,7 +2775,7 @@ function InvestmentsTab({ items, onAction }: { items: InvestmentRow[]; onAction:
             )}
 
             {/* Cancelled investments can be fully deleted to remove all traces */}
-            {inv.status === "cancelled" && (
+            {inv.status === "cancelled" && !isModerator && (
               <button
                 onClick={() => handleDelete(inv.id)}
                 disabled={pending}

@@ -20,3 +20,11 @@ export async function requireAdmin() {
   if (!p || p.role !== "admin") throw new Error("Forbidden")
   return userId
 }
+
+/** Allows both "admin" and "moderator" roles. Returns { userId, isModerator }. */
+export async function requireAdminOrModerator() {
+  const userId = await getUserId()
+  const [p] = await db.select().from(profile).where(eq(profile.userId, userId))
+  if (!p || (p.role !== "admin" && p.role !== "moderator")) throw new Error("Forbidden")
+  return { userId, isModerator: p.role === "moderator" }
+}
