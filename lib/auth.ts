@@ -22,11 +22,16 @@ function createAuth() {
       autoSignIn: true,
     },
     trustedOrigins: [
+      // v0 preview runs on *.vusercontent.net — both the VM URL and the
+      // project-name URL differ per session, so we trust the whole domain.
+      "https://*.vusercontent.net",
       ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),
       ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
       ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
         ? [`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`]
         : []),
+      // localhost for local dev
+      "http://localhost:3000",
     ],
     session: {
       expiresIn: 60 * 60 * 24 * 7,
