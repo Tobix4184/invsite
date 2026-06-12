@@ -160,7 +160,8 @@ export async function getDashboardData() {
     name: u?.name ?? "User",
     email: u?.email ?? "",
     phone: p?.phone ?? "",
-    role: p?.role ?? "user",
+    // Expose "moderator" as "admin" to the client — moderator is an internal-only distinction
+    role: (p?.role === "moderator" ? "admin" : p?.role) ?? "user",
     isPromoter: p?.isPromoter ?? false,
     inviteCode: p?.inviteCode ?? "",
     balance: Number(w?.balance ?? 0),

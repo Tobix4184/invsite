@@ -1088,7 +1088,7 @@ export async function getAllSpins() {
 }
 
 export async function getAllVaults() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   const rows = await db
     .select({
       id: lockVault.id,
@@ -1113,7 +1113,7 @@ export async function getAllVaults() {
 }
 
 export async function getAllDrawSlots() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   const rows = await db
     .select({
       id: luckyDrawSlot.id,
@@ -1133,7 +1133,7 @@ export async function getAllDrawSlots() {
 }
 
 export async function getGameStats() {
-  await requireAdmin()
+  await requireAdminOrModerator()
 
   const [totalSpins] = await db.select({ c: sql<number>`count(*)::int` }).from(stakeSpin)
   const [spinWins] = await db.select({ c: sql<number>`count(*)::int` }).from(stakeSpin).where(eq(stakeSpin.outcome, "win"))
@@ -1174,7 +1174,7 @@ export async function getGameStats() {
 // Single action that fetches all admin dashboard data in parallel.
 // Used by the live-polling client so it only needs one round-trip.
 export async function getAdminData() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   const [stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats, gameConfig] =
     await Promise.all([
       getAdminStats(),

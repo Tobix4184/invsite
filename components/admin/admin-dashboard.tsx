@@ -384,12 +384,7 @@ export function AdminDashboard(initial: AdminData) {
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-2xl items-center justify-between px-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold tracking-tight">Admin Console</h1>
-              {isModerator && (
-                <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">VIEW ONLY</span>
-              )}
-            </div>
+            <h1 className="text-lg font-bold tracking-tight">Admin Console</h1>
             <p className="text-xs text-muted-foreground">
               {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Loading..."}
             </p>
@@ -425,8 +420,8 @@ export function AdminDashboard(initial: AdminData) {
 
         <div className="no-scrollbar mb-5 flex gap-2 overflow-x-auto">
           {TABS.filter(t => {
-            // Moderators cannot access destructive or sensitive config tabs
-            if (isModerator && (t === "Bank Accounts" || t === "Promoter Codes" || t === "Games" || t === "Lucky Draw")) return false
+            // Moderators cannot access sensitive system-only tabs
+            if (isModerator && (t === "Bank Accounts" || t === "Games" || t === "Lucky Draw")) return false
             return true
           }).map((t) => (
             <button
