@@ -24,7 +24,7 @@ export function AppHeader({ title }: { title?: string }) {
 
         <Link
           href="/profile"
-          aria-label="Notifications"
+          aria-label="Profile"
           className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
         >
           <BellDot className="h-4 w-4" />

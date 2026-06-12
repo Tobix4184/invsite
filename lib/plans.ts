@@ -149,9 +149,9 @@ export const SITE = {
   promoterLevel1: 40,
   withdrawalHours: '9 AM to 8 PM Daily',
   inviteCode: 'POCO01',
-  telegramGroup: 'https://t.me/pocoinvest',
-  telegramChannel: 'https://t.me/pocoinvest',
-  telegramSupport: 'pocosupport',
+  telegramGroup: 'https://t.me/AFRI_EARN',
+  telegramChannel: 'https://t.me/AFRI_EARN',
+  telegramSupport: 'https://t.me/AFRI_EARN',
 
   // Stake & Spin
   stakeMin: 500,
