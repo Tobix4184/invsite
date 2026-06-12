@@ -58,6 +58,8 @@ export default async function DashboardPage() {
         <BalanceCard balance={data.balance} todayIncome={todayIncome} />
         <QuickActions signedInToday={data.signedInToday} />
 
+        <HeroInfo isPromoter={data.isPromoter} />
+
         <ActiveInvestments investments={investments} />
 
         <section>
