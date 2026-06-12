@@ -27,7 +27,7 @@ export function PlanCard({ plan }: { plan: Plan }) {
       } else {
         toast.error(res.message)
         if (res.message.toLowerCase().includes("insufficient")) {
-          router.push(`/topup?plan=${plan.id}`)
+          router.push(`/deposits`)
         }
       }
     })

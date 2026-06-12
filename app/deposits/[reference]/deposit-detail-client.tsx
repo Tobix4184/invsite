@@ -24,7 +24,7 @@ type DepositData = {
   createdAt: Date | string
 }
 
-type PollStatus = "idle" | "checking" | "pending" | "approved" | "expired" | "no_api_key"
+type PollStatus = "idle" | "checking" | "pending" | "approved" | "expired"
 
 export default function DepositDetailClient({ deposit }: { deposit: DepositData }) {
   const router = useRouter()
@@ -180,7 +180,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
           <p className="text-center text-sm text-muted-foreground">
             If you already made a transfer, please contact support. Otherwise start a new deposit.
           </p>
-          <Link href="/topup" className="w-full rounded-2xl bg-primary py-4 text-center text-base font-bold text-primary-foreground">
+          <Link href="/deposits" className="w-full rounded-2xl bg-primary py-4 text-center text-base font-bold text-primary-foreground">
             Start New Deposit
           </Link>
         </div>
@@ -299,10 +299,9 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
           </div>
 
           <p className="text-xs text-muted-foreground">
-            {pollStatus === "checking" && "Checking Sabuss for your payment..."}
-            {pollStatus === "pending" && (pollMessage ?? "Not detected yet.")}
-            {pollStatus === "idle" && "Checking every 30 s. First check in 10 s after page load."}
-            {pollStatus === "no_api_key" && (pollMessage ?? "Manual approval — admin will confirm shortly.")}
+            {pollStatus === "checking" && "Checking for your payment..."}
+            {pollStatus === "pending" && (pollMessage ?? "Payment not detected yet — checking every 30 s.")}
+            {pollStatus === "idle" && "Automatic. First check in 10 s — then every 30 s."}
             {pollStatus === "approved" && "Payment confirmed!"}
           </p>
 

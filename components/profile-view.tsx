@@ -36,7 +36,7 @@ export function ProfileView(props: Props) {
 
   const menu = [
     { label: "Transactions", icon: ListFilter, href: "/transactions", color: "text-foreground", bg: "bg-secondary" },
-    { label: "Deposit",      icon: ArrowDownToLine, href: "/topup",   color: "text-success",   bg: "bg-success/12" },
+    { label: "Deposit",      icon: ArrowDownToLine, href: "/deposits", color: "text-success",   bg: "bg-success/12" },
     { label: "Withdraw",     icon: ArrowUpFromLine, href: "/withdraw",color: "text-primary",    bg: "bg-primary/12" },
     { label: "Gift Code",    icon: Ticket,          href: "/gift-code",color: "text-amber-400", bg: "bg-amber-400/12" },
     { label: "My Network",   icon: UsersRound,      href: "/team",    color: "text-primary",    bg: "bg-primary/12" },

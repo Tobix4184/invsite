@@ -50,18 +50,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, status: "expired" })
   }
 
-  // If no Sabuss account assigned, can't poll
+  // If no Sabuss account assigned, webhook will still fire and auto-credit
   if (!dep.bankAccountId) {
-    return NextResponse.json({ ok: true, status: "no_api_key", message: "No account assigned" })
+    return NextResponse.json({ ok: true, status: "pending", message: "Waiting for payment confirmation — this is automatic." })
   }
 
   const [acc] = await db.select().from(bankAccount).where(eq(bankAccount.id, dep.bankAccountId))
-  if (!acc?.sabussApiKey) {
-    return NextResponse.json({ ok: true, status: "no_api_key", message: "Manual approval only — no Sabuss key on this account" })
-  }
 
-  if (!acc.sabussPin) {
-    return NextResponse.json({ ok: true, status: "no_api_key", message: "No Sabuss PIN set — contact admin" })
+  // No API key — rely on webhook alone (that's fine, webhook is the primary mechanism)
+  if (!acc?.sabussApiKey || !acc.sabussPin) {
+    return NextResponse.json({
+      ok: true,
+      status: "pending",
+      message: "Waiting for payment — your wallet will be credited automatically once we detect it.",
+    })
   }
 
   // Query Sabuss without a reference — returns all recent transactions.
