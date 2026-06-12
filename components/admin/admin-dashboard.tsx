@@ -75,7 +75,6 @@ import {
   adminExtendInvestment,
   executeLuckyDraw,
   getDrawSlotUsers,
-  saveGameConfig,
   getAdminReferralsForUser,
   testSabussWebhook,
   adminCheckDeposit,
@@ -214,11 +213,9 @@ type PromoterCode = {
 const TABS = [
   "Overview",
   "Financials",
-  "Games",
   "Investments",
   "Transactions",
   "Withdrawals",
-  "Lucky Draw",
   "Users",
   "Gift Codes",
   "Promoter Codes",
@@ -338,11 +335,6 @@ type AdminData = {
   investments: InvestmentRow[]
   financials: Financials
   drawRounds: DrawRound[]
-  spins: SpinRow[]
-  vaults: VaultRow[]
-  drawSlots: DrawSlotRow[]
-  gameStats: GameStats
-  gameConfig: GameConfig
 }
 
 export function AdminDashboard(initial: AdminData) {
@@ -377,7 +369,7 @@ export function AdminDashboard(initial: AdminData) {
     }
   }, [refresh])
 
-  const { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats, gameConfig } = data
+  const { stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds } = data
 
   return (
     <div className="min-h-screen pb-10">
@@ -419,11 +411,7 @@ export function AdminDashboard(initial: AdminData) {
         </div>
 
         <div className="no-scrollbar mb-5 flex gap-2 overflow-x-auto">
-          {TABS.filter(t => {
-            // Moderators cannot access sensitive system-only tabs
-            if (isModerator && (t === "Bank Accounts" || t === "Games" || t === "Lucky Draw")) return false
-            return true
-          }).map((t) => (
+          {TABS.map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -438,11 +426,9 @@ export function AdminDashboard(initial: AdminData) {
 
         {tab === "Overview" && <Overview stats={stats} controls={controls} isModerator={isModerator} onAction={() => refresh()} />}
         {tab === "Financials" && <FinancialsTab data={financials} />}
-        {tab === "Games" && <GamesAdminTab spins={spins} vaults={vaults} drawSlots={drawSlots} drawRounds={drawRounds} gameStats={gameStats} gameConfig={gameConfig} onAction={() => refresh()} />}
         {tab === "Investments" && <InvestmentsTab items={investments} isModerator={isModerator} onAction={() => refresh()} />}
         {tab === "Transactions" && <TransactionsTab items={transactions} isModerator={isModerator} onAction={() => refresh()} />}
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
-        {tab === "Lucky Draw" && <LuckyDrawTab rounds={drawRounds} onAction={() => refresh()} />}
         {tab === "Users" && <UsersTab items={users} isModerator={isModerator} />}
         {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} isModerator={isModerator} />}
         {tab === "Promoter Codes" && <PromoterCodesTab items={promoterCodes} onAction={() => refresh()} />}
@@ -612,26 +598,25 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
   ]
   return (
     <div className="flex flex-col gap-4">
-      {!isModerator && (
-        <>
-          <button
-            onClick={handleProcessIncome}
-            disabled={pending}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
-            Process All Income
-          </button>
+      {/* Process Income and Backfill (admin only) */}
+      <button
+        onClick={handleProcessIncome}
+        disabled={pending}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+      >
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
+        Process All Income
+      </button>
 
-          <button
-            onClick={handleBackfillReinvest}
-            disabled={backfillPending}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-success/30 bg-success/10 py-3 text-sm font-bold text-success transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            {backfillPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Backfill Reinvest Earnings
-          </button>
-        </>
+      {!isModerator && (
+        <button
+          onClick={handleBackfillReinvest}
+          disabled={backfillPending}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-success/30 bg-success/10 py-3 text-sm font-bold text-success transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          {backfillPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          Backfill Reinvest Earnings
+        </button>
       )}
 
       {!isModerator && <div className="rounded-2xl border border-border bg-card p-4">
@@ -917,7 +902,7 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
             </div>
           </div>
 
-          {!isModerator && editing === u.id ? (
+          {editing === u.id ? (
             <div className="mt-3 flex flex-col gap-2">
               <input
                 type="number"
@@ -948,7 +933,7 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
                 </button>
               </div>
             </div>
-          ) : !isModerator ? (
+          ) : (
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => setEditing(u.id)}
@@ -978,7 +963,6 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
               )}
             </div>
           ) : null}
-          {commissionEditing === u.id && (
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="number"
@@ -1075,7 +1059,7 @@ function GiftCodesTab({ items, isModerator = false }: { items: GiftCode[]; isMod
 
   return (
     <div className="flex flex-col gap-4">
-      {!isModerator && <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border border-border bg-card p-4">
         <p className="mb-3 flex items-center gap-2 text-sm font-bold">
           <Plus className="h-4 w-4 text-primary" /> Create Gift Code
         </p>
@@ -1110,7 +1094,7 @@ function GiftCodesTab({ items, isModerator = false }: { items: GiftCode[]; isMod
             {pending && <Loader2 className="h-4 w-4 animate-spin" />} Create Code
           </button>
         </div>
-      </div>}
+      </div>
 
       {items.length === 0 ? (
         <Empty label="No gift codes yet" />
