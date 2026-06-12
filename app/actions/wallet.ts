@@ -5,7 +5,7 @@ import { wallet, withdrawal, transaction, giftCode, giftCodeRedemption, profile 
 import { SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { getBoolSetting, SETTING_KEYS } from "@/app/actions/settings"
-import { and, eq, sql } from "drizzle-orm"
+import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
 export async function requestWithdrawal(data: {
@@ -90,6 +90,16 @@ export async function getSavedBankDetails() {
     savedAccountNumber: p.savedAccountNumber,
     savedAccountName: p.savedAccountName,
   }
+}
+
+export async function getUserWithdrawals() {
+  const userId = await getUserId()
+  return db
+    .select()
+    .from(withdrawal)
+    .where(eq(withdrawal.userId, userId))
+    .orderBy(desc(withdrawal.createdAt))
+    .limit(20)
 }
 
 export async function redeemGiftCode(code: string) {
