@@ -10,20 +10,17 @@ import { creditApprovedDeposit } from "@/app/actions/deposit"
  * Sabuss fires this when money lands in a linked account.
  * Set this URL in EVERY Sabuss account: https://ipoco.xyz/api/webhooks/sabuss
  *
- * Sabuss fee structure (fee is deducted FROM the sender, so the amount
- * credited to our Sabuss wallet is LESS than what the user sent us):
- *   ₦1     – ₦999    → ₦5   fee   (net = sent - 5)
- *   ₦1000  – ₦4999   → ₦10  fee   (net = sent - 10)
- *   ₦5000  – ₦9999   → ₦50  fee   (net = sent - 50)
- *   ₦10000 – ₦49999  → ₦100 fee   (net = sent - 100)
- *   ₦50000+          → ₦200 fee   (net = sent - 200)
+ * Confirmed Sabuss fee structure (fee deducted from the amount credited to
+ * our Sabuss wallet — user sends X, Sabuss credits us X minus fee):
+ *   ₦1    – ₦999   → ₦5  fee   (confirmed: ₦500 sent → ₦495 received)
+ *   ₦1000+         → ₦50 fee   (confirmed: ₦1000 → ₦950, ₦50000 → ₦49950)
  *
  * We always credit users the FULL deposit amount they intended — we absorb
- * the Sabuss fee. Matching uses: net received + expected fee = deposit amount.
+ * the Sabuss fee. Matching: net received + fee = deposit amount.
  *
- * Expected Sabuss payload fields (some may vary):
- *   api_key        – the Sabuss API key of the receiving account
- *   account_number – the receiving account number (fallback when api_key is null)
+ * Expected Sabuss payload fields:
+ *   api_key        – the Sabuss API key of the receiving account (optional)
+ *   account_number – the receiving account number (primary fallback)
  *   amount         – net amount credited to Sabuss wallet (after fee)
  *   sender         – sender name from bank
  *   reference      – Sabuss internal transaction ID
@@ -33,10 +30,7 @@ import { creditApprovedDeposit } from "@/app/actions/deposit"
 /** Returns the Sabuss fee for a given gross (user-intended) deposit amount */
 function sabussFee(gross: number): number {
   if (gross < 1000) return 5
-  if (gross < 5000) return 10
-  if (gross < 10000) return 50
-  if (gross < 50000) return 100
-  return 200
+  return 50  // ₦1000 and above: flat ₦50 fee confirmed
 }
 
 /**

@@ -1278,13 +1278,10 @@ export async function adminCheckDeposit(reference: string) {
   }
 
   // ── Still processing: try Sabuss query API to scan recent transactions ──
-  // Sabuss fee table — same as webhook
+  // Confirmed Sabuss fee: below ₦1000 = ₦5 fee, ₦1000+ = flat ₦50 fee
   function sabussFee(gross: number): number {
     if (gross < 1000) return 5
-    if (gross < 5000) return 10
-    if (gross < 10000) return 50
-    if (gross < 50000) return 100
-    return 200
+    return 50
   }
   const expectedNet = depositAmount - sabussFee(depositAmount)
 

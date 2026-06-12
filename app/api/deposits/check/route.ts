@@ -106,13 +106,11 @@ export async function GET(req: NextRequest) {
     else if (typeof sabussData.response === "object") rows.push(sabussData.response as Record<string, unknown>)
   }
 
-  // Sabuss fee table — same as webhook
+  // Confirmed Sabuss fee table — same as webhook
+  // ₦500 → ₦495 (₦5 fee), ₦1000+ → flat ₦50 fee (₦1000→₦950, ₦50000→₦49950)
   function sabussFee(gross: number): number {
     if (gross < 1000) return 5
-    if (gross < 5000) return 10
-    if (gross < 10000) return 50
-    if (gross < 50000) return 100
-    return 200
+    return 50
   }
 
   // Net amount Sabuss would credit after deducting their fee
