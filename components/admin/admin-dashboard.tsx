@@ -962,7 +962,8 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
                 </button>
               )}
             </div>
-          ) : null}
+          )}
+          {commissionEditing === u.id && (
             <div className="mt-2 flex items-center gap-2">
               <input
                 type="number"
