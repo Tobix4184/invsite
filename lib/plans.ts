@@ -151,7 +151,7 @@ export const SITE = {
   inviteCode: 'POCO01',
   telegramGroup: 'https://t.me/AFRI_EARN',
   telegramChannel: 'https://t.me/AFRI_EARN',
-  telegramSupport: 'https://t.me/AFRI_EARN',
+  telegramSupport: 'https://t.me/pocoinvest',
 
   // Stake & Spin
   stakeMin: 500,
