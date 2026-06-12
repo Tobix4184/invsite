@@ -23,6 +23,7 @@ import {
 import { requireAdmin, requireAdminOrModerator } from "@/lib/session"
 import { accrueIncomeForAll, backfillReinvestForUser } from "@/lib/income-engine"
 import { getPauseFlags, setSetting, getGameConfig, getLiveDepositLimits, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
+import { creditApprovedDeposit } from "@/app/actions/deposit"
 import { and, asc, desc, eq, gt, sql, sum } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
@@ -1276,63 +1277,95 @@ export async function adminCheckDeposit(reference: string) {
     }
   }
 
-  // ── Still processing: try Sabuss query API with sabussRef if available ──
-  // The Sabuss query endpoint requires their own transaction reference (e.g. 000010...),
-  // which is only available if the webhook already fired and stored it as sabussRef.
-  // Without it the API returns "Invalid Reference ID" regardless of what we send.
-  if (acc?.sabussApiKey && acc.sabussPin && dep.sabussRef) {
-    let sabussRaw = ""
+  // ── Still processing: try Sabuss query API to scan recent transactions ──
+  // Sabuss fee table — same as webhook
+  function sabussFee(gross: number): number {
+    if (gross < 1000) return 5
+    if (gross < 5000) return 10
+    if (gross < 10000) return 50
+    if (gross < 50000) return 100
+    return 200
+  }
+  const expectedNet = depositAmount - sabussFee(depositAmount)
+
+  if (acc?.sabussApiKey && acc.sabussPin) {
     let sabussData: Record<string, unknown> | null = null
+    let rawResponse = ""
     try {
       const formBody = new URLSearchParams()
       formBody.append("pin", acc.sabussPin)
-      formBody.append("reference", dep.sabussRef)
+      // If we have a sabussRef, query by it; otherwise list recent transactions
+      if (dep.sabussRef) formBody.append("reference", dep.sabussRef)
       const res = await fetch(`https://sabuss.com/vtu/api/query/${acc.sabussApiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: formBody.toString(),
         signal: AbortSignal.timeout(10000),
       })
-      sabussRaw = await res.text()
-      try { sabussData = JSON.parse(sabussRaw) } catch { /* not JSON */ }
-    } catch { /* network error — fall through to manual message */ }
+      rawResponse = await res.text()
+      console.log("[v0] adminCheckDeposit Sabuss raw:", rawResponse.slice(0, 500))
+      try { sabussData = JSON.parse(rawResponse) } catch { /* not JSON */ }
+    } catch (e) {
+      console.log("[v0] adminCheckDeposit Sabuss fetch error:", e)
+    }
 
-    if (sabussData && String(sabussData.status ?? "").toLowerCase() === "success") {
-      const tx = Array.isArray(sabussData.response)
-        ? (sabussData.response as Record<string, unknown>[])[0]
-        : sabussData.response as Record<string, unknown>
-      const senderInfo = tx?.sender ? `Sender: ${tx.sender}.` : dep.senderName ? `Sender: ${dep.senderName}.` : ""
+    if (sabussData) {
+      // Collect all transaction rows from any key that's an array
+      const rows: Record<string, unknown>[] = []
+      for (const v of Object.values(sabussData)) {
+        if (Array.isArray(v)) rows.push(...(v as Record<string, unknown>[]).filter(Boolean))
+      }
+      if (!rows.length && sabussData.response) {
+        if (Array.isArray(sabussData.response)) rows.push(...(sabussData.response as Record<string, unknown>[]))
+        else if (typeof sabussData.response === "object" && sabussData.response !== null) rows.push(sabussData.response as Record<string, unknown>)
+      }
 
-      // Auto-approve since Sabuss confirmed it
-      await db.update(deposit).set({ status: "success" }).where(eq(deposit.reference, reference))
-      await db.update(wallet).set({
-        balance: sql`${wallet.balance} + ${depositAmount}`,
-        totalDeposited: sql`${wallet.totalDeposited} + ${depositAmount}`,
-        updatedAt: new Date(),
-      }).where(eq(wallet.userId, dep.userId))
-      await db.insert(transaction).values({
-        userId: dep.userId, type: "deposit", amount: String(depositAmount),
-        status: "completed", reference,
-        description: `Auto-approved via Sabuss query confirmation. ${senderInfo}`,
-      })
-      await db.update(bankAccount).set({
-        totalDeposits: sql`${bankAccount.totalDeposits} + ${depositAmount}`,
-        depositCount: sql`${bankAccount.depositCount} + 1`,
-      }).where(eq(bankAccount.id, dep.bankAccountId))
-      revalidatePath("/admin")
-      return { ok: true, found: true, message: `Payment confirmed via Sabuss! ${senderInfo} Wallet credited ₦${depositAmount.toLocaleString()}.`.trim() }
+      console.log("[v0] adminCheckDeposit: found", rows.length, "rows from Sabuss")
+
+      const depCreatedAt = new Date(dep.createdAt)
+      for (const row of rows) {
+        const rowAmt = Math.round(Number(row.amount ?? row.credit ?? row.value ?? row.credited_amount ?? 0))
+        // Match exact or net (fee deducted)
+        if (rowAmt !== depositAmount && rowAmt !== expectedNet) continue
+        // Date check — must not be before deposit was created
+        const rowDate = row.date ?? row.created_at ?? row.transaction_date ?? row.time ?? null
+        if (rowDate) {
+          const d = new Date(String(rowDate))
+          if (!isNaN(d.getTime()) && d < depCreatedAt) continue
+        }
+        // Found — auto-credit the full deposit amount
+        const sabussRefFound = String(row.reference ?? row.transaction_id ?? row.id ?? "")
+        const senderFound = String(row.sender ?? row.account_name ?? row.name ?? dep.senderName ?? "")
+        await creditApprovedDeposit({
+          reference,
+          senderNameFromWebhook: senderFound || null,
+          sabussRef: sabussRefFound || null,
+          source: "admin",
+        })
+        return { ok: true, found: true, message: `Payment found and credited! Sender: ${senderFound || "unknown"}. ₦${depositAmount.toLocaleString()} added to wallet.` }
+      }
+
+      return {
+        ok: true,
+        found: false,
+        message: `Queried Sabuss (${rows.length} recent transactions) — no match for ₦${depositAmount.toLocaleString()} (or net ₦${expectedNet.toLocaleString()}) found. Raw: ${rawResponse.slice(0, 200)}`,
+      }
+    }
+
+    return {
+      ok: false,
+      found: false,
+      message: `Could not reach Sabuss API or invalid response. Raw: ${rawResponse.slice(0, 200)}`,
     }
   }
 
-  // ── Waiting for Sabuss webhook ──
-  // The Sabuss query API requires their internal reference which we don't have yet.
-  // Payment will auto-approve the moment Sabuss fires the webhook.
+  // No API key — can't query, waiting for webhook
   const waitingSince = new Date(dep.createdAt).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" })
   const senderHint = dep.senderName ? ` Expected sender: ${dep.senderName}.` : ""
   return {
     ok: true,
     found: false,
-    message: `Waiting for Sabuss webhook. ₦${depositAmount.toLocaleString()} deposit created at ${waitingSince} is still PROCESSING.${senderHint} Payment will auto-approve the moment Sabuss notifies us. Use Approve manually if you have confirmed the payment on your Sabuss dashboard.`,
+    message: `No Sabuss API key on this account — waiting for webhook. ₦${depositAmount.toLocaleString()} deposit created at ${waitingSince}.${senderHint} The webhook will auto-credit the moment Sabuss sends a notification. Make sure the webhook URL is set in the Sabuss dashboard.`,
   }
 }
 
@@ -1352,10 +1385,9 @@ export async function testSabussWebhook(accountId: number) {
     .where(eq(bankAccount.id, accountId))
 
   if (!acc) return { ok: false, message: "Account not found" }
-  if (!acc.sabussApiKey) return { ok: false, message: "No Sabuss API key set for this account" }
 
-  const payload = {
-    api_key: acc.sabussApiKey,
+  const payload: Record<string, string> = {
+    account_number: acc.accountNumber, // always send account_number — new webhook matches by this
     amount: "1",           // ₦1 test — won't match any real deposit
     sender: "WebhookTest",
     reference: `TEST_${Date.now()}`,
@@ -1363,6 +1395,7 @@ export async function testSabussWebhook(accountId: number) {
     date: new Date().toISOString(),
     balance: "0",
   }
+  if (acc.sabussApiKey) payload.api_key = acc.sabussApiKey
 
   try {
     const res = await fetch(`${process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/webhooks/sabuss`, {

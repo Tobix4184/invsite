@@ -106,12 +106,23 @@ export async function GET(req: NextRequest) {
     else if (typeof sabussData.response === "object") rows.push(sabussData.response as Record<string, unknown>)
   }
 
-  // Match by amount (exact or minus ₦50 fee) + sender name + not before deposit creation
-  const expectedNet = depositAmount - 50
+  // Sabuss fee table — same as webhook
+  function sabussFee(gross: number): number {
+    if (gross < 1000) return 5
+    if (gross < 5000) return 10
+    if (gross < 10000) return 50
+    if (gross < 50000) return 100
+    return 200
+  }
+
+  // Net amount Sabuss would credit after deducting their fee
+  const expectedNet = depositAmount - sabussFee(depositAmount)
+
   let matchedTransaction: Record<string, unknown> | null = null
 
   for (const row of rows) {
     const rowAmt = Math.round(Number(row.amount ?? row.credit ?? row.value ?? row.credited_amount ?? 0))
+    // Accept: exact match (no fee on some accounts) OR net-after-fee match
     if (rowAmt !== depositAmount && rowAmt !== expectedNet) continue
 
     const senderFields = [row.sender, row.account_name, row.narration, row.name].filter(Boolean).join(" ").toLowerCase()
