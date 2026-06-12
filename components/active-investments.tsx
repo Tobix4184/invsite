@@ -125,7 +125,7 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
                   className={`relative h-4 w-7 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
                     inv.autoReinvest ? "bg-success/70" : "bg-muted"
                   }`}
-                  title={inv.autoReinvest ? "Auto-reinvest into Vault: ON" : "Auto-reinvest into Vault: OFF"}
+                  title={inv.autoReinvest ? "Auto-reinvest into Lock Vault (7 days, +8%): ON" : "Auto-reinvest into Lock Vault (7 days, +8%): OFF"}
                   role="switch"
                   aria-checked={inv.autoReinvest}
                 >
@@ -139,7 +139,7 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
                     }`} />
                   )}
                 </button>
-                <span className="text-[9px] text-muted-foreground/50 whitespace-nowrap select-none">Vault</span>
+                <span className="text-[9px] text-muted-foreground/50 whitespace-nowrap select-none">Lock Vault</span>
               </div>
             </article>
           )
