@@ -311,11 +311,12 @@ export async function getRecentDeposits() {
       assignedAccountName: deposit.assignedAccountName,
       bankAccountId: deposit.bankAccountId,
       expiresAt: deposit.expiresAt,
+      sabussRef: deposit.sabussRef,
     })
     .from(deposit)
     .leftJoin(userTable, eq(deposit.userId, userTable.id))
     .orderBy(desc(deposit.createdAt))
-    .limit(50)
+    .limit(100)
 }
 
 /** Admin: process daily income for all users with active investments. */

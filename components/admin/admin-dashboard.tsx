@@ -156,6 +156,7 @@ type Deposit = {
   assignedAccountName: string | null
   bankAccountId: number | null
   expiresAt: Date | string | null
+  sabussRef: string | null
 }
 
 type BankAccount = {
@@ -1401,6 +1402,11 @@ function DepositCard({
             To: {dep.assignedBankName} - {dep.assignedAccountNumber} ({dep.assignedAccountName})
           </p>
         )}
+        {dep.sabussRef && (
+          <p className="mt-1 text-muted-foreground">
+            Sabuss ref: <span className="font-mono text-foreground">{dep.sabussRef}</span>
+          </p>
+        )}
         <p className="mt-1 text-muted-foreground">{new Date(dep.createdAt).toLocaleString()}</p>
       </div>
 
@@ -1454,12 +1460,136 @@ function DepositCard({
 }
 
 function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => void }) {
-  if (items.length === 0) return <Empty label="No deposits" />
+  // Split: Sabuss raw feed vs regular deposits
+  const sabussFeed = items.filter(
+    (d) =>
+      d.status === "unmatched" ||
+      d.status === "needs_review" ||
+      (d.status === "success" && d.sabussRef),
+  )
+  const regularDeposits = items.filter((d) => !sabussFeed.includes(d))
+
   return (
-    <div className="flex flex-col gap-3">
-      {items.map((dep) => (
-        <DepositCard key={dep.id} dep={dep} onAction={onAction} />
-      ))}
+    <div className="flex flex-col gap-5">
+      {/* ── Sabuss Live Feed ── */}
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <Zap className="h-4 w-4 text-amber-400" />
+          <h3 className="text-sm font-black">Sabuss Live Feed</h3>
+          <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+            {sabussFeed.length} entries
+          </span>
+        </div>
+
+        {sabussFeed.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card/50 py-6 text-center text-xs text-muted-foreground">
+            No Sabuss webhook drops yet — they will appear here when Sabuss sends a notification.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {sabussFeed.map((dep) => (
+              <SabussFeedRow key={dep.id} dep={dep} onAction={onAction} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Divider */}
+      <div className="border-t border-border" />
+
+      {/* ── All Deposits ── */}
+      <div>
+        <p className="mb-3 text-sm font-black">All Deposits</p>
+        {regularDeposits.length === 0 ? (
+          <Empty label="No deposits yet" />
+        ) : (
+          <div className="flex flex-col gap-3">
+            {regularDeposits.map((dep) => (
+              <DepositCard key={dep.id} dep={dep} onAction={onAction} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** A compact row showing raw Sabuss webhook data */
+function SabussFeedRow({ dep, onAction }: { dep: Deposit; onAction: () => void }) {
+  const [actPending, startAct] = useTransition()
+
+  const statusColors: Record<string, string> = {
+    unmatched: "bg-muted text-muted-foreground",
+    needs_review: "bg-orange-500/15 text-orange-500",
+    success: "bg-success/15 text-success",
+  }
+  const statusLabel: Record<string, string> = {
+    unmatched: "Unmatched",
+    needs_review: "Name Mismatch",
+    success: "Auto-Approved",
+  }
+
+  function approve() {
+    startAct(async () => {
+      const res = await approveDeposit(dep.reference)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      onAction()
+    })
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          {/* Amount + sender */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-black">{formatNaira(Number(dep.amount))}</span>
+            {dep.senderName && (
+              <span className="truncate rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                {dep.senderName}
+              </span>
+            )}
+          </div>
+          {/* Bank account it landed in */}
+          {dep.assignedBankName && (
+            <p className="text-[11px] text-muted-foreground">
+              Account: <span className="font-medium text-foreground">{dep.assignedBankName} · {dep.assignedAccountNumber}</span>
+            </p>
+          )}
+          {/* Sabuss reference */}
+          {dep.sabussRef && (
+            <p className="text-[11px] text-muted-foreground">
+              Sabuss ref: <span className="font-mono text-foreground">{dep.sabussRef}</span>
+            </p>
+          )}
+          {/* Matched user */}
+          {dep.userEmail && dep.status !== "unmatched" && (
+            <p className="text-[11px] text-muted-foreground">
+              User: <span className="font-medium text-foreground">{dep.userEmail}</span>
+            </p>
+          )}
+          <p className="text-[11px] text-muted-foreground">{new Date(dep.createdAt).toLocaleString()}</p>
+        </div>
+
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${statusColors[dep.status] ?? "bg-secondary text-muted-foreground"}`}>
+          {statusLabel[dep.status] ?? dep.status}
+        </span>
+      </div>
+
+      {/* Action: needs_review can be force-approved by admin */}
+      {dep.status === "needs_review" && (
+        <div className="mt-2 flex gap-2">
+          <button
+            onClick={approve}
+            disabled={actPending}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-success py-2 text-xs font-bold text-success-foreground disabled:opacity-60"
+          >
+            {actPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+            Approve Anyway
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1564,17 +1694,23 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
     <div className="flex flex-col gap-4">
       {/* Sabuss Webhook Info */}
       <div className="rounded-2xl border border-success/30 bg-success/5 p-4">
-        <p className="mb-1 text-xs font-bold text-success">Sabuss Webhook URL</p>
-        <p className="mb-2 text-xs text-muted-foreground">
-          Set this URL in every Sabuss account profile under &quot;Profile &gt; Webhook URL&quot;. Deposits will be auto-detected and credited.
+        <div className="mb-2 flex items-center gap-2">
+          <Zap className="h-4 w-4 text-success" />
+          <p className="text-xs font-black text-success">Sabuss Webhook — Fully Automatic</p>
+        </div>
+        <p className="mb-1 text-xs text-muted-foreground">
+          Paste this URL into <span className="font-semibold text-foreground">every</span> Sabuss account under <span className="font-semibold text-foreground">Profile &gt; Webhook URL</span>. When money arrives, Sabuss calls this URL, our system matches the amount to the pending deposit, verifies the sender name, and credits the wallet instantly — <span className="font-semibold text-foreground">no manual action needed</span>.
+        </p>
+        <p className="mb-3 text-xs text-muted-foreground">
+          You do <span className="font-semibold text-foreground">not</span> need to use the Sabuss query API or call any endpoint yourself. The webhook alone handles everything. The Sabuss API Key and PIN fields below are optional — they are only used when an admin manually clicks &quot;Check Sabuss Now&quot; on a deposit card to query Sabuss directly.
         </p>
         <div className="flex items-center gap-2 rounded-lg bg-background px-3 py-2">
           <span className="flex-1 select-all font-mono text-xs text-foreground">
-            {typeof window !== "undefined" ? `${window.location.origin}/api/webhooks/sabuss` : "/api/webhooks/sabuss"}
+            https://ipoco.xyz/api/webhooks/sabuss
           </span>
           <button
             onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/sabuss`)
+              navigator.clipboard.writeText("https://ipoco.xyz/api/webhooks/sabuss")
               toast.success("Webhook URL copied")
             }}
             className="rounded-md bg-primary px-2 py-1 text-[10px] font-bold text-primary-foreground"
@@ -2590,7 +2726,7 @@ function GamesAdminTab({
   )
 }
 
-// ── Financials Tab ────────────────────────────────────────────────────────────
+// ── Financials Tab ─────��──────────────────────────────────────────────────────
 function FinancialsTab({ data }: { data: Financials }) {
   const cards = [
     { label: "Withdrawal Charges (Revenue)", value: data.withdrawalCharges, color: "text-success" },
