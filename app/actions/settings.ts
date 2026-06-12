@@ -7,6 +7,9 @@ export const SETTING_KEYS = {
   siteFrozen: "site_frozen",               // "true" = entire site frozen for all non-admin users
   depositsPaused: "deposits_paused",
   withdrawalsPaused: "withdrawals_paused",
+  // Deposit / withdrawal limits — stored in DB so admin can change and takes effect immediately
+  minDeposit: "min_deposit",           // naira e.g. "1000"
+  minWithdrawal: "min_withdrawal",     // naira e.g. "1000"
   // Withdrawal charge — stored in DB so admin can change it and it applies immediately
   withdrawalCharge: "withdrawal_charge_percent",  // percent e.g. "18"
   // Game config — stored in site_setting, override SITE defaults at runtime
@@ -78,6 +81,20 @@ export async function getGameConfig() {
       { days: 30, bonusPercent: vaultBonus30, penaltyPercent: vaultPenalty },
     ],
     vaultMin,
+  }
+}
+
+/**
+ * Returns live deposit and withdrawal minimums from DB, falling back to SITE defaults.
+ */
+export async function getLiveDepositLimits(): Promise<{ minDeposit: number; minWithdrawal: number }> {
+  const rows = await db.select().from(siteSetting)
+  const map = new Map(rows.map((r) => [r.key, r.value]))
+  const minDep = parseInt(map.get(SETTING_KEYS.minDeposit) ?? "", 10)
+  const minWd  = parseInt(map.get(SETTING_KEYS.minWithdrawal) ?? "", 10)
+  return {
+    minDeposit:   isNaN(minDep) ? SITE.minDeposit   : minDep,
+    minWithdrawal: isNaN(minWd)  ? (SITE.minWithdrawal ?? 1000) : minWd,
   }
 }
 

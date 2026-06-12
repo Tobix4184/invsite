@@ -79,6 +79,7 @@ import {
   testSabussWebhook,
   adminCheckDeposit,
   adminDeleteTransaction,
+  saveDepositWithdrawalLimits,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -185,6 +186,9 @@ type Milestone = {
     siteFrozen: boolean
     depositsPaused: boolean
     withdrawalsPaused: boolean
+    minDeposit: number
+    minWithdrawal: number
+    withdrawalCharge: number
   }
 
 type Txn = {
@@ -527,11 +531,19 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
   const [savingFreeze, startFreezeTransition] = useTransition()
   const [savingDep, startDepTransition] = useTransition()
   const [savingWd, startWdTransition] = useTransition()
+  const [savingLimits, startLimitsTransition] = useTransition()
+
+  const [minDepositVal, setMinDepositVal] = useState(String(controls.minDeposit))
+  const [minWithdrawalVal, setMinWithdrawalVal] = useState(String(controls.minWithdrawal))
+  const [withdrawalChargeVal, setWithdrawalChargeVal] = useState(String(controls.withdrawalCharge))
 
   // Keep local state in sync when polled data arrives
   useEffect(() => { setSiteFrozenState(controls.siteFrozen) }, [controls.siteFrozen])
   useEffect(() => { setDepPaused(controls.depositsPaused) }, [controls.depositsPaused])
   useEffect(() => { setWdPaused(controls.withdrawalsPaused) }, [controls.withdrawalsPaused])
+  useEffect(() => { setMinDepositVal(String(controls.minDeposit)) }, [controls.minDeposit])
+  useEffect(() => { setMinWithdrawalVal(String(controls.minWithdrawal)) }, [controls.minWithdrawal])
+  useEffect(() => { setWithdrawalChargeVal(String(controls.withdrawalCharge)) }, [controls.withdrawalCharge])
 
   function handleProcessIncome() {
     startTransition(async () => {
@@ -557,6 +569,19 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
     startFreezeTransition(async () => {
       const res = await setSiteFrozen(next)
       toast[res.ok ? "success" : "error"](res.message)
+      onAction()
+    })
+  }
+
+  function saveLimits() {
+    startLimitsTransition(async () => {
+      const res = await saveDepositWithdrawalLimits({
+        minDeposit: Number(minDepositVal),
+        minWithdrawal: Number(minWithdrawalVal),
+        withdrawalCharge: Number(withdrawalChargeVal),
+      })
+      if (res.ok) toast.success(res.message)
+      else toast.error("Failed to save limits")
       onAction()
     })
   }
@@ -703,6 +728,53 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
               )}
             </span>
           </button>
+        </div>
+
+        {/* Deposit / Withdrawal Limits */}
+        <div className="mt-4 border-t border-border pt-4">
+          <p className="mb-3 text-xs font-bold text-muted-foreground uppercase tracking-wide">Deposit &amp; Withdrawal Limits</p>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-foreground">Min Deposit (₦)</label>
+              <input
+                type="number"
+                min="0"
+                value={minDepositVal}
+                onChange={(e) => setMinDepositVal(e.target.value)}
+                className="rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-foreground">Min Withdrawal (₦)</label>
+              <input
+                type="number"
+                min="0"
+                value={minWithdrawalVal}
+                onChange={(e) => setMinWithdrawalVal(e.target.value)}
+                className="rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-foreground">Withdrawal Fee (%)</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={withdrawalChargeVal}
+                onChange={(e) => setWithdrawalChargeVal(e.target.value)}
+                className="rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+            </div>
+            <button
+              onClick={saveLimits}
+              disabled={savingLimits}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+            >
+              {savingLimits ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              Save Limits
+            </button>
+          </div>
         </div>
       </div>}
       <div className="grid grid-cols-2 gap-3">

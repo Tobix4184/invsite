@@ -5,7 +5,7 @@ import { deposit, wallet, transaction, user as userTable, bankAccount, referral,
 import { SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { eq, sql, desc, and } from "drizzle-orm"
-import { getBoolSetting, pickWeightedBankAccount, SETTING_KEYS } from "@/app/actions/settings"
+import { getBoolSetting, getLiveDepositLimits, pickWeightedBankAccount, SETTING_KEYS } from "@/app/actions/settings"
 import { revalidatePath } from "next/cache"
 
 /**
@@ -145,8 +145,9 @@ export async function startDeposit(amount: number) {
   }
 
   const amt = Math.floor(Number(amount))
-  if (!amt || amt < SITE.minDeposit) {
-    return { ok: false, message: `Minimum deposit is ₦${SITE.minDeposit.toLocaleString()}` }
+  const { minDeposit } = await getLiveDepositLimits()
+  if (!amt || amt < minDeposit) {
+    return { ok: false, message: `Minimum deposit is ₦${minDeposit.toLocaleString()}` }
   }
 
   // Get user's last deposit to avoid assigning the same account twice in a row
