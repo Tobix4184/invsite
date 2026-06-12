@@ -9,7 +9,6 @@ import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { BalanceCard } from "@/components/balance-card"
 import { QuickActions } from "@/components/quick-actions"
-import { HeroInfo } from "@/components/hero-info"
 import { PlanCard } from "@/components/plan-card"
 import { ActiveInvestments } from "@/components/active-investments"
 import { WelcomePopup } from "@/components/welcome-popup"
@@ -37,7 +36,7 @@ export default async function DashboardPage() {
     <div className="min-h-screen pb-24">
       <WelcomePopup isNewUser={data.isNewUser} />
       <PendingDepositPopup deposits={pendingDeposits} />
-      <AppHeader />
+      <AppHeader isPromoter={data.isPromoter} />
 
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
         {/* Greeting */}
@@ -57,8 +56,6 @@ export default async function DashboardPage() {
 
         <BalanceCard balance={data.balance} todayIncome={todayIncome} />
         <QuickActions signedInToday={data.signedInToday} />
-
-        <HeroInfo isPromoter={data.isPromoter} />
 
         <ActiveInvestments investments={investments} />
 
