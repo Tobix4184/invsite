@@ -41,7 +41,7 @@ export function ProfileView(props: Props) {
     { label: "Gift Code",    icon: Ticket,          href: "/gift-code",color: "text-amber-400", bg: "bg-amber-400/12" },
     { label: "My Network",   icon: UsersRound,      href: "/team",    color: "text-primary",    bg: "bg-primary/12" },
     { label: "Support",      icon: MessageCircleHeart, href: SITE.telegramGroup, color: "text-primary",  bg: "bg-primary/12" },
-    ...(props.role === "admin"
+    ...(props.role === "admin" || props.role === "moderator"
       ? [{ label: "Admin Panel", icon: ShieldCheck, href: "/admin", color: "text-destructive", bg: "bg-destructive/12" }]
       : []),
   ]

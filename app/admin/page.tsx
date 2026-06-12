@@ -1,8 +1,5 @@
 import { redirect } from "next/navigation"
-import { getSession } from "@/lib/session"
-import { db } from "@/lib/db"
-import { profile } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { requireAdminOrModerator } from "@/lib/session"
 import {
   getAdminStats,
   getPendingWithdrawals,
@@ -28,11 +25,13 @@ import { AdminDashboard } from "@/components/admin/admin-dashboard"
 export const dynamic = "force-dynamic"
 
 export default async function AdminPage() {
-  const session = await getSession()
-  if (!session?.user) redirect("/")
-
-  const [p] = await db.select().from(profile).where(eq(profile.userId, session.user.id))
-  if (!p || p.role !== "admin") redirect("/dashboard")
+  let isModerator = false
+  try {
+    const result = await requireAdminOrModerator()
+    isModerator = result.isModerator
+  } catch {
+    redirect("/dashboard")
+  }
 
   const [
     stats,
@@ -76,6 +75,7 @@ export default async function AdminPage() {
 
   return (
     <AdminDashboard
+      isModerator={isModerator}
       stats={stats}
       withdrawals={withdrawals}
       users={users}

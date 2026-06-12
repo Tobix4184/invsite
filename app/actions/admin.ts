@@ -20,14 +20,14 @@ import {
   stakeSpin,
   lockVault,
 } from "@/lib/db/schema"
-import { requireAdmin } from "@/lib/session"
+import { requireAdmin, requireAdminOrModerator } from "@/lib/session"
 import { accrueIncomeForAll, backfillReinvestForUser } from "@/lib/income-engine"
 import { getPauseFlags, setSetting, getGameConfig, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
 import { and, asc, desc, eq, gt, sql, sum } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
 export async function getAdminStats() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   const [users] = await db.select({ c: sql<number>`count(*)::int` }).from(userTable)
   const [deposited] = await db
     .select({ s: sql<number>`coalesce(sum("totalDeposited"),0)::float` })
@@ -58,7 +58,7 @@ export async function getAdminStats() {
 }
 
 export async function getPendingWithdrawals() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   return db
     .select({
       id: withdrawal.id,
@@ -160,7 +160,7 @@ export async function rejectWithdrawal(id: number) {
 }
 
 export async function getAdminUsers() {
-  await requireAdmin()
+  await requireAdminOrModerator()
 
   // Alias for the referrer's user row so we can join it without collision
   const referrerUser = db.$with("referrer_user").as(
@@ -224,7 +224,7 @@ export async function getAdminUsers() {
  * including deposit status and commission earned from each.
  */
 export async function getAdminReferralsForUser(referrerId: string) {
-  await requireAdmin()
+  await requireAdminOrModerator()
 
   const rows = await db
     .select({
@@ -290,12 +290,12 @@ export async function createGiftCode(data: { code: string; amount: number; maxUs
 }
 
 export async function getGiftCodes() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   return db.select().from(giftCode).orderBy(desc(giftCode.createdAt)).limit(100)
 }
 
 export async function getRecentDeposits() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   return db
     .select({
       id: deposit.id,
@@ -359,7 +359,7 @@ export async function runReinvestBackfillAll() {
 // ===================== BANK ACCOUNT MANAGEMENT =====================
 
 export async function getBankAccounts() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   return db
     .select()
     .from(bankAccount)
@@ -530,7 +530,7 @@ export async function togglePromoter(userId: string) {
 // ===================== MILESTONE MANAGEMENT =====================
 
 export async function getMilestones() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   return db.select().from(referralMilestone).orderBy(referralMilestone.referralCount)
 }
 
@@ -597,7 +597,7 @@ export async function toggleMilestoneStatus(id: number) {
 // ===================== SITE SETTINGS (PAUSE TOGGLES) =====================
 
 export async function getSiteControls() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   return getPauseFlags()
 }
 
@@ -636,7 +636,7 @@ export async function adminDeleteTransaction(id: number) {
 
 /** Admin: site-wide transaction feed, optionally filtered by type. */
 export async function getAllTransactions(opts?: { type?: string; limit?: number }) {
-  await requireAdmin()
+  await requireAdminOrModerator()
   const limit = Math.min(opts?.limit ?? 100, 500)
   const where = opts?.type && opts.type !== "all" ? eq(transaction.type, opts.type) : undefined
 
@@ -670,7 +670,7 @@ function genPromoCode() {
 }
 
 export async function getPromoterCodes() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   return db.select().from(promoterCode).orderBy(desc(promoterCode.createdAt)).limit(100)
 }
 
@@ -762,7 +762,7 @@ export async function deletePromoterCode(id: number) {
 // ── Admin: Investment Management ─────────────────────────────────────────────
 
 export async function getAllInvestments() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   const rows = await db
     .select({
       id: investment.id,
@@ -859,7 +859,7 @@ export async function adminExtendInvestment(id: number, extraDays: number) {
 // ── Admin: Financials ─────────────────────────────────────────────────────────
 
 export async function getFinancials() {
-  await requireAdmin()
+  await requireAdminOrModerator()
 
   const [charges] = await db
     .select({ total: sql<number>`coalesce(sum(charge),0)::float` })
@@ -915,7 +915,7 @@ export async function getFinancials() {
 // ── Admin: Lucky Draw ─────────────────────────────────────────────────────────
 
 export async function getLuckyDrawRounds() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   return db.select().from(luckyDrawRound).orderBy(desc(luckyDrawRound.drawDate)).limit(30)
 }
 
@@ -1067,7 +1067,7 @@ export async function saveGameConfig(updates: {
 // ── Admin: Game History Queries ───────────────────────────────────────────────
 
 export async function getAllSpins() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   const rows = await db
     .select({
       id: stakeSpin.id,
@@ -1088,7 +1088,7 @@ export async function getAllSpins() {
 }
 
 export async function getAllVaults() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   const rows = await db
     .select({
       id: lockVault.id,
@@ -1113,7 +1113,7 @@ export async function getAllVaults() {
 }
 
 export async function getAllDrawSlots() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   const rows = await db
     .select({
       id: luckyDrawSlot.id,
@@ -1133,7 +1133,7 @@ export async function getAllDrawSlots() {
 }
 
 export async function getGameStats() {
-  await requireAdmin()
+  await requireAdminOrModerator()
 
   const [totalSpins] = await db.select({ c: sql<number>`count(*)::int` }).from(stakeSpin)
   const [spinWins] = await db.select({ c: sql<number>`count(*)::int` }).from(stakeSpin).where(eq(stakeSpin.outcome, "win"))
@@ -1174,7 +1174,7 @@ export async function getGameStats() {
 // Single action that fetches all admin dashboard data in parallel.
 // Used by the live-polling client so it only needs one round-trip.
 export async function getAdminData() {
-  await requireAdmin()
+  await requireAdminOrModerator()
   const [stats, withdrawals, users, giftCodes, deposits, bankAccounts, milestones, controls, transactions, promoterCodes, investments, financials, drawRounds, spins, vaults, drawSlots, gameStats, gameConfig] =
     await Promise.all([
       getAdminStats(),

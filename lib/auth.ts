@@ -32,6 +32,9 @@ function createAuth() {
         : []),
       // localhost for local dev
       "http://localhost:3000",
+      // Production domain
+      "https://ipoco.xyz",
+      "https://www.ipoco.xyz",
     ],
     session: {
       expiresIn: 60 * 60 * 24 * 7,
