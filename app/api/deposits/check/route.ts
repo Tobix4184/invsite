@@ -1,9 +1,9 @@
-"use server"
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { bankAccount, deposit, wallet, transaction } from "@/lib/db/schema"
-import { eq, and, sql } from "drizzle-orm"
+import { bankAccount, deposit } from "@/lib/db/schema"
+import { eq } from "drizzle-orm"
 import { getSession } from "@/lib/session"
+import { creditApprovedDeposit } from "@/app/actions/deposit"
 
 /**
  * GET /api/deposits/check?reference=POCO_xxx
@@ -138,32 +138,13 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Found a match — auto-approve.
-  // Always credit the full depositAmount the user intended, not the Sabuss net amount.
-  await db.update(deposit).set({
-    status: "success",
-    senderName: dep.senderName ?? (matchedTransaction.sender ? String(matchedTransaction.sender) : dep.senderName),
-  }).where(eq(deposit.reference, reference))
-
-  await db.update(wallet).set({
-    balance: sql`${wallet.balance} + ${depositAmount}`,
-    totalDeposited: sql`${wallet.totalDeposited} + ${depositAmount}`,
-    updatedAt: new Date(),
-  }).where(eq(wallet.userId, userId))
-
-  await db.insert(transaction).values({
-    userId,
-    type: "deposit",
-    amount: String(depositAmount),
-    status: "completed",
+  // Found a match — auto-approve via shared helper
+  const senderFromPoll = matchedTransaction.sender ? String(matchedTransaction.sender) : null
+  await creditApprovedDeposit({
     reference,
-    description: `Auto-approved via Sabuss poll. Sender: ${matchedTransaction.sender ?? "unknown"}`,
+    senderNameFromWebhook: senderFromPoll,
+    source: "poll",
   })
-
-  await db.update(bankAccount).set({
-    totalDeposits: sql`${bankAccount.totalDeposits} + ${depositAmount}`,
-    depositCount: sql`${bankAccount.depositCount} + 1`,
-  }).where(eq(bankAccount.id, dep.bankAccountId))
 
   return NextResponse.json({ ok: true, status: "approved" })
 }

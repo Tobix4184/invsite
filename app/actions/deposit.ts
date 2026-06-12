@@ -1,12 +1,129 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { deposit, wallet, transaction, user as userTable, bankAccount } from "@/lib/db/schema"
+import { deposit, wallet, transaction, user as userTable, bankAccount, referral, profile } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { eq, sql, desc, and } from "drizzle-orm"
 import { getBoolSetting, pickWeightedBankAccount, SETTING_KEYS } from "@/app/actions/settings"
 import { revalidatePath } from "next/cache"
+
+/**
+ * Shared helper — credits a deposit, updates wallet, writes transaction record,
+ * updates bank account stats, and fires referral commission on first deposit.
+ * Called by the Sabuss webhook, the Sabuss poll (check route), and admin approve.
+ */
+export async function creditApprovedDeposit({
+  reference,
+  senderNameFromWebhook,
+  sabussRef,
+  source,
+}: {
+  reference: string
+  senderNameFromWebhook?: string | null
+  sabussRef?: string | null
+  source: "webhook" | "poll" | "admin"
+}) {
+  const [dep] = await db.select().from(deposit).where(eq(deposit.reference, reference))
+  if (!dep) return { ok: false, message: "Deposit not found" }
+  if (dep.status === "success") return { ok: true, message: "Already approved" }
+
+  const depositAmount = Math.round(Number(dep.amount))
+
+  // Mark deposit as approved
+  await db
+    .update(deposit)
+    .set({
+      status: "success",
+      senderName: senderNameFromWebhook ?? dep.senderName,
+      ...(sabussRef ? { sabussRef } : {}),
+    })
+    .where(eq(deposit.reference, reference))
+
+  // Credit wallet
+  await db
+    .update(wallet)
+    .set({
+      balance: sql`${wallet.balance} + ${depositAmount}`,
+      totalDeposited: sql`${wallet.totalDeposited} + ${depositAmount}`,
+      updatedAt: new Date(),
+    })
+    .where(eq(wallet.userId, dep.userId))
+
+  // Write transaction record
+  await db.insert(transaction).values({
+    userId: dep.userId,
+    type: "deposit",
+    amount: String(depositAmount),
+    status: "completed",
+    reference,
+    description: `Deposit approved (${source}). Sender: ${senderNameFromWebhook ?? dep.senderName ?? "unknown"}`,
+  })
+
+  // Update bank account stats
+  if (dep.bankAccountId) {
+    await db
+      .update(bankAccount)
+      .set({
+        totalDeposits: sql`${bankAccount.totalDeposits} + ${depositAmount}`,
+        depositCount: sql`${bankAccount.depositCount} + 1`,
+      })
+      .where(eq(bankAccount.id, dep.bankAccountId))
+  }
+
+  // Fire referral commission on FIRST successful deposit
+  const userDeposits = await db
+    .select()
+    .from(deposit)
+    .where(and(eq(deposit.userId, dep.userId), eq(deposit.status, "success")))
+  const isFirstDeposit = userDeposits.length === 1 // we just inserted success so count is 1
+
+  if (isFirstDeposit) {
+    await payDepositReferralCommission(dep.userId, depositAmount)
+  }
+
+  revalidatePath("/dashboard")
+  revalidatePath("/admin")
+  return { ok: true, message: `Deposit ₦${depositAmount.toLocaleString()} approved` }
+}
+
+/** Pay referral commission when a user makes their first deposit */
+async function payDepositReferralCommission(userId: string, amount: number) {
+  const refs = await db.select().from(referral).where(eq(referral.referredId, userId))
+  for (const r of refs) {
+    let rate = r.level === 1 ? SITE.referralLevel1 : SITE.referralLevel2
+    if (r.level === 1) {
+      const [referrerProfile] = await db.select().from(profile).where(eq(profile.userId, r.referrerId))
+      if (referrerProfile?.isPromoter) {
+        rate = referrerProfile.promoterCommission ?? SITE.promoterLevel1
+      }
+    }
+    const commission = Math.round((amount * rate) / 100)
+    if (commission <= 0) continue
+
+    await db
+      .update(wallet)
+      .set({
+        balance: sql`${wallet.balance} + ${commission}`,
+        referralEarnings: sql`${wallet.referralEarnings} + ${commission}`,
+        totalEarned: sql`${wallet.totalEarned} + ${commission}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(wallet.userId, r.referrerId))
+
+    await db
+      .update(referral)
+      .set({ totalCommission: sql`${referral.totalCommission} + ${commission}` })
+      .where(eq(referral.id, r.id))
+
+    await db.insert(transaction).values({
+      userId: r.referrerId,
+      type: "referral",
+      amount: String(commission),
+      description: `Level ${r.level} referral commission on first deposit (${rate}%)`,
+    })
+  }
+}
 
 function baseUrl() {
   return (
@@ -79,46 +196,10 @@ export async function startDeposit(amount: number) {
 export async function approveDeposit(reference: string) {
   const [dep] = await db.select().from(deposit).where(eq(deposit.reference, reference))
   if (!dep) return { ok: false, message: "Deposit not found" }
-  if (dep.status === "success") return { ok: true, message: "Already approved" }
-  if (!["pending", "processing"].includes(dep.status)) {
+  if (!["pending", "processing", "needs_review"].includes(dep.status)) {
     return { ok: false, message: "Deposit cannot be approved in current status" }
   }
-
-  const amount = Number(dep.amount)
-  await db.update(deposit).set({ status: "success" }).where(eq(deposit.reference, reference))
-
-  // credit wallet
-  await db
-    .update(wallet)
-    .set({
-      balance: sql`${wallet.balance} + ${amount}`,
-      totalDeposited: sql`${wallet.totalDeposited} + ${amount}`,
-      updatedAt: new Date(),
-    })
-    .where(eq(wallet.userId, dep.userId))
-
-  await db.insert(transaction).values({
-    userId: dep.userId,
-    type: "deposit",
-    amount: String(amount),
-    status: "completed",
-    reference,
-    description: `Deposit approved: ₦${amount.toLocaleString()}`,
-  })
-
-  // Update the bank account stats so admin sees correct deposit count and total
-  if (dep.bankAccountId) {
-    await db
-      .update(bankAccount)
-      .set({
-        totalDeposits: sql`${bankAccount.totalDeposits} + ${amount}`,
-        depositCount: sql`${bankAccount.depositCount} + 1`,
-      })
-      .where(eq(bankAccount.id, dep.bankAccountId))
-  }
-
-  revalidatePath("/admin")
-  return { ok: true, message: `Deposit ₦${amount.toLocaleString()} approved` }
+  return creditApprovedDeposit({ reference, source: "admin" })
 }
 
 /** Admin rejects a deposit. */
