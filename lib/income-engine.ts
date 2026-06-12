@@ -71,24 +71,37 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
       const newLast = new Date(last + payDays * DAY_MS)
 
       if (autoReinvest) {
-        // REINVEST: extend investment instead of crediting wallet
-        const newDurationDays = duration + payDays
-        const newTotalEarning = inv.totalEarning + credit
-        const newStatus = "active" // reset to active so it keeps earning
-        const newDaysPaid = 0 // reset days paid counter since we extended duration
+        // REINVEST: credit earnings to wallet then lock them into a 7-day vault.
+        // The investment progresses normally (daysPaid advances, completes on schedule).
+        // 7-day vault: 8% bonus on maturity, 10% penalty if broken early.
+        const REINVEST_DAYS = 7
+        const REINVEST_BONUS_PCT = 8
+        const bonusAmount = Math.round(credit * (REINVEST_BONUS_PCT / 100))
+        const unlocksAt = new Date(newLast.getTime() + REINVEST_DAYS * 24 * 60 * 60 * 1000)
 
+        const newDaysPaid = daysPaid + payDays
+        const newStatus = newDaysPaid >= duration ? "completed" : "active"
+
+        // Advance investment as normal (earnings earned, but wallet stays 0 net — locked below)
         await client.query(
           `UPDATE investment
-           SET "durationDays" = $1, "totalEarning" = $2, "daysPaid" = $3, "lastPayoutAt" = $4, status = $5
-           WHERE id = $6`,
-          [newDurationDays, newTotalEarning, newDaysPaid, newLast, newStatus, id],
+           SET "daysPaid" = $1, "amountEarned" = "amountEarned" + $2, "lastPayoutAt" = $3, status = $4
+           WHERE id = $5`,
+          [newDaysPaid, credit, newLast, newStatus, id],
         )
 
-        // Log the reinvestment backdated to the payout time so history is accurate
+        // Lock the earnings into a 7-day vault (no wallet debit — it never hit the wallet)
+        await client.query(
+          `INSERT INTO lock_vault ("userId", amount, "lockDays", "bonusPercent", "bonusAmount", status, "unlocksAt")
+           VALUES ($1, $2, $3, $4, $5, 'locked', $6)`,
+          [userId, String(credit), REINVEST_DAYS, String(REINVEST_BONUS_PCT), String(bonusAmount), unlocksAt],
+        )
+
+        // Log reinvest transaction backdated to payout time
         await client.query(
           `INSERT INTO transaction ("userId", type, amount, description, status, "createdAt")
            VALUES ($1, 'reinvest', $2, $3, 'completed', $4)`,
-          [userId, String(credit), `Earnings reinvested into ${inv.planName}`, newLast],
+          [userId, String(credit), `Earnings auto-locked in 7-day vault from ${inv.planName} (+${REINVEST_BONUS_PCT}% at maturity)`, newLast],
         )
       } else {
         // NORMAL: credit wallet with earnings
@@ -186,11 +199,15 @@ export async function backfillReinvestForUser(userId: string): Promise<void> {
 
       if (earningRows.length === 0) continue
 
+      const REINVEST_DAYS = 7
+      const REINVEST_BONUS_PCT = 8
+
       for (const earning of earningRows) {
         const amount = Number(earning.amount)
-        const originalAt = earning.createdAt
+        const originalAt = new Date(earning.createdAt)
 
-        // 1. Deduct from wallet (clamp at 0 to avoid going negative)
+        // The wallet was credited when the earning was processed (old code path).
+        // Deduct it back so the money lives only in the vault, not double-counted.
         await client.query(
           `UPDATE wallet
            SET balance = GREATEST(balance - $1, 0),
@@ -200,24 +217,22 @@ export async function backfillReinvestForUser(userId: string): Promise<void> {
           [amount, userId],
         )
 
-        // 2. Extend investment: +1 day per earning, +amount to totalEarning
-        const extraDays = Math.max(1, Math.round(amount / Math.max(daily, 1)))
+        // Create a 7-day vault for the backfilled earning
+        const bonusAmount = Math.round(amount * (REINVEST_BONUS_PCT / 100))
+        const unlocksAt = new Date(originalAt.getTime() + REINVEST_DAYS * 24 * 60 * 60 * 1000)
         await client.query(
-          `UPDATE investment
-           SET "durationDays" = "durationDays" + $1,
-               "totalEarning"  = "totalEarning"  + $2,
-               status = 'active'
-           WHERE id = $3`,
-          [extraDays, amount, inv.id],
+          `INSERT INTO lock_vault ("userId", amount, "lockDays", "bonusPercent", "bonusAmount", status, "unlocksAt", "createdAt")
+           VALUES ($1, $2, $3, $4, $5, 'locked', $6, $7)`,
+          [userId, String(amount), REINVEST_DAYS, String(REINVEST_BONUS_PCT), String(bonusAmount), unlocksAt, originalAt],
         )
 
-        // 3. Convert the earning tx to reinvest, keeping original createdAt for accurate history
+        // Convert the earning tx to reinvest type
         await client.query(
           `UPDATE transaction
            SET type = 'reinvest',
                description = $1
            WHERE id = $2`,
-          [`Earnings reinvested into ${inv.planName}`, earning.id],
+          [`Earnings auto-locked in 7-day vault from ${inv.planName} (+${REINVEST_BONUS_PCT}% at maturity)`, earning.id],
         )
       }
     }

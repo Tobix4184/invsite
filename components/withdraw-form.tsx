@@ -1,18 +1,151 @@
 "use client"
 
-import { useState, useTransition, useEffect } from "react"
-import Link from "next/link"
+import { useState, useTransition, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Clock, Loader2, RotateCcw } from "lucide-react"
+import {
+  ArrowRight,
+  Building2,
+  ChevronDown,
+  Clock,
+  CreditCard,
+  Loader2,
+  Search,
+  User,
+  Wallet,
+  X,
+} from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
 import { requestWithdrawal, getSavedBankDetails } from "@/app/actions/wallet"
+
+// Full list of Nigerian banks
+const NIGERIAN_BANKS = [
+  "Access Bank",
+  "Citibank Nigeria",
+  "Ecobank Nigeria",
+  "Fidelity Bank",
+  "First Bank of Nigeria",
+  "First City Monument Bank (FCMB)",
+  "Globus Bank",
+  "Guaranty Trust Bank (GTBank)",
+  "Heritage Bank",
+  "Jaiz Bank",
+  "Keystone Bank",
+  "Lotus Bank",
+  "Optimus Bank",
+  "Parallex Bank",
+  "Polaris Bank",
+  "Premium Trust Bank",
+  "Providus Bank",
+  "Stanbic IBTC Bank",
+  "Standard Chartered Bank",
+  "Sterling Bank",
+  "SunTrust Bank",
+  "Titan Trust Bank",
+  "Union Bank of Nigeria",
+  "United Bank for Africa (UBA)",
+  "Unity Bank",
+  "Wema Bank",
+  "Zenith Bank",
+  // Fintechs / Microfinance
+  "Carbon (One Finance)",
+  "EKONDO Microfinance Bank",
+  "Fairmoney Microfinance Bank",
+  "Kuda Bank",
+  "Moniepoint Microfinance Bank",
+  "OPay (PayCom)",
+  "PalmPay",
+  "Sparkle Microfinance Bank",
+  "VFD Microfinance Bank",
+  "9PSB (9 Payment Service Bank)",
+].sort()
+
+function BankPicker({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (v: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const ref = useRef<HTMLDivElement>(null)
+
+  const filtered = query
+    ? NIGERIAN_BANKS.filter((b) => b.toLowerCase().includes(query.toLowerCase()))
+    : NIGERIAN_BANKS
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between rounded-2xl border border-border bg-secondary/50 px-4 py-3.5 text-sm transition-colors focus-within:border-primary hover:border-border/80"
+      >
+        <span className={value ? "text-foreground font-medium" : "text-muted-foreground"}>
+          {value || "Select bank"}
+        </span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+          {/* Search */}
+          <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              autoFocus
+              placeholder="Search bank..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery("")}>
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+          {/* List */}
+          <ul className="max-h-52 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <li className="px-4 py-3 text-sm text-muted-foreground">No banks found</li>
+            ) : (
+              filtered.map((bank) => (
+                <li key={bank}>
+                  <button
+                    type="button"
+                    onClick={() => { onChange(bank); setOpen(false); setQuery("") }}
+                    className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-secondary/70 ${
+                      bank === value ? "bg-primary/10 font-semibold text-primary" : ""
+                    }`}
+                  >
+                    <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    {bank}
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function WithdrawForm({ balance }: { balance: number }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [loading, setLoading] = useState(true)
-  const [hasSavedDetails, setHasSavedDetails] = useState(false)
+  const [step, setStep] = useState<"amount" | "bank" | "confirm">("amount")
   const [form, setForm] = useState({
     amount: "",
     bankName: "",
@@ -24,27 +157,22 @@ export function WithdrawForm({ balance }: { balance: number }) {
   useEffect(() => {
     startTransition(async () => {
       const saved = await getSavedBankDetails()
-      if (saved && saved.savedBankName) {
+      if (saved?.savedBankName) {
         setForm({
           amount: "",
           bankName: saved.savedBankName,
           accountNumber: saved.savedAccountNumber || "",
           accountName: saved.savedAccountName || "",
         })
-        setHasSavedDetails(true)
       }
       setLoading(false)
     })
-  }, [startTransition])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const amount = Number(form.amount)
   const charge = amount > 0 ? Math.round((amount * SITE.withdrawalCharge) / 100) : 0
   const net = amount - charge
-
-  function handleClearDetails() {
-    setForm((f) => ({ ...f, bankName: "", accountNumber: "", accountName: "" }))
-    setHasSavedDetails(false)
-  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -67,124 +195,238 @@ export function WithdrawForm({ balance }: { balance: number }) {
 
   if (loading) {
     return (
-      <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
-        <div className="h-32 animate-pulse rounded-2xl bg-secondary" />
+      <main className="mx-auto max-w-md px-4 py-5">
+        <div className="h-64 animate-pulse rounded-3xl bg-secondary" />
       </main>
     )
   }
 
   return (
-    <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
-      <div className="flex items-center gap-3">
-        <Link
-          href="/dashboard"
-          aria-label="Back"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold tracking-tight">Withdraw Funds</h1>
-          <p className="text-xs text-muted-foreground">Available: {formatNaira(balance)}</p>
+    <main className="mx-auto flex max-w-md flex-col gap-4 px-4 py-5">
+
+      {/* Balance hero */}
+      <div className="rounded-3xl border border-border bg-card p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
+            <Wallet className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Available Balance</p>
+            <p className="text-2xl font-black tracking-tight">{formatNaira(balance)}</p>
+          </div>
         </div>
-        {hasSavedDetails && (
+
+        {/* Info bar */}
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-400/8 px-3 py-2.5">
+          <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+          <p className="text-[11px] leading-relaxed text-amber-300">
+            Processed {SITE.withdrawalHours}. {SITE.withdrawalCharge}% fee applies. Min{" "}
+            {formatNaira(SITE.minWithdrawal)}.
+          </p>
+        </div>
+      </div>
+
+      {/* Step indicator */}
+      <div className="flex items-center gap-2 px-1">
+        {(["amount", "bank", "confirm"] as const).map((s, i) => (
+          <div key={s} className="flex flex-1 items-center gap-2">
+            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-colors ${
+              step === s ? "bg-primary text-primary-foreground" :
+              (["amount", "bank", "confirm"].indexOf(step) > i) ? "bg-success/20 text-success" : "bg-secondary text-muted-foreground"
+            }`}>
+              {i + 1}
+            </div>
+            <span className={`text-[11px] font-semibold capitalize ${step === s ? "text-foreground" : "text-muted-foreground"}`}>
+              {s}
+            </span>
+            {i < 2 && <div className="h-px flex-1 bg-border" />}
+          </div>
+        ))}
+      </div>
+
+      {/* Step: Amount */}
+      {step === "amount" && (
+        <div className="rounded-3xl border border-border bg-card p-5">
+          <p className="mb-4 text-sm font-bold">How much to withdraw?</p>
+
+          {/* Quick amounts */}
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            {[1000, 2000, 5000, 10000, 20000, 50000]
+              .filter((q) => q >= SITE.minWithdrawal && q <= balance)
+              .map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => set("amount")(String(q))}
+                  className={`rounded-xl border py-2.5 text-xs font-bold transition-colors ${
+                    amount === q
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-secondary text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  {formatNaira(q)}
+                </button>
+              ))}
+          </div>
+
+          <div className="mb-3 rounded-2xl border border-border bg-secondary/50 px-4 focus-within:border-primary">
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder={`Enter amount (min ${formatNaira(SITE.minWithdrawal)})`}
+              value={form.amount}
+              onChange={(e) => set("amount")(e.target.value)}
+              className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+
+          {amount > 0 && (
+            <div className="mb-4 rounded-2xl border border-border bg-secondary/30 p-3 text-xs">
+              <div className="flex justify-between py-0.5 text-muted-foreground">
+                <span>Amount</span><span className="tabular-nums font-semibold text-foreground">{formatNaira(amount)}</span>
+              </div>
+              <div className="flex justify-between py-0.5 text-muted-foreground">
+                <span>Fee ({SITE.withdrawalCharge}%)</span><span className="tabular-nums text-destructive">- {formatNaira(charge)}</span>
+              </div>
+              <div className="mt-1.5 flex justify-between border-t border-border pt-1.5">
+                <span className="font-bold">You receive</span>
+                <span className="tabular-nums font-black text-success">{formatNaira(net > 0 ? net : 0)}</span>
+              </div>
+            </div>
+          )}
+
           <button
-            onClick={handleClearDetails}
-            title="Use different bank details"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground hover:text-foreground"
+            onClick={() => setStep("bank")}
+            disabled={amount < SITE.minWithdrawal || amount > balance}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground disabled:opacity-50"
           >
-            <RotateCcw className="h-4 w-4" />
+            Continue <ArrowRight className="h-4 w-4" />
           </button>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-200">
-        <Clock className="h-5 w-5 shrink-0" />
-        <p>
-          Withdrawals processed {SITE.withdrawalHours}. A {SITE.withdrawalCharge}% fee applies. Minimum{" "}
-          {formatNaira(SITE.minWithdrawal)}.
-        </p>
-      </div>
-
-      {hasSavedDetails && (
-        <div className="rounded-2xl border border-success/30 bg-success/10 p-3 text-xs text-success">
-          Using saved bank details. Click the refresh button to change.
         </div>
       )}
 
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-        <FormField label="Amount (₦)">
-          <input
-            type="number"
-            inputMode="numeric"
-            placeholder="Enter amount"
-            value={form.amount}
-            onChange={(e) => set("amount")(e.target.value)}
-            className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
-          />
-        </FormField>
-        <FormField label="Bank Name">
-          <input
-            placeholder="e.g. Access Bank"
-            value={form.bankName}
-            onChange={(e) => set("bankName")(e.target.value)}
-            className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
-          />
-        </FormField>
-        <FormField label="Account Number">
-          <input
-            inputMode="numeric"
-            placeholder="0123456789"
-            value={form.accountNumber}
-            onChange={(e) => set("accountNumber")(e.target.value)}
-            className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
-          />
-        </FormField>
-        <FormField label="Account Name">
-          <input
-            placeholder="Account holder name"
-            value={form.accountName}
-            onChange={(e) => set("accountName")(e.target.value)}
-            className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
-          />
-        </FormField>
+      {/* Step: Bank details */}
+      {step === "bank" && (
+        <div className="rounded-3xl border border-border bg-card p-5">
+          <p className="mb-4 text-sm font-bold">Bank details</p>
 
-        {amount > 0 && (
-          <div className="rounded-2xl border border-border bg-card p-4 text-sm">
-            <Row label="Withdrawal amount" value={formatNaira(amount)} />
-            <Row label={`Fee (${SITE.withdrawalCharge}%)`} value={`- ${formatNaira(charge)}`} />
-            <div className="my-2 border-t border-border" />
-            <Row label="You receive" value={formatNaira(net > 0 ? net : 0)} bold />
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                <Building2 className="mr-1 inline h-3 w-3" />Bank
+              </label>
+              <BankPicker value={form.bankName} onChange={set("bankName")} />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                <CreditCard className="mr-1 inline h-3 w-3" />Account Number
+              </label>
+              <input
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="0123456789"
+                value={form.accountNumber}
+                onChange={(e) => set("accountNumber")(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-3.5 text-sm outline-none focus:border-primary"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                <User className="mr-1 inline h-3 w-3" />Account Name
+              </label>
+              <input
+                placeholder="Account holder name"
+                value={form.accountName}
+                onChange={(e) => set("accountName")(e.target.value)}
+                className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-3.5 text-sm outline-none focus:border-primary"
+              />
+            </div>
           </div>
-        )}
 
-        <button
-          type="submit"
-          disabled={pending || !form.bankName || !form.accountNumber || !form.accountName || amount < SITE.minWithdrawal}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-        >
-          {pending && <Loader2 className="h-5 w-5 animate-spin" />}
-          Request Withdrawal
-        </button>
-      </form>
+          <div className="mt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={() => setStep("amount")}
+              className="flex-1 rounded-2xl border border-border py-3.5 text-sm font-bold text-muted-foreground"
+            >
+              Back
+            </button>
+            <button
+              onClick={() => setStep("confirm")}
+              disabled={!form.bankName || form.accountNumber.length < 10 || !form.accountName}
+              className="flex-[2] rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
+            >
+              Review <ArrowRight className="ml-1 inline h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step: Confirm */}
+      {step === "confirm" && (
+        <form onSubmit={handleSubmit} className="rounded-3xl border border-border bg-card p-5">
+          <p className="mb-4 text-sm font-bold">Confirm withdrawal</p>
+
+          <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-border bg-secondary/30 p-4 text-sm">
+            <Row label="Amount" value={formatNaira(amount)} />
+            <Row label={`Fee (${SITE.withdrawalCharge}%)`} value={`- ${formatNaira(charge)}`} accent="destructive" />
+            <div className="border-t border-border pt-2">
+              <Row label="You receive" value={formatNaira(net > 0 ? net : 0)} accent="success" bold />
+            </div>
+          </div>
+
+          <div className="mb-5 flex flex-col gap-2 rounded-2xl border border-border bg-secondary/30 p-4 text-sm">
+            <Row label="Bank" value={form.bankName} />
+            <Row label="Account" value={form.accountNumber} />
+            <Row label="Name" value={form.accountName} />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setStep("bank")}
+              className="flex-1 rounded-2xl border border-border py-3.5 text-sm font-bold text-muted-foreground"
+            >
+              Back
+            </button>
+            <button
+              type="submit"
+              disabled={pending}
+              className="flex flex-[2] items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+            >
+              {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {pending ? "Submitting..." : "Submit Request"}
+            </button>
+          </div>
+        </form>
+      )}
     </main>
   )
 }
 
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({
+  label,
+  value,
+  bold,
+  accent,
+}: {
+  label: string
+  value: string
+  bold?: boolean
+  accent?: "success" | "destructive"
+}) {
   return (
-    <div>
-      <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</label>
-      <div className="rounded-2xl border border-border bg-secondary/50 px-4 focus-within:border-primary">{children}</div>
-    </div>
-  )
-}
-
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-0.5">
+    <div className="flex items-center justify-between">
       <span className="text-muted-foreground">{label}</span>
-      <span className={bold ? "font-bold text-success tabular-nums" : "tabular-nums"}>{value}</span>
+      <span
+        className={`tabular-nums ${bold ? "font-black text-lg" : "font-semibold"} ${
+          accent === "success" ? "text-success" : accent === "destructive" ? "text-destructive" : "text-foreground"
+        }`}
+      >
+        {value}
+      </span>
     </div>
   )
 }
