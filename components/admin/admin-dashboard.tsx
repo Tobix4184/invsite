@@ -2000,20 +2000,23 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                       <span className="font-bold text-success">{formatNaira(Number(acc.totalDeposits))}</span>
                     </div>
                   </div>
-                  <div className={`mt-2 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs ${acc.sabussApiKey ? "bg-success/10 text-success" : "bg-secondary/50 text-muted-foreground"}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${acc.sabussApiKey ? "bg-success" : "bg-muted-foreground"}`} />
-                    <span className="flex-1">{acc.sabussApiKey ? "Sabuss auto-detect ON" : "No Sabuss API key — manual approval only"}</span>
-                    {acc.sabussApiKey && (
-                      <button
-                        onClick={() => handleTest(acc.id)}
-                        disabled={testingId === acc.id}
-                        className="ml-auto flex items-center gap-1 rounded-md bg-success/20 px-2 py-0.5 text-[10px] font-bold text-success hover:bg-success/30 disabled:opacity-60"
-                      >
-                        {testingId === acc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
-                        Test
-                      </button>
-                    )}
+                  <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-xs text-success">
+                    <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                    <span className="flex-1">Webhook auto-detect ON — matches by account number</span>
+                    <button
+                      onClick={() => handleTest(acc.id)}
+                      disabled={testingId === acc.id}
+                      className="ml-auto flex items-center gap-1 rounded-md bg-success/20 px-2 py-0.5 text-[10px] font-bold text-success hover:bg-success/30 disabled:opacity-60"
+                    >
+                      {testingId === acc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+                      Test
+                    </button>
                   </div>
+                  {!acc.sabussApiKey && (
+                    <p className="mt-1 rounded-lg bg-amber-500/10 px-3 py-1.5 text-[11px] text-amber-500">
+                      No API key — webhook will still auto-approve by account number. Add an API key for extra security.
+                    </p>
+                  )}
                   {testResults[acc.id] && (
                     <div className={`mt-1.5 rounded-lg px-3 py-2 text-[11px] ${testResults[acc.id].ok ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
                       <p className="font-bold">{testResults[acc.id].ok ? "Webhook reached" : "Webhook failed"}</p>

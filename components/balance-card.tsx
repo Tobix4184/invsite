@@ -72,7 +72,7 @@ export function BalanceCard({
       {/* Action buttons */}
       <div className="relative mt-5 flex gap-2.5">
         <Link
-          href="/topup"
+          href="/deposits"
           className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-background/25 py-2.5 text-xs font-bold text-foreground backdrop-blur-sm transition-all hover:bg-background/40 active:scale-95"
         >
           <ArrowDownLeft className="h-3.5 w-3.5 text-success" />

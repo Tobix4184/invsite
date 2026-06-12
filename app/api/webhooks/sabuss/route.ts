@@ -1,36 +1,54 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { bankAccount, deposit } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { eq, or } from "drizzle-orm"
 import { creditApprovedDeposit } from "@/app/actions/deposit"
 
 /**
  * POST /api/webhooks/sabuss
  *
- * Sabuss fires this whenever money lands in a linked account.
- * Set this URL in each Sabuss account profile:
- *   https://ipoco.xyz/api/webhooks/sabuss
+ * Sabuss fires this when money lands in a linked account.
+ * Set this URL in EVERY Sabuss account: https://ipoco.xyz/api/webhooks/sabuss
  *
- * Expected payload:
- * {
- *   "api_key":   "<your api key>",
- *   "amount":    "5000",          // credited amount in Naira (string)
- *   "sender":    "John Doe",      // sender name from bank transfer
- *   "reference": "...",           // Sabuss transaction reference
- *   "type":      "credit",
- *   "date":      "2026-06-06 22:00:00",
- *   "balance":   "7950.37"
- * }
+ * Confirmed Sabuss fee structure (fee deducted from the amount credited to
+ * our Sabuss wallet — user sends X, Sabuss credits us X minus fee):
+ *   ₦1    – ₦999   → ₦5  fee   (confirmed: ₦500 sent → ₦495 received)
+ *   ₦1000+         → ₦50 fee   (confirmed: ₦1000 → ₦950, ₦50000 → ₦49950)
  *
- * Matching logic:
- * 1. Find the bank_account row whose sabussApiKey matches api_key
- * 2. Find pending deposit for that account matching the amount
- *    (exact, or gross before ₦50 fee, or before ₦100 fee)
- * 3. If sender name on file — soft-check at least one word matches
- * 4. Pass  → auto-approve via creditApprovedDeposit()
- * 5. Name mismatch → flag as "needs_review" so admin can confirm
- * 6. No match → store as "unmatched" so admin sees the inbound credit
+ * We always credit users the FULL deposit amount they intended — we absorb
+ * the Sabuss fee. Matching: net received + fee = deposit amount.
+ *
+ * Expected Sabuss payload fields:
+ *   api_key        – the Sabuss API key of the receiving account (optional)
+ *   account_number – the receiving account number (primary fallback)
+ *   amount         – net amount credited to Sabuss wallet (after fee)
+ *   sender         – sender name from bank
+ *   reference      – Sabuss internal transaction ID
+ *   type           – "credit"
  */
+
+/** Returns the Sabuss fee for a given gross (user-intended) deposit amount */
+function sabussFee(gross: number): number {
+  if (gross < 1000) return 5
+  return 50  // ₦1000 and above: flat ₦50 fee confirmed
+}
+
+/**
+ * Given the net amount Sabuss credited to our wallet, return all possible
+ * gross amounts the user could have intended to send.
+ * (We check gross = net + fee for each tier.)
+ */
+function possibleGrossAmounts(net: number): number[] {
+  const candidates = new Set<number>()
+  // Try every fee tier
+  for (const fee of [5, 10, 50, 100, 200]) {
+    const gross = net + fee
+    if (sabussFee(gross) === fee) candidates.add(gross)
+  }
+  candidates.add(net) // also accept exact match (some accounts have no fee)
+  return Array.from(candidates)
+}
+
 export async function POST(req: NextRequest) {
   let body: Record<string, string>
   try {
@@ -39,33 +57,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 })
   }
 
-  const { api_key, amount, sender, reference: sabussRef, type } = body
+  console.log("[v0] Sabuss webhook received:", JSON.stringify(body))
+
+  const { api_key, account_number, amount, sender, reference: sabussRef, type } = body
 
   // Only process credit notifications
   if (type && type !== "credit") {
     return NextResponse.json({ ok: true, skipped: "not a credit" })
   }
 
-  if (!api_key || !amount) {
-    return NextResponse.json({ ok: false, error: "Missing api_key or amount" }, { status: 400 })
+  if (!amount) {
+    return NextResponse.json({ ok: false, error: "Missing amount" }, { status: 400 })
   }
 
-  const incoming = Math.round(parseFloat(amount))
-  if (isNaN(incoming) || incoming <= 0) {
+  const netReceived = Math.round(parseFloat(amount))
+  if (isNaN(netReceived) || netReceived <= 0) {
     return NextResponse.json({ ok: false, error: "Invalid amount" }, { status: 400 })
   }
 
-  // 1. Find the bank account by api_key
-  const [matchedAccount] = await db
-    .select()
-    .from(bankAccount)
-    .where(eq(bankAccount.sabussApiKey, api_key))
+  // 1. Find the bank account — by api_key first, then account_number as fallback
+  let matchedAccount = null
 
-  if (!matchedAccount) {
-    return NextResponse.json({ ok: true, skipped: "unknown api_key" })
+  if (api_key) {
+    const [acc] = await db.select().from(bankAccount).where(eq(bankAccount.sabussApiKey, api_key))
+    matchedAccount = acc ?? null
   }
 
+  if (!matchedAccount && account_number) {
+    const [acc] = await db.select().from(bankAccount).where(eq(bankAccount.accountNumber, account_number))
+    matchedAccount = acc ?? null
+  }
+
+  if (!matchedAccount) {
+    console.log("[v0] Sabuss webhook: no matching account for api_key:", api_key, "account_number:", account_number)
+    return NextResponse.json({ ok: true, skipped: "unknown account" })
+  }
+
+  console.log("[v0] Sabuss webhook: matched account", matchedAccount.accountNumber, "net received:", netReceived)
+
   const now = new Date()
+  const possibleAmounts = possibleGrossAmounts(netReceived)
+  console.log("[v0] Sabuss webhook: possible gross amounts:", possibleAmounts)
 
   // 2. Find all non-expired pending deposits for this bank account
   const allPending = await db
@@ -76,15 +108,15 @@ export async function POST(req: NextRequest) {
   const candidates = allPending.filter((d) => {
     if (!["pending", "processing"].includes(d.status)) return false
     if (d.expiresAt) {
-      // 30-minute grace window after expiry
       const grace = new Date(d.expiresAt)
       grace.setMinutes(grace.getMinutes() + 30)
       if (now >= grace) return false
     }
     const depAmt = Math.round(Number(d.amount))
-    // Accept exact amount, or if Sabuss deducted ₦50 or ₦100 fee
-    return depAmt === incoming || depAmt === incoming + 50 || depAmt === incoming + 100
+    return possibleAmounts.includes(depAmt)
   })
+
+  console.log("[v0] Sabuss webhook: found", candidates.length, "candidate deposits")
 
   if (candidates.length === 0) {
     // Store as unmatched so admin sees the inbound credit
@@ -92,7 +124,7 @@ export async function POST(req: NextRequest) {
     try {
       await db.insert(deposit).values({
         userId: "UNMATCHED",
-        amount: String(incoming),
+        amount: String(netReceived),
         reference: unmatchedRef,
         status: "unmatched",
         bankAccountId: matchedAccount.id,
@@ -100,6 +132,7 @@ export async function POST(req: NextRequest) {
         assignedAccountNumber: matchedAccount.accountNumber,
         assignedAccountName: matchedAccount.accountName,
         senderName: sender ?? null,
+        sabussRef: sabussRef ?? null,
       })
     } catch {
       // ignore duplicate insert errors
@@ -123,14 +156,13 @@ export async function POST(req: NextRequest) {
 
   // 4. Soft sender-name check
   const senderMatches = (() => {
-    if (!chosen.senderName || !sender) return true // no name on file — let it pass
+    if (!chosen.senderName || !sender) return true
     const stored = chosen.senderName.toLowerCase().split(/\s+/)
     const incoming = sender.toLowerCase().split(/\s+/)
     return stored.some((p) => incoming.some((q) => p === q || p.startsWith(q) || q.startsWith(p)))
   })()
 
   if (!senderMatches) {
-    // Name mismatch — flag for review but don't reject
     await db
       .update(deposit)
       .set({
@@ -139,10 +171,12 @@ export async function POST(req: NextRequest) {
         sabussRef: sabussRef ?? null,
       })
       .where(eq(deposit.reference, chosen.reference))
+    console.log("[v0] Sabuss webhook: name mismatch, flagged for review:", chosen.reference)
     return NextResponse.json({ ok: true, status: "flagged_for_review", reference: chosen.reference })
   }
 
-  // 5. Auto-approve via shared helper
+  // 5. Auto-approve — credit the FULL deposit amount (user's intended amount)
+  console.log("[v0] Sabuss webhook: auto-approving", chosen.reference, "amount:", chosen.amount)
   const result = await creditApprovedDeposit({
     reference: chosen.reference,
     senderNameFromWebhook: sender ?? null,

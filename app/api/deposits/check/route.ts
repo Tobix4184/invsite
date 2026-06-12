@@ -50,18 +50,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, status: "expired" })
   }
 
-  // If no Sabuss account assigned, can't poll
+  // If no Sabuss account assigned, webhook will still fire and auto-credit
   if (!dep.bankAccountId) {
-    return NextResponse.json({ ok: true, status: "no_api_key", message: "No account assigned" })
+    return NextResponse.json({ ok: true, status: "pending", message: "Waiting for payment confirmation — this is automatic." })
   }
 
   const [acc] = await db.select().from(bankAccount).where(eq(bankAccount.id, dep.bankAccountId))
-  if (!acc?.sabussApiKey) {
-    return NextResponse.json({ ok: true, status: "no_api_key", message: "Manual approval only — no Sabuss key on this account" })
-  }
 
-  if (!acc.sabussPin) {
-    return NextResponse.json({ ok: true, status: "no_api_key", message: "No Sabuss PIN set — contact admin" })
+  // No API key — rely on webhook alone (that's fine, webhook is the primary mechanism)
+  if (!acc?.sabussApiKey || !acc.sabussPin) {
+    return NextResponse.json({
+      ok: true,
+      status: "pending",
+      message: "Waiting for payment — your wallet will be credited automatically once we detect it.",
+    })
   }
 
   // Query Sabuss without a reference — returns all recent transactions.
@@ -104,12 +106,21 @@ export async function GET(req: NextRequest) {
     else if (typeof sabussData.response === "object") rows.push(sabussData.response as Record<string, unknown>)
   }
 
-  // Match by amount (exact or minus ₦50 fee) + sender name + not before deposit creation
-  const expectedNet = depositAmount - 50
+  // Confirmed Sabuss fee table — same as webhook
+  // ₦500 → ₦495 (₦5 fee), ₦1000+ → flat ₦50 fee (₦1000→₦950, ₦50000→₦49950)
+  function sabussFee(gross: number): number {
+    if (gross < 1000) return 5
+    return 50
+  }
+
+  // Net amount Sabuss would credit after deducting their fee
+  const expectedNet = depositAmount - sabussFee(depositAmount)
+
   let matchedTransaction: Record<string, unknown> | null = null
 
   for (const row of rows) {
     const rowAmt = Math.round(Number(row.amount ?? row.credit ?? row.value ?? row.credited_amount ?? 0))
+    // Accept: exact match (no fee on some accounts) OR net-after-fee match
     if (rowAmt !== depositAmount && rowAmt !== expectedNet) continue
 
     const senderFields = [row.sender, row.account_name, row.narration, row.name].filter(Boolean).join(" ").toLowerCase()
