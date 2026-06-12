@@ -4,19 +4,19 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Plus, Wallet } from "lucide-react"
 import { toast } from "sonner"
-import { SITE, formatNaira } from "@/lib/plans"
+import { formatNaira } from "@/lib/plans"
 import { startDeposit } from "@/app/actions/deposit"
 
-export function NewDepositClient({ balance }: { balance: number }) {
+export function NewDepositClient({ balance, minDeposit }: { balance: number; minDeposit: number }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [amount, setAmount] = useState("")
   const [open, setOpen] = useState(false)
 
   const amountNum = Number(amount)
-  const isValid = amountNum >= SITE.minDeposit
+  const isValid = amountNum >= minDeposit
 
-  const QUICK = [1000, 2000, 5000, 10000, 20000, 50000]
+  const QUICK = [1000, 2000, 5000, 10000, 20000, 50000].filter((q) => q >= minDeposit)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -85,16 +85,16 @@ export function NewDepositClient({ balance }: { balance: number }) {
               <input
                 type="number"
                 inputMode="numeric"
-                placeholder={`Amount (min ${formatNaira(SITE.minDeposit)})`}
+                placeholder={`Amount (min ${formatNaira(minDeposit)})`}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
 
-            {amountNum > 0 && amountNum < SITE.minDeposit && (
+            {amountNum > 0 && amountNum < minDeposit && (
               <p className="text-xs text-destructive">
-                Minimum deposit is {formatNaira(SITE.minDeposit)}
+                Minimum deposit is {formatNaira(minDeposit)}
               </p>
             )}
 

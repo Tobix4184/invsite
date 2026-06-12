@@ -22,7 +22,7 @@ import {
 } from "@/lib/db/schema"
 import { requireAdmin, requireAdminOrModerator } from "@/lib/session"
 import { accrueIncomeForAll, backfillReinvestForUser } from "@/lib/income-engine"
-import { getPauseFlags, setSetting, getGameConfig, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
+import { getPauseFlags, setSetting, getGameConfig, getLiveDepositLimits, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
 import { and, asc, desc, eq, gt, sql, sum } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
@@ -599,7 +599,33 @@ export async function toggleMilestoneStatus(id: number) {
 
 export async function getSiteControls() {
   await requireAdminOrModerator()
-  return getPauseFlags()
+  const [flags, limits, chargePct] = await Promise.all([
+    getPauseFlags(),
+    getLiveDepositLimits(),
+    getLiveWithdrawalCharge(),
+  ])
+  return {
+    ...flags,
+    minDeposit: limits.minDeposit,
+    minWithdrawal: limits.minWithdrawal,
+    withdrawalCharge: chargePct,
+  }
+}
+
+/** Admin/moderator: update minimum deposit, minimum withdrawal, and withdrawal charge. */
+export async function saveDepositWithdrawalLimits(values: {
+  minDeposit?: number
+  minWithdrawal?: number
+  withdrawalCharge?: number
+}) {
+  await requireAdminOrModerator()
+  const pairs: [string, string][] = []
+  if (values.minDeposit !== undefined)     pairs.push([SETTING_KEYS.minDeposit, String(Math.max(0, Math.round(values.minDeposit)))])
+  if (values.minWithdrawal !== undefined)  pairs.push([SETTING_KEYS.minWithdrawal, String(Math.max(0, Math.round(values.minWithdrawal)))])
+  if (values.withdrawalCharge !== undefined) pairs.push([SETTING_KEYS.withdrawalCharge, String(Math.max(0, values.withdrawalCharge))])
+  await Promise.all(pairs.map(([k, v]) => setSetting(k, v)))
+  revalidatePath("/admin")
+  return { ok: true, message: "Limits saved" }
 }
 
 /** Admin: freeze or unfreeze the entire site for non-admin users. */
