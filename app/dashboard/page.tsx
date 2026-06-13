@@ -1,6 +1,5 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Star } from "lucide-react"
 import { getSession } from "@/lib/session"
 import { getDashboardData } from "@/app/actions/account"
 import { getInvestments } from "@/app/actions/investments"
@@ -40,18 +39,16 @@ export default async function DashboardPage() {
 
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
         {/* Greeting */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground font-medium">Welcome back</p>
-            <h1 className="flex items-center gap-2 text-xl font-black tracking-tight">
-              {data.name.split(" ")[0]}
-              {data.isPromoter && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">
-                  <Star className="h-3 w-3" /> Partner
-                </span>
-              )}
-            </h1>
-          </div>
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Welcome back</p>
+          <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-black tracking-tight">
+            {data.name.split(" ")[0]}
+            {data.isPromoter && (
+              <span className="rounded-sm bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                Partner
+              </span>
+            )}
+          </h1>
         </div>
 
         <BalanceCard balance={data.balance} todayIncome={todayIncome} />

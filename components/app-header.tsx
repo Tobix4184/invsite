@@ -13,13 +13,10 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-border bg-background">
         <div className="mx-auto flex h-14 max-w-md items-center justify-between px-4">
           {isHome ? (
-            <div className="flex items-center gap-2.5">
-              <Logo className="h-8 w-8" />
-              <span className="text-base font-black tracking-tight">{SITE.name}</span>
-            </div>
+            <span className="text-lg font-black tracking-tight">{SITE.name}</span>
           ) : (
             <h1 className="text-base font-black tracking-tight">{title}</h1>
           )}
@@ -27,7 +24,7 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
           <button
             onClick={() => setOpen(true)}
             aria-label="Platform info"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
           >
             <BellDot className="h-4 w-4" />
           </button>

@@ -44,53 +44,54 @@
   --radius-3xl: calc(var(--radius) * 2.4);
 }
 
-/* Poco — Warm charcoal fintech theme */
+/* Poco — Pure black fintech. Sharp, bold, premium. */
 :root {
-  /* Warm charcoal base — not cold navy */
-  --background: oklch(0.12 0.008 60);
-  --foreground: oklch(0.96 0.006 60);
+  /* True black base — no warm tint */
+  --background: oklch(0.08 0.004 50);
+  --foreground: oklch(0.97 0.004 50);
 
-  /* Slightly lifted card — warm dark stone */
-  --card: oklch(0.17 0.01 55);
-  --card-foreground: oklch(0.96 0.006 60);
+  /* Card — barely lifted from background */
+  --card: oklch(0.12 0.005 50);
+  --card-foreground: oklch(0.97 0.004 50);
 
-  /* Surface — one step above card for inner wells */
-  --surface: oklch(0.21 0.012 55);
+  /* Surface — inner wells */
+  --surface: oklch(0.16 0.006 50);
 
-  --popover: oklch(0.15 0.01 55);
-  --popover-foreground: oklch(0.96 0.006 60);
+  --popover: oklch(0.11 0.005 50);
+  --popover-foreground: oklch(0.97 0.004 50);
 
-  /* Gold/amber as the primary brand color */
-  --primary: oklch(0.75 0.16 75);
-  --primary-foreground: oklch(0.12 0.01 60);
+  /* Amber — used sparingly as the sole accent */
+  --primary: oklch(0.78 0.17 72);
+  --primary-foreground: oklch(0.08 0.005 50);
 
-  --secondary: oklch(0.22 0.012 55);
-  --secondary-foreground: oklch(0.96 0.006 60);
+  --secondary: oklch(0.16 0.006 50);
+  --secondary-foreground: oklch(0.97 0.004 50);
 
-  --muted: oklch(0.22 0.01 55);
-  --muted-foreground: oklch(0.58 0.01 60);
+  --muted: oklch(0.16 0.005 50);
+  --muted-foreground: oklch(0.52 0.008 50);
 
-  --accent: oklch(0.25 0.018 60);
-  --accent-foreground: oklch(0.96 0.006 60);
+  --accent: oklch(0.19 0.007 50);
+  --accent-foreground: oklch(0.97 0.004 50);
 
-  --brand: oklch(0.75 0.16 75);
-  --brand-foreground: oklch(0.12 0.01 60);
+  --brand: oklch(0.78 0.17 72);
+  --brand-foreground: oklch(0.08 0.005 50);
 
-  /* Gold token for explicit use */
-  --gold: oklch(0.75 0.16 75);
-  --gold-foreground: oklch(0.12 0.01 60);
+  --gold: oklch(0.78 0.17 72);
+  --gold-foreground: oklch(0.08 0.005 50);
 
-  /* Emerald green — earnings / positive */
-  --success: oklch(0.70 0.17 160);
-  --success-foreground: oklch(0.12 0.03 160);
+  /* Bright green — earnings / positive */
+  --success: oklch(0.72 0.19 155);
+  --success-foreground: oklch(0.08 0.03 155);
 
-  --destructive: oklch(0.60 0.22 25);
+  --destructive: oklch(0.62 0.22 25);
 
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.75 0.16 75);
+  /* Hard white border — editorial feel */
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.78 0.17 72);
 
-  --radius: 0.9rem;
+  /* Sharp corners — nothing rounded like the competitor */
+  --radius: 0.5rem;
 }
 
 @layer base {

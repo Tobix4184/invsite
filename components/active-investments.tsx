@@ -36,7 +36,6 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
   const [togglingId, setTogglingId] = useState<number | null>(null)
   const [, setTick] = useState(0)
 
-  // Share the same SWR key as BalanceCard — no extra network call
   const { data } = useSWR('/api/live-balance', fetcher, {
     fallbackData: { investments: initialInvestments },
     refreshInterval: 10_000,
@@ -46,7 +45,6 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
 
   const investments: Inv[] = data?.investments ?? initialInvestments
 
-  // Tick every minute to refresh countdown timers
   useEffect(() => {
     const t = setInterval(() => setTick(n => n + 1), 60_000)
     return () => clearInterval(t)
@@ -65,8 +63,12 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
 
   return (
     <section>
-      <h2 className="mb-3 text-sm font-black uppercase tracking-widest text-muted-foreground">Active Plans</h2>
-      <div className="flex flex-col gap-3">
+      {/* Section header — uppercase label only, no extra decoration */}
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+        Active Plans
+      </p>
+
+      <div className="flex flex-col gap-2">
         {investments.map((inv) => {
           const pct = Math.min(100, Math.round((inv.daysPaid / inv.durationDays) * 100))
           const countdown = getCountdown(inv.lastPayoutAt)
@@ -74,58 +76,65 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
           const isToggling = pending && togglingId === inv.id
 
           return (
-            <article key={inv.id} className="rounded-2xl border border-border bg-card p-4">
-              {/* Top row */}
+            <article
+              key={inv.id}
+              className="relative overflow-hidden rounded-xl border border-border bg-card pl-4 pr-4 py-4"
+            >
+              {/* Left accent stripe */}
+              <span className={`absolute left-0 top-0 h-full w-[3px] ${inv.status === "active" ? "bg-success" : "bg-muted"}`} />
+
+              {/* Top: plan name + status */}
               <div className="flex items-center justify-between">
-                <h3 className="font-bold">{inv.planName}</h3>
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                  inv.status === "active" ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground"
+                <h3 className="text-base font-black tracking-tight">{inv.planName}</h3>
+                <span className={`text-[10px] font-bold uppercase tracking-wide ${
+                  inv.status === "active" ? "text-success" : "text-muted-foreground"
                 }`}>
                   {inv.status}
                 </span>
               </div>
 
-              {/* Earnings row */}
-              <div className="mt-2 flex items-center gap-4 text-xs">
-                <span className="text-muted-foreground">
-                  Daily <span className="font-semibold text-success">{formatNaira(Number(inv.dailyEarning))}</span>
-                </span>
-                <span className="text-muted-foreground">
-                  Earned <span className="font-semibold text-foreground">{formatNaira(Number(inv.amountEarned))}</span>
-                </span>
+              {/* Earnings */}
+              <div className="mt-2 flex items-baseline gap-4">
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Daily</p>
+                  <p className="text-sm font-black text-success">{formatNaira(Number(inv.dailyEarning))}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Earned</p>
+                  <p className="text-sm font-black">{formatNaira(Number(inv.amountEarned))}</p>
+                </div>
               </div>
 
-              {/* Countdown pill */}
+              {/* Countdown */}
               {inv.status === "active" && (
-                <div className={`mt-2.5 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
-                  isReady ? "bg-success/15 text-success" : "bg-amber-400/10 text-amber-400"
+                <div className={`mt-2.5 inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-[11px] font-bold ${
+                  isReady ? "bg-success/12 text-success" : "bg-primary/10 text-primary"
                 }`}>
                   <Clock className="h-3 w-3" />
                   {isReady ? "Payout ready" : `Next in ${countdown}`}
                 </div>
               )}
 
-              {/* Progress + auto-reinvest in one row */}
+              {/* Progress */}
               <div className="mt-3 flex items-center gap-3">
-                {/* Progress bar */}
                 <div className="flex-1">
-                  <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                  <div className="h-1 overflow-hidden rounded-none bg-surface">
+                    <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
                   </div>
                   <p className="mt-1 text-[10px] text-muted-foreground tabular-nums">
                     {inv.daysPaid}/{inv.durationDays}d
                   </p>
                 </div>
 
-                {/* Vault auto-reinvest — tiny, ignorable */}
+                {/* Auto-reinvest toggle */}
                 <button
                   type="button"
                   onClick={() => handleToggle(inv.id)}
                   disabled={isToggling}
-                  className={`relative h-4 w-7 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
+                  className={`relative h-4 w-7 shrink-0 rounded-none transition-colors disabled:opacity-40 ${
                     inv.autoReinvest ? "bg-success/70" : "bg-muted"
                   }`}
-                  title={inv.autoReinvest ? "Auto-reinvest into Lock Vault (7 days, +8%): ON" : "Auto-reinvest into Lock Vault (7 days, +8%): OFF"}
+                  title={inv.autoReinvest ? "Auto-reinvest into Lock Vault (7 days, +8%): ON" : "Auto-reinvest into Lock Vault: OFF"}
                   role="switch"
                   aria-checked={inv.autoReinvest}
                 >
@@ -134,7 +143,7 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
                       <RotateCcw className="h-2.5 w-2.5 animate-spin text-white" />
                     </span>
                   ) : (
-                    <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all ${
+                    <span className={`absolute top-0.5 h-3 w-3 rounded-none bg-white shadow-sm transition-all ${
                       inv.autoReinvest ? "left-3.5" : "left-0.5"
                     }`} />
                   )}
