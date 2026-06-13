@@ -2,134 +2,85 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { CalendarCheck2, TrendingUp, Ticket, UserRoundPlus, Lock } from "lucide-react"
+import { CalendarCheck2, TrendingUp, Ticket, UserRoundPlus, Lock, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
 import { dailySignIn } from "@/app/actions/account"
 import { SITE } from "@/lib/plans"
 import { cn } from "@/lib/utils"
 
-export function QuickActions({
-  signedInToday = false,
-}: {
-  signedInToday?: boolean
-}) {
+export function QuickActions({ signedInToday = false }: { signedInToday?: boolean }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [done, setDone] = useState(signedInToday)
 
   function handleSignIn() {
-    if (done) {
-      toast.info("You already claimed your sign-in bonus today")
-      return
-    }
+    if (done) { toast.info("Already claimed today"); return }
     startTransition(async () => {
       const res = await dailySignIn()
-      if (res.ok) {
-        toast.success(res.message)
-        setDone(true)
-        router.refresh()
-      } else if ("requiresInvestment" in res && res.requiresInvestment) {
-        toast.error(res.message, {
-          action: { label: "Invest Now", onClick: () => router.push("/products") },
-        })
-      } else {
-        toast.info(res.message)
-        setDone(true)
-      }
+      if (res.ok) { toast.success(res.message); setDone(true); router.refresh() }
+      else if ("requiresInvestment" in res && res.requiresInvestment) {
+        toast.error(res.message, { action: { label: "Invest Now", onClick: () => router.push("/products") } })
+      } else { toast.info(res.message); setDone(true) }
     })
   }
 
-  const actions = [
-    {
-      label: done ? "Claimed" : "Check In",
-      icon: CalendarCheck2,
-      onClick: handleSignIn,
-      color: "text-primary",
-      bg: "bg-primary/12",
-      pulse: !done,
-      disabled: pending,
-    },
-    {
-      label: "Earnings",
-      icon: TrendingUp,
-      onClick: () => router.push("/my-investments"),
-      color: "text-success",
-      bg: "bg-success/12",
-    },
-    {
-      label: "Gift Code",
-      icon: Ticket,
-      onClick: () => router.push("/gift-code"),
-      color: "text-primary",
-      bg: "bg-primary/12",
-    },
-    {
-      label: "Invite",
-      icon: UserRoundPlus,
-      onClick: () => router.push("/team"),
-      color: "text-primary",
-      bg: "bg-primary/12",
-    },
-    {
-      label: "Vault",
-      icon: Lock,
-      onClick: () => router.push("/games"),
-      color: "text-primary",
-      bg: "bg-primary/12",
-    },
-  ]
-
   return (
     <div className="flex flex-col gap-3">
-        {/* Daily check-in banner — only shown when not claimed */}
-        {!done && (
+      {/* Check-in banner — accent strip on the left edge */}
+      {!done && (
+        <button
+          onClick={handleSignIn}
+          disabled={pending}
+          className="group relative flex w-full items-center gap-4 overflow-hidden rounded-xl border border-primary/25 bg-primary/8 px-4 py-3.5 text-left transition-all active:scale-[0.99] disabled:opacity-60"
+        >
+          {/* Left accent bar */}
+          <span className="absolute left-0 top-0 h-full w-1 bg-primary" />
+
+          <CalendarCheck2 className="ml-1 h-5 w-5 shrink-0 text-primary" />
+          <div className="flex flex-1 flex-col">
+            <span className="text-sm font-black">Claim daily check-in</span>
+            <span className="text-xs text-primary font-semibold">
+              Earn <span className="font-black">+₦{SITE.signInBonus.toLocaleString()}</span> right now
+            </span>
+          </div>
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+          </span>
+        </button>
+      )}
+
+      {/* Shortcut list — horizontal rows, not icon grid */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden divide-y divide-border">
+        {[
+          { label: done ? "Check-in done" : "Daily Check-In", sub: done ? "Come back tomorrow" : `Claim ₦${SITE.signInBonus}`, icon: CalendarCheck2, action: handleSignIn, accent: !done },
+          { label: "My Earnings",   sub: "Track daily returns",      icon: TrendingUp,    action: () => router.push("/my-investments") },
+          { label: "Gift Code",     sub: "Redeem a promo code",      icon: Ticket,        action: () => router.push("/gift-code") },
+          { label: "Invite Friends",sub: "Earn referral bonuses",    icon: UserRoundPlus, action: () => router.push("/team") },
+          { label: "Lock Vault",    sub: "Lock funds, earn bonus",   icon: Lock,          action: () => router.push("/games") },
+        ].map(({ label, sub, icon: Icon, action, accent }) => (
           <button
-            onClick={handleSignIn}
-            disabled={pending}
-            className="group flex w-full items-center gap-3 rounded-2xl border border-primary/20 bg-primary/8 px-4 py-3 text-left transition-all hover:bg-primary/12 active:scale-[0.98] disabled:opacity-60"
+            key={label}
+            onClick={action}
+            disabled={pending && label.includes("Check")}
+            className={cn(
+              "flex w-full items-center gap-3.5 px-4 py-3 text-left transition-colors hover:bg-surface active:bg-surface disabled:opacity-60",
+            )}
           >
-            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15">
-              <CalendarCheck2 className="h-5 w-5 text-primary animate-shake" />
-              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-black text-primary-foreground">!</span>
+            <span className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
+              accent ? "bg-primary/15" : "bg-surface"
+            )}>
+              <Icon className={cn("h-4 w-4", accent ? "text-primary" : "text-muted-foreground")} strokeWidth={1.8} />
             </span>
             <div className="flex flex-1 flex-col min-w-0">
-              <span className="text-sm font-black">Claim daily check-in bonus</span>
-              <span className="text-xs text-primary font-semibold">
-                Tap to earn <span className="font-black">₦{SITE.signInBonus.toLocaleString()}</span> now
-              </span>
+              <span className={cn("text-sm font-bold leading-tight", accent && "text-primary")}>{label}</span>
+              <span className="text-[11px] text-muted-foreground leading-tight">{sub}</span>
             </div>
-            {/* Pulse dot */}
-            <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
-            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
           </button>
-        )}
-
-        {/* 5-icon grid */}
-        <div className="grid grid-cols-5 gap-2">
-          {actions.map((action) => (
-            <button
-              key={action.label}
-              onClick={action.onClick}
-              disabled={action.disabled}
-              className="relative flex flex-col items-center gap-2 rounded-2xl border border-border bg-card px-2 py-3 text-center transition-all hover:bg-surface active:scale-95 disabled:opacity-60"
-            >
-              {action.pulse && (
-                <span className="absolute -right-1 -top-1 flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-70" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
-                </span>
-              )}
-              <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", action.bg)}>
-                <action.icon className={cn("h-5 w-5", action.color)} strokeWidth={1.8} />
-              </span>
-              <span className="text-[10px] font-bold leading-tight text-muted-foreground">
-                {action.label}
-              </span>
-            </button>
-          ))}
-        </div>
+        ))}
       </div>
+    </div>
   )
 }

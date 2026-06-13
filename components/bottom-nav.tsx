@@ -18,10 +18,10 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/98 backdrop-blur-md"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <div className="mx-auto flex max-w-md items-stretch justify-around px-1">
+      <div className="mx-auto flex max-w-md items-stretch justify-around">
         {tabs.map((tab) => {
           const active = pathname.startsWith(tab.href)
           return (
@@ -29,22 +29,20 @@ export function BottomNav() {
               key={tab.href}
               href={tab.href}
               className={cn(
-                'relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-bold tracking-wide transition-colors',
+                'relative flex flex-1 flex-col items-center gap-1 pt-3 pb-2.5 text-[10px] font-bold tracking-wide transition-colors',
                 active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              {/* Active pill behind icon */}
-              {active && (
-                <span className="absolute top-1.5 h-7 w-12 rounded-full bg-primary/12" />
-              )}
+              {/* Top underline indicator */}
+              <span className={cn(
+                "absolute top-0 left-1/2 -translate-x-1/2 h-0.5 transition-all",
+                active ? "w-6 bg-primary" : "w-0 bg-transparent"
+              )} />
               <tab.icon
-                className={cn(
-                  'relative z-10 h-5 w-5 transition-transform',
-                  active ? 'scale-110' : 'scale-100',
-                )}
-                strokeWidth={active ? 2.2 : 1.8}
+                className="h-5 w-5"
+                strokeWidth={active ? 2.4 : 1.6}
               />
-              <span className="relative z-10 leading-none">{tab.label}</span>
+              <span className="leading-none">{tab.label}</span>
             </Link>
           )
         })}
