@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm"
 import { formatNaira } from "@/lib/plans"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
-import { TrendingUp, Calendar, DollarSign } from "lucide-react"
+import { TrendingUp } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
@@ -28,7 +28,7 @@ export default async function MyInvestmentsPage() {
 
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
         {investments.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
+          <div className="border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
             <TrendingUp className="mx-auto mb-3 h-8 w-8 opacity-30" />
             <p>No investments yet. Start investing to grow your income!</p>
           </div>
@@ -37,10 +37,10 @@ export default async function MyInvestmentsPage() {
             {/* Active Investments */}
             {activeInvestments.length > 0 && (
               <section>
-                <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
                   Active ({activeInvestments.length})
-                </h2>
-                <div className="flex flex-col gap-3">
+                </p>
+                <div className="flex flex-col gap-2">
                   {activeInvestments.map((inv) => (
                     <InvestmentCard key={inv.id} investment={inv} />
                   ))}
@@ -51,10 +51,10 @@ export default async function MyInvestmentsPage() {
             {/* Completed Investments */}
             {completedInvestments.length > 0 && (
               <section>
-                <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
                   Completed ({completedInvestments.length})
-                </h2>
-                <div className="flex flex-col gap-3">
+                </p>
+                <div className="flex flex-col gap-2">
                   {completedInvestments.map((inv) => (
                     <InvestmentCard key={inv.id} investment={inv} completed />
                   ))}
@@ -81,91 +81,65 @@ function InvestmentCard({
   const totalEarning = Number(inv.totalEarning)
   const amountEarned = Number(inv.amountEarned)
   const daysLeft = Math.max(0, inv.durationDays - inv.daysPaid)
-  const progressPercent = (inv.daysPaid / inv.durationDays) * 100
+  const progressPercent = Math.min(100, Math.round((inv.daysPaid / inv.durationDays) * 100))
 
   return (
-    <div className={`rounded-2xl border ${completed ? 'border-border/50 bg-card/50' : 'border-border bg-card'} p-4`}>
-      <div className="flex items-start justify-between gap-3 mb-3">
+    <article className={`relative overflow-hidden rounded-xl border pl-4 pr-4 py-4 ${
+      completed ? "border-border/40 bg-card/60" : "border-border bg-card"
+    }`}>
+      {/* Left accent stripe */}
+      <span className={`absolute left-0 top-0 h-full w-[3px] ${completed ? "bg-muted" : "bg-success"}`} />
+
+      {/* Plan name + status */}
+      <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-bold text-foreground">{inv.planName}</h3>
-          <p className="text-xs text-muted-foreground">{formatNaira(Number(inv.price))} investment</p>
+          <h3 className="text-base font-black tracking-tight">{inv.planName}</h3>
+          <p className="text-[11px] text-muted-foreground">{formatNaira(Number(inv.price))} invested</p>
         </div>
-        <span
-          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
-            completed
-              ? 'bg-border/50 text-muted-foreground'
-              : 'bg-success/15 text-success'
-          }`}
-        >
-          {completed ? 'Completed' : 'Active'}
+        <span className={`text-[10px] font-bold uppercase tracking-wide ${
+          completed ? "text-muted-foreground" : "text-success"
+        }`}>
+          {completed ? "Completed" : "Active"}
         </span>
       </div>
 
-      <div className="space-y-2 mb-3">
-        <Row icon={DollarSign} label="Daily earning" value={formatNaira(dailyEarning)} />
-        <Row
-          icon={TrendingUp}
-          label="Total earning"
-          value={formatNaira(totalEarning)}
-          highlight
-        />
-        <Row
-          icon={DollarSign}
-          label="Earned so far"
-          value={formatNaira(amountEarned)}
-        />
+      {/* Stats row */}
+      <div className="mt-3 flex items-start gap-5">
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Daily</p>
+          <p className="text-sm font-black text-success">{formatNaira(dailyEarning)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Earned</p>
+          <p className="text-sm font-black">{formatNaira(amountEarned)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total</p>
+          <p className="text-sm font-black">{formatNaira(totalEarning)}</p>
+        </div>
       </div>
 
-      {!completed && (
-        <>
-          <div className="mb-3 flex items-center gap-2 text-xs">
-            <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
-              <div
-                className="h-full bg-success transition-all"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <span className="tabular-nums text-muted-foreground">
-              {inv.daysPaid}/{inv.durationDays}d
-            </span>
-          </div>
-          {daysLeft > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining
+      {/* Progress bar */}
+      <div className="mt-3">
+        <div className="h-1 overflow-hidden rounded-none bg-surface">
+          <div className="h-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
+        </div>
+        <div className="mt-1 flex items-center justify-between">
+          <p className="text-[10px] tabular-nums text-muted-foreground">
+            {inv.daysPaid}/{inv.durationDays}d
+          </p>
+          {!completed && daysLeft > 0 && (
+            <p className="text-[10px] text-muted-foreground">{daysLeft}d left</p>
+          )}
+          {completed && (
+            <p className="text-[10px] text-muted-foreground">
+              {new Date(inv.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
             </p>
           )}
-        </>
-      )}
-
-      {completed && (
-        <p className="text-xs text-muted-foreground">
-          Completed on {new Date(inv.createdAt).toLocaleDateString()}
-        </p>
-      )}
-    </div>
-  )
-}
-
-function Row({
-  icon: Icon,
-  label,
-  value,
-  highlight,
-}: {
-  icon: any
-  label: string
-  value: string
-  highlight?: boolean
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        {label}
+        </div>
       </div>
-      <span className={`tabular-nums text-sm ${highlight ? 'font-bold text-success' : ''}`}>
-        {value}
-      </span>
-    </div>
+    </article>
   )
 }
+
+
