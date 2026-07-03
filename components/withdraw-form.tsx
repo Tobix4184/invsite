@@ -88,7 +88,7 @@ function BankPicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm transition-colors focus-within:border-primary hover:border-border/80"
+        className="flex w-full items-center justify-between rounded-2xl border-2 border-ink bg-surface px-4 py-3.5 text-sm transition-colors focus-within:ring-2 focus-within:ring-primary"
       >
         <span className={value ? "text-foreground font-medium" : "text-muted-foreground"}>
           {value || "Select bank"}
@@ -97,9 +97,9 @@ function BankPicker({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-2xl border-2 border-ink bg-card shadow-[4px_4px_0_0_var(--ink)]">
           {/* Search */}
-          <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
+          <div className="flex items-center gap-2 border-b-2 border-ink px-3 py-2.5">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
             <input
               autoFocus
@@ -124,8 +124,8 @@ function BankPicker({
                   <button
                     type="button"
                     onClick={() => { onChange(bank); setOpen(false); setQuery("") }}
-                    className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-secondary/70 ${
-                      bank === value ? "bg-primary/10 font-semibold text-primary" : ""
+                    className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-surface ${
+                      bank === value ? "bg-primary/15 font-black text-primary" : ""
                     }`}
                   >
                     <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -196,7 +196,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
   if (loading) {
     return (
       <main className="mx-auto max-w-md px-4 py-5">
-        <div className="h-64 animate-pulse rounded-3xl bg-secondary" />
+        <div className="h-64 animate-pulse rounded-3xl border-2 border-ink bg-surface" />
       </main>
     )
   }
@@ -205,21 +205,21 @@ export function WithdrawForm({ balance }: { balance: number }) {
     <main className="mx-auto flex max-w-md flex-col gap-4 px-4 py-5">
 
       {/* Balance hero */}
-      <div className="card-glass rounded-3xl p-5 glow-primary">
+      <div className="card-glass rounded-3xl p-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15">
-            <Wallet className="h-5 w-5 text-primary" />
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl border-2 border-ink bg-primary">
+            <Wallet className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Available Balance</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Available Balance</p>
             <p className="text-2xl font-black tracking-tight tabular-nums">{formatNaira(balance)}</p>
           </div>
         </div>
 
         {/* Info bar */}
-        <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-400/20 bg-amber-400/8 px-3 py-2.5">
-          <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-          <p className="text-[11px] leading-relaxed text-amber-300">
+        <div className="mt-4 flex items-start gap-2 rounded-xl border-2 border-ink bg-gold/20 px-3 py-2.5">
+          <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-foreground" />
+          <p className="text-[11px] font-semibold leading-relaxed text-foreground">
             Processed {SITE.withdrawalHours}. {SITE.withdrawalCharge}% fee applies. Min{" "}
             {formatNaira(SITE.minWithdrawal)}.
           </p>
@@ -230,16 +230,16 @@ export function WithdrawForm({ balance }: { balance: number }) {
       <div className="flex items-center gap-2 px-1">
         {(["amount", "bank", "confirm"] as const).map((s, i) => (
           <div key={s} className="flex flex-1 items-center gap-2">
-            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-colors ${
+            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-ink text-[11px] font-black transition-colors ${
               step === s ? "bg-primary text-primary-foreground" :
-              (["amount", "bank", "confirm"].indexOf(step) > i) ? "bg-success/20 text-success" : "bg-secondary text-muted-foreground"
+              (["amount", "bank", "confirm"].indexOf(step) > i) ? "bg-success text-success-foreground" : "bg-surface text-muted-foreground"
             }`}>
               {i + 1}
             </div>
-            <span className={`text-[11px] font-semibold capitalize ${step === s ? "text-foreground" : "text-muted-foreground"}`}>
+            <span className={`text-[11px] font-black uppercase tracking-wide ${step === s ? "text-foreground" : "text-muted-foreground"}`}>
               {s}
             </span>
-            {i < 2 && <div className="h-px flex-1 bg-border" />}
+            {i < 2 && <div className="h-0.5 flex-1 bg-ink/20" />}
           </div>
         ))}
       </div>
@@ -258,10 +258,10 @@ export function WithdrawForm({ balance }: { balance: number }) {
                   key={q}
                   type="button"
                   onClick={() => set("amount")(String(q))}
-                  className={`rounded-xl border py-2.5 text-xs font-bold transition-colors ${
+                  className={`rounded-xl border-2 border-ink py-2.5 text-xs font-black transition-all active:scale-95 ${
                     amount === q
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-secondary text-muted-foreground hover:border-primary/40"
+                      ? "bg-primary text-primary-foreground shadow-[2px_2px_0_0_var(--ink)]"
+                      : "bg-surface text-muted-foreground"
                   }`}
                 >
                   {formatNaira(q)}
@@ -269,7 +269,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
               ))}
           </div>
 
-          <div className="mb-3 rounded-2xl border border-border bg-surface px-4 transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+          <div className="mb-3 rounded-2xl border-2 border-ink bg-surface px-4 transition-all focus-within:ring-2 focus-within:ring-primary">
             <input
               type="number"
               inputMode="numeric"
@@ -281,14 +281,14 @@ export function WithdrawForm({ balance }: { balance: number }) {
           </div>
 
           {amount > 0 && (
-            <div className="mb-4 rounded-2xl border border-border bg-secondary/30 p-3 text-xs">
+            <div className="mb-4 rounded-2xl border-2 border-ink bg-surface p-3 text-xs">
               <div className="flex justify-between py-0.5 text-muted-foreground">
                 <span>Amount</span><span className="tabular-nums font-semibold text-foreground">{formatNaira(amount)}</span>
               </div>
               <div className="flex justify-between py-0.5 text-muted-foreground">
                 <span>Fee ({SITE.withdrawalCharge}%)</span><span className="tabular-nums text-destructive">- {formatNaira(charge)}</span>
               </div>
-              <div className="mt-1.5 flex justify-between border-t border-border pt-1.5">
+              <div className="mt-1.5 flex justify-between border-t-2 border-ink pt-1.5">
                 <span className="font-bold">You receive</span>
                 <span className="tabular-nums font-black text-success">{formatNaira(net > 0 ? net : 0)}</span>
               </div>
@@ -328,7 +328,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
                 placeholder="0123456789"
                 value={form.accountNumber}
                 onChange={(e) => set("accountNumber")(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                className="w-full rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm outline-none focus:border-primary"
+                className="w-full rounded-2xl border-2 border-ink bg-surface px-4 py-3.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
@@ -340,7 +340,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
                 placeholder="Account holder name"
                 value={form.accountName}
                 onChange={(e) => set("accountName")(e.target.value)}
-                className="w-full rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm outline-none focus:border-primary"
+                className="w-full rounded-2xl border-2 border-ink bg-surface px-4 py-3.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
@@ -369,15 +369,15 @@ export function WithdrawForm({ balance }: { balance: number }) {
         <form onSubmit={handleSubmit} className="card-glass rounded-3xl p-5">
           <p className="mb-4 text-sm font-black">Confirm withdrawal</p>
 
-          <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-border bg-secondary/30 p-4 text-sm">
+          <div className="mb-4 flex flex-col gap-2 rounded-2xl border-2 border-ink bg-surface p-4 text-sm">
             <Row label="Amount" value={formatNaira(amount)} />
             <Row label={`Fee (${SITE.withdrawalCharge}%)`} value={`- ${formatNaira(charge)}`} accent="destructive" />
-            <div className="border-t border-border pt-2">
+            <div className="border-t-2 border-ink pt-2">
               <Row label="You receive" value={formatNaira(net > 0 ? net : 0)} accent="success" bold />
             </div>
           </div>
 
-          <div className="mb-5 flex flex-col gap-2 rounded-2xl border border-border bg-secondary/30 p-4 text-sm">
+          <div className="mb-5 flex flex-col gap-2 rounded-2xl border-2 border-ink bg-surface p-4 text-sm">
             <Row label="Bank" value={form.bankName} />
             <Row label="Account" value={form.accountNumber} />
             <Row label="Name" value={form.accountName} />

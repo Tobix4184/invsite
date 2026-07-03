@@ -24,13 +24,13 @@ type Deposit = {
 type CheckResult = { status: string; message?: string }
 
 const STATUS_META: Record<string, { icon: typeof Clock; tint: string; bg: string; label: string }> = {
-  pending:      { icon: Clock,        tint: "text-gold",        bg: "bg-gold/12",        label: "Pending Payment" },
-  processing:   { icon: Loader2,      tint: "text-primary",     bg: "bg-primary/12",     label: "Processing" },
-  success:      { icon: CheckCircle,  tint: "text-success",     bg: "bg-success/12",     label: "Completed" },
-  approved:     { icon: CheckCircle,  tint: "text-success",     bg: "bg-success/12",     label: "Completed" },
-  failed:       { icon: XCircle,      tint: "text-destructive", bg: "bg-destructive/12", label: "Failed" },
-  rejected:     { icon: XCircle,      tint: "text-destructive", bg: "bg-destructive/12", label: "Rejected" },
-  needs_review: { icon: AlertCircle,  tint: "text-gold",        bg: "bg-gold/12",        label: "Needs Review" },
+  pending:      { icon: Clock,        tint: "text-gold-foreground",        bg: "bg-gold",        label: "Pending Payment" },
+  processing:   { icon: Loader2,      tint: "text-primary-foreground",     bg: "bg-primary",     label: "Processing" },
+  success:      { icon: CheckCircle,  tint: "text-success-foreground",     bg: "bg-success",     label: "Completed" },
+  approved:     { icon: CheckCircle,  tint: "text-success-foreground",     bg: "bg-success",     label: "Completed" },
+  failed:       { icon: XCircle,      tint: "text-destructive-foreground", bg: "bg-destructive", label: "Failed" },
+  rejected:     { icon: XCircle,      tint: "text-destructive-foreground", bg: "bg-destructive", label: "Rejected" },
+  needs_review: { icon: AlertCircle,  tint: "text-gold-foreground",        bg: "bg-gold",        label: "Needs Review" },
 }
 
 function DepositCard({ dep }: { dep: Deposit }) {
@@ -86,7 +86,7 @@ function DepositCard({ dep }: { dep: Deposit }) {
           <p className="font-mono text-[11px] text-muted-foreground">{dep.reference}</p>
         </div>
         <span
-          className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${meta.bg} ${meta.tint}`}
+          className={`flex items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-[10px] font-black uppercase ${meta.bg} ${meta.tint}`}
         >
           <meta.icon className={`h-3 w-3 ${dep.status === "processing" ? "animate-spin" : ""}`} />
           {isExpired ? "Expired" : meta.label}
@@ -96,9 +96,9 @@ function DepositCard({ dep }: { dep: Deposit }) {
       {/* Bank details for active deposits */}
       {dep.assignedBankName &&
         (dep.status === "pending" || dep.status === "processing") && (
-          <div className="mt-3 rounded-xl bg-secondary/50 p-3">
-            <p className="text-xs text-muted-foreground">Transfer to:</p>
-            <p className="text-sm font-semibold">
+          <div className="mt-3 rounded-xl border-2 border-ink bg-surface p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Transfer to:</p>
+            <p className="text-sm font-black">
               {dep.assignedBankName} · {dep.assignedAccountNumber}
             </p>
             <p className="text-xs text-muted-foreground">{dep.assignedAccountName}</p>
@@ -121,7 +121,7 @@ function DepositCard({ dep }: { dep: Deposit }) {
           })}
         </span>
         {dep.expiresAt && dep.status === "pending" && !isExpired && (
-          <span className="text-gold">
+          <span className="font-bold text-gold">
             Expires:{" "}
             {new Date(dep.expiresAt).toLocaleTimeString("en-NG", {
               hour: "2-digit",
@@ -134,10 +134,10 @@ function DepositCard({ dep }: { dep: Deposit }) {
       {/* Check result feedback */}
       {result && (
         <div
-          className={`mt-3 rounded-xl px-3 py-2 text-xs ${
+          className={`mt-3 rounded-xl border-2 border-ink px-3 py-2 text-xs font-semibold ${
             result.status === "error"
-              ? "bg-destructive/10 text-destructive"
-              : "bg-secondary text-muted-foreground"
+              ? "bg-destructive text-destructive-foreground"
+              : "bg-surface text-muted-foreground"
           }`}
         >
           {result.message ?? "Payment not detected yet. Try again in a few minutes."}
@@ -150,7 +150,7 @@ function DepositCard({ dep }: { dep: Deposit }) {
           {dep.status === "pending" && dep.assignedAccountNumber && !isExpired && (
             <Link
               href={`/deposits/${dep.reference}`}
-              className="flex flex-1 items-center justify-center rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground"
+              className="press flex flex-1 items-center justify-center rounded-xl border-2 border-ink bg-primary py-2.5 text-sm font-black text-primary-foreground shadow-[2px_2px_0_0_var(--ink)]"
             >
               Continue
             </Link>
@@ -158,7 +158,7 @@ function DepositCard({ dep }: { dep: Deposit }) {
           <button
             onClick={handleCheck}
             disabled={checking}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary py-2.5 text-sm font-bold text-foreground disabled:opacity-60"
+            className="press flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 border-ink bg-card py-2.5 text-sm font-black text-foreground shadow-[2px_2px_0_0_var(--ink)] disabled:opacity-60"
           >
             <RefreshCw className={`h-4 w-4 ${checking ? "animate-spin" : ""}`} />
             {checking ? "Checking..." : "Check Payment"}

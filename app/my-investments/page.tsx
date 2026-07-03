@@ -106,35 +106,35 @@ function InvestmentCard({
       </div>
 
       {/* Stats row */}
-      <div className="mt-3 flex items-start gap-5">
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Daily</p>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="rounded-xl border-2 border-ink bg-surface px-2.5 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Daily</p>
           <p className="text-sm font-black text-success">{formatNaira(dailyEarning)}</p>
         </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Earned</p>
+        <div className="rounded-xl border-2 border-ink bg-surface px-2.5 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Earned</p>
           <p className="text-sm font-black">{formatNaira(amountEarned)}</p>
         </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total</p>
+        <div className="rounded-xl border-2 border-ink bg-surface px-2.5 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Total</p>
           <p className="text-sm font-black">{formatNaira(totalEarning)}</p>
         </div>
       </div>
 
       {/* Progress bar */}
       <div className="mt-3">
-        <div className="h-1 overflow-hidden rounded-none bg-surface">
+        <div className="h-2.5 overflow-hidden rounded-full border-2 border-ink bg-surface">
           <div className="h-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
         </div>
-        <div className="mt-1 flex items-center justify-between">
-          <p className="text-[10px] tabular-nums text-muted-foreground">
+        <div className="mt-1.5 flex items-center justify-between">
+          <p className="text-[10px] font-bold tabular-nums text-muted-foreground">
             {inv.daysPaid}/{inv.durationDays}d
           </p>
           {!completed && daysLeft > 0 && (
-            <p className="text-[10px] text-muted-foreground">{daysLeft}d left</p>
+            <p className="text-[10px] font-bold text-muted-foreground">{daysLeft}d left</p>
           )}
           {completed && (
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] font-bold text-muted-foreground">
               {new Date(inv.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
             </p>
           )}
