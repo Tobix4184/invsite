@@ -45,7 +45,14 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
-import { SalaryTab, PromotionsTab } from "@/components/admin/salary-promo-tabs"
+import {
+  listPromoterSalaries,
+  setPromoterSalary,
+  togglePromoterSalary,
+  payPromoterSalary,
+  payAllSalaries,
+} from "@/app/actions/salary"
+import { listPromos, createPromo, togglePromo, deletePromo } from "@/app/actions/promos"
 import {
   approveWithdrawal,
   rejectWithdrawal,
@@ -444,7 +451,7 @@ export function AdminDashboard(initial: AdminData) {
         {tab === "Transactions" && <TransactionsTab items={transactions} isModerator={isModerator} onAction={() => refresh()} />}
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
         {tab === "Users" && <UsersTab items={users} isModerator={isModerator} />}
-        {tab === "Salary" && <SalaryTab />}
+        {tab === "Salary" && <SalariesTab />}
         {tab === "Promotions" && <PromotionsTab />}
         {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} isModerator={isModerator} />}
         {tab === "Promoter Codes" && <PromoterCodesTab items={promoterCodes} onAction={() => refresh()} />}
