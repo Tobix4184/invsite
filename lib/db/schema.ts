@@ -345,6 +345,37 @@ export const lockVault = pgTable("lock_vault", {
   completedAt: timestamp("completedAt"),
 })
 
+// ── Task Center ─────────────────────────────────────────────────────────────
+// Admin creates tasks; users complete them and earn a reward credited to wallet.
+export const task = pgTable("task", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  imageUrl: text("image_url"),
+  reward: numeric("reward", { precision: 14, scale: 2 }).notNull().default("0"),
+  // "rating" | "review" | "social" | "custom"
+  taskType: text("task_type").notNull().default("rating"),
+  // JSON string: array of field labels for rating tasks e.g. ["Location","Service"]
+  fields: text("fields"),
+  // 1 = each user can do once; 0 = unlimited
+  perUserLimit: integer("per_user_limit").notNull().default(1),
+  // "published" | "paused" | "deleted"
+  status: text("status").notNull().default("published"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+})
+
+export const taskSubmission = pgTable("task_submission", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  taskId: integer("task_id").notNull(),
+  // Submitted data as JSON
+  data: text("data"),
+  reward: numeric("reward", { precision: 14, scale: 2 }).notNull().default("0"),
+  // "pending" | "approved" | "rejected"
+  status: text("status").notNull().default("approved"),
+  submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+})
+
 export const promoterCode = pgTable("promoter_code", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),

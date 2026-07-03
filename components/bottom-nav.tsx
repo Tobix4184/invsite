@@ -2,14 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, Layers, Gamepad2, UsersRound, CircleUser } from 'lucide-react'
+import { LayoutGrid, Layers, Gamepad2, UsersRound, CircleUser, ListChecks } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
   { href: '/dashboard', label: 'Home', icon: LayoutGrid },
   { href: '/products', label: 'Plans', icon: Layers },
+  { href: '/tasks', label: 'Tasks', icon: ListChecks },
   { href: '/games', label: 'Games', icon: Gamepad2 },
-  { href: '/team', label: 'Team', icon: UsersRound },
   { href: '/profile', label: 'Account', icon: CircleUser },
 ]
 

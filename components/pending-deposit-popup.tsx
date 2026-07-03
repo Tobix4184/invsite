@@ -17,7 +17,15 @@ type PendingDeposit = {
   createdAt: Date | string
 }
 
-export function PendingDepositPopup({ deposits }: { deposits: PendingDeposit[] }) {
+export function PendingDepositPopup({
+  deposits,
+  minDeposit,
+  withdrawalCharge,
+}: {
+  deposits: PendingDeposit[]
+  minDeposit: number
+  withdrawalCharge: number
+}) {
   const [isOpen, setIsOpen] = useState(false)
   const [dismissed, setDismissed] = useState<string[]>([])
 
@@ -119,6 +127,19 @@ export function PendingDepositPopup({ deposits }: { deposits: PendingDeposit[] }
                   <p className="mt-1 text-sm text-muted-foreground">
                     Waiting for your payment
                   </p>
+                </div>
+
+                {/* Live admin-set limits */}
+                <div className="mt-3 flex items-center justify-around rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-[11px] font-bold">
+                  <div className="text-center">
+                    <p className="text-muted-foreground uppercase tracking-wide">Min Deposit</p>
+                    <p className="text-foreground">{formatNaira(minDeposit)}</p>
+                  </div>
+                  <div className="h-6 w-px bg-ink/20" />
+                  <div className="text-center">
+                    <p className="text-muted-foreground uppercase tracking-wide">Withdrawal Fee</p>
+                    <p className="text-foreground">{withdrawalCharge}%</p>
+                  </div>
                 </div>
 
                 {/* Bank details summary */}

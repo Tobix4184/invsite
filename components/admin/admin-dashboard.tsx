@@ -53,6 +53,7 @@ import {
   payAllSalaries,
 } from "@/app/actions/salary"
 import { listPromos, createPromo, togglePromo, deletePromo } from "@/app/actions/promos"
+import { adminGetTasks, adminCreateTask, adminUpdateTask, adminSetTaskStatus } from "@/app/actions/tasks"
 import {
   approveWithdrawal,
   rejectWithdrawal,
@@ -238,6 +239,7 @@ const TABS = [
   "Deposits",
   "Bank Accounts",
   "Milestones",
+  "Tasks",
 ] as const
 type Tab = (typeof TABS)[number]
 
@@ -458,7 +460,225 @@ export function AdminDashboard(initial: AdminData) {
         {tab === "Deposits" && <DepositsTab items={deposits} onAction={() => refresh()} />}
         {tab === "Bank Accounts" && <BankAccountsTab items={bankAccounts} />}
         {tab === "Milestones" && <MilestonesTab items={milestones} isModerator={isModerator} />}
+        {tab === "Tasks" && <TasksTab />}
       </div>
+    </div>
+  )
+}
+
+// ─── Tasks Tab ────────────────────────────────────────────────────────────────
+
+type AdminTask = Awaited<ReturnType<typeof adminGetTasks>>[number]
+
+function TasksTab() {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [tasks, setTasks] = useState<AdminTask[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<AdminTask | null>(null)
+
+  // Form state
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    imageUrl: "",
+    reward: "",
+    taskType: "rating",
+    fields: "Location,Service,Value",
+    perUserLimit: "1",
+  })
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const data = await adminGetTasks()
+    setTasks(data)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  function openCreate() {
+    setForm({ title: "", description: "", imageUrl: "", reward: "", taskType: "rating", fields: "Location,Service,Value", perUserLimit: "1" })
+    setEditing(null)
+    setCreating(true)
+  }
+
+  function openEdit(t: AdminTask) {
+    setForm({
+      title: t.title,
+      description: t.description,
+      imageUrl: t.imageUrl ?? "",
+      reward: String(Number(t.reward)),
+      taskType: t.taskType,
+      fields: t.fields ? (JSON.parse(t.fields) as string[]).join(",") : "",
+      perUserLimit: String(t.perUserLimit),
+    })
+    setEditing(t)
+    setCreating(true)
+  }
+
+  function handleSave() {
+    const fieldsArr = form.fields.split(",").map((s) => s.trim()).filter(Boolean)
+    startTransition(async () => {
+      if (editing) {
+        await adminUpdateTask(editing.id, {
+          title: form.title,
+          description: form.description,
+          imageUrl: form.imageUrl || undefined,
+          reward: Number(form.reward),
+          taskType: form.taskType,
+          fields: fieldsArr,
+          perUserLimit: Number(form.perUserLimit),
+        })
+        toast.success("Task updated")
+      } else {
+        await adminCreateTask({
+          title: form.title,
+          description: form.description,
+          imageUrl: form.imageUrl || undefined,
+          reward: Number(form.reward),
+          taskType: form.taskType,
+          fields: fieldsArr,
+          perUserLimit: Number(form.perUserLimit),
+        })
+        toast.success("Task created")
+      }
+      setCreating(false)
+      load()
+    })
+  }
+
+  function handleStatus(id: number, status: "published" | "paused" | "deleted") {
+    startTransition(async () => {
+      await adminSetTaskStatus(id, status)
+      toast.success(`Task ${status}`)
+      load()
+    })
+  }
+
+  if (creating) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setCreating(false)} className="text-sm font-bold text-muted-foreground">Cancel</button>
+          <h2 className="text-base font-black">{editing ? "Edit Task" : "New Task"}</h2>
+        </div>
+
+        {[
+          { label: "Title", key: "title", type: "text", placeholder: "e.g. Rate our hotel partner" },
+          { label: "Description", key: "description", type: "text", placeholder: "Describe what users need to do" },
+          { label: "Image URL (optional)", key: "imageUrl", type: "text", placeholder: "https://..." },
+          { label: "Reward (₦)", key: "reward", type: "number", placeholder: "e.g. 200" },
+          { label: "Rating Fields (comma-separated)", key: "fields", type: "text", placeholder: "Location,Service,Value" },
+          { label: "Max completions per user (0 = unlimited)", key: "perUserLimit", type: "number", placeholder: "1" },
+        ].map(({ label, key, type, placeholder }) => (
+          <div key={key}>
+            <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</label>
+            <input
+              type={type}
+              value={form[key as keyof typeof form]}
+              onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+              placeholder={placeholder}
+              className="w-full rounded-xl border-2 border-ink bg-card px-3 py-2.5 text-sm font-semibold focus:outline-none"
+            />
+          </div>
+        ))}
+
+        <button
+          onClick={handleSave}
+          disabled={pending || !form.title || !form.reward}
+          className="w-full rounded-xl border-2 border-ink bg-primary py-3 text-sm font-black uppercase tracking-wide text-primary-foreground shadow-[3px_3px_0_0_var(--ink)] disabled:opacity-60"
+        >
+          {pending ? "Saving..." : editing ? "Save Changes" : "Publish Task"}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-black">Task Center</h2>
+        <button
+          onClick={openCreate}
+          className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-[3px_3px_0_0_var(--ink)]"
+        >
+          <Plus className="h-4 w-4" /> New Task
+        </button>
+      </div>
+
+      {loading && (
+        <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+      )}
+
+      {!loading && tasks.length === 0 && (
+        <div className="rounded-2xl border-2 border-ink bg-card px-5 py-10 text-center text-muted-foreground">
+          <p className="font-bold">No tasks yet</p>
+          <p className="mt-1 text-sm">Create your first task to start earning add-ons.</p>
+        </div>
+      )}
+
+      {tasks.map((t) => (
+        <div
+          key={t.id}
+          className="rounded-2xl border-2 border-ink bg-card p-4 shadow-[3px_3px_0_0_var(--ink)]"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full border border-ink px-2 py-0.5 text-[10px] font-bold uppercase ${
+                  t.status === "published" ? "bg-success/20 text-success" :
+                  t.status === "paused" ? "bg-gold/20 text-gold" : "bg-destructive/10 text-destructive"
+                }`}>{t.status}</span>
+                <span className="text-[10px] text-muted-foreground">{t.submissionCount} submissions</span>
+              </div>
+              <p className="mt-1.5 font-black">{t.title}</p>
+              <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{t.description}</p>
+              <p className="mt-1 text-sm font-black text-primary">{formatNaira(Number(t.reward))} reward</p>
+            </div>
+            {t.imageUrl && (
+              <img src={t.imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-xl border-2 border-ink object-cover" />
+            )}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => openEdit(t)}
+              className="flex items-center gap-1 rounded-lg border-2 border-ink bg-secondary px-3 py-1.5 text-xs font-bold"
+            >
+              <Pencil className="h-3 w-3" /> Edit
+            </button>
+            {t.status !== "published" && (
+              <button
+                onClick={() => handleStatus(t.id, "published")}
+                disabled={pending}
+                className="flex items-center gap-1 rounded-lg border-2 border-ink bg-success/10 px-3 py-1.5 text-xs font-bold text-success disabled:opacity-60"
+              >
+                <Play className="h-3 w-3" /> Publish
+              </button>
+            )}
+            {t.status === "published" && (
+              <button
+                onClick={() => handleStatus(t.id, "paused")}
+                disabled={pending}
+                className="flex items-center gap-1 rounded-lg border-2 border-ink bg-gold/10 px-3 py-1.5 text-xs font-bold text-gold disabled:opacity-60"
+              >
+                <Pause className="h-3 w-3" /> Pause
+              </button>
+            )}
+            {t.status !== "deleted" && (
+              <button
+                onClick={() => { if (confirm("Delete this task?")) handleStatus(t.id, "deleted") }}
+                disabled={pending}
+                className="flex items-center gap-1 rounded-lg border-2 border-ink bg-destructive/10 px-3 py-1.5 text-xs font-bold text-destructive disabled:opacity-60"
+              >
+                <Trash2 className="h-3 w-3" /> Delete
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

@@ -1,14 +1,44 @@
 "use client"
 
 import { useState } from "react"
+import useSWR from "swr"
 import { BellDot, X, Clock3, Users, Wallet, ArrowDownToLine, TrendingUp, ShieldCheck, Send, Headphones, BadgeCheck } from "lucide-react"
 import { Logo } from "@/components/logo"
 import { SITE, formatNaira } from "@/lib/plans"
 
+type PlatformInfo = {
+  minDeposit: number
+  minWithdrawal: number
+  withdrawalCharge: number
+  referralLevel1: number
+  referralLevel2: number
+  promoterLevel1: number
+  withdrawalHours: string
+  signInBonus: number
+}
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json())
+
 export function AppHeader({ title, isPromoter = false }: { title?: string; isPromoter?: boolean }) {
   const isHome = !title
   const [open, setOpen] = useState(false)
-  const level1Rate = isPromoter ? SITE.promoterLevel1 : SITE.referralLevel1
+
+  // Fetch live admin-set values via API route (keeps server-only pg/dns out of the browser bundle)
+  const { data: info } = useSWR<PlatformInfo>(
+    "/api/platform-info",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60_000 }
+  )
+
+  const minDeposit       = info?.minDeposit       ?? SITE.minDeposit
+  const minWithdrawal    = info?.minWithdrawal    ?? (SITE.minWithdrawal ?? 1000)
+  const withdrawalCharge = info?.withdrawalCharge ?? SITE.withdrawalCharge
+  const referralLevel2   = info?.referralLevel2   ?? SITE.referralLevel2
+  const withdrawalHours  = info?.withdrawalHours  ?? SITE.withdrawalHours
+  const signInBonus      = info?.signInBonus      ?? SITE.signInBonus
+  const level1Rate = isPromoter
+    ? (info?.promoterLevel1 ?? SITE.promoterLevel1)
+    : (info?.referralLevel1 ?? SITE.referralLevel1)
 
   return (
     <>
@@ -82,8 +112,8 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
 
                 {/* Stats grid */}
                 <div className="grid grid-cols-2 gap-0">
-                  <Stat icon={ArrowDownToLine} tint="text-success" label="Min. Deposit" value={formatNaira(SITE.minDeposit)} border="border-b-2 border-r-2" />
-                  <Stat icon={Wallet} tint="text-gold" label="Min. Withdrawal" value={formatNaira(SITE.minWithdrawal)} border="border-b-2" />
+                  <Stat icon={ArrowDownToLine} tint="text-success" label="Min. Deposit" value={formatNaira(minDeposit)} border="border-b-2 border-r-2" />
+                  <Stat icon={Wallet} tint="text-gold" label="Min. Withdrawal" value={formatNaira(minWithdrawal)} border="border-b-2" />
                   <Stat
                     icon={Users}
                     tint={isPromoter ? "text-gold" : "text-primary"}
@@ -91,19 +121,20 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
                     value={`${level1Rate}%`}
                     border="border-r-2"
                   />
-                  <Stat icon={TrendingUp} tint="text-primary" label="Referral Level 2" value={`${SITE.referralLevel2}%`} border="" />
+                  <Stat icon={TrendingUp} tint="text-primary" label="Referral Level 2" value={`${referralLevel2}%`} border="border-b-2 border-r-2" />
+                  <Stat icon={Wallet} tint="text-destructive" label="Withdrawal Fee" value={`${withdrawalCharge}%`} border="border-b-2" />
                 </div>
 
                 {/* Footer */}
                 <div className="flex flex-wrap items-center justify-center gap-3 border-t-2 border-ink bg-surface px-4 py-3">
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                     <Clock3 className="h-3.5 w-3.5 text-success" />
-                    Withdrawal: {SITE.withdrawalHours}
+                    Withdrawal: {withdrawalHours}
                   </span>
                   <span className="h-1 w-1 rounded-full bg-ink" />
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                     <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                    Daily sign-in {formatNaira(SITE.signInBonus)} bonus
+                    Daily sign-in {formatNaira(signInBonus)} bonus
                   </span>
                 </div>
               </div>

@@ -5,6 +5,7 @@ import { BottomNav } from "@/components/bottom-nav"
 import { WithdrawForm } from "@/components/withdraw-form"
 import { WithdrawalHistoryClient } from "./withdrawal-history-client"
 import { getUserWithdrawals } from "@/app/actions/wallet"
+import { getLiveDepositLimits, getLiveWithdrawalCharge } from "@/app/actions/settings"
 import { db } from "@/lib/db"
 import { wallet } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
@@ -15,9 +16,11 @@ export default async function WithdrawPage() {
   const session = await getSession()
   if (!session?.user) redirect("/")
 
-  const [[w], withdrawals] = await Promise.all([
+  const [[w], withdrawals, limits, charge] = await Promise.all([
     db.select().from(wallet).where(eq(wallet.userId, session.user.id)),
     getUserWithdrawals(),
+    getLiveDepositLimits(),
+    getLiveWithdrawalCharge(),
   ])
 
   const balance = Number(w?.balance ?? 0)
@@ -25,7 +28,7 @@ export default async function WithdrawPage() {
   return (
     <div className="min-h-screen pb-28">
       <AppHeader title="Withdraw" />
-      <WithdrawForm balance={balance} />
+      <WithdrawForm balance={balance} minWithdrawal={limits.minWithdrawal} withdrawalCharge={charge} />
       {withdrawals.length > 0 && (
         <div className="mx-auto max-w-md px-4 pb-5">
           <p className="mb-3 text-xs font-black uppercase tracking-wider text-muted-foreground">Withdrawal History</p>
