@@ -15,6 +15,7 @@ import { ActiveInvestments } from "@/components/active-investments"
 import { WelcomePopup } from "@/components/welcome-popup"
 import { PendingDepositPopup } from "@/components/pending-deposit-popup"
 import { PromoPopup } from "@/components/promo-popup"
+import { FloatingGamesButton } from "@/components/floating-games-button"
 import { PLANS, maskPhone } from "@/lib/plans"
 
 export const dynamic = "force-dynamic"
@@ -78,6 +79,7 @@ export default async function DashboardPage() {
         </section>
       </main>
 
+      <FloatingGamesButton />
       <BottomNav />
     </div>
   )

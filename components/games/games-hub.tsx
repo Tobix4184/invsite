@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Dices, Ticket, ArrowLeft, ShieldAlert } from "lucide-react"
 import Link from "next/link"
 import { StakeSpinGame } from "./stake-spin"
@@ -43,7 +44,15 @@ const TABS: {
 
 export function GamesHub(props: Props) {
   const { balance, hasDeposited } = props
-  const [tab, setTab] = useState<Tab>("spin")
+  const searchParams = useSearchParams()
+  const initialTab = (searchParams.get("game") as Tab | null) ?? "spin"
+  const [tab, setTab] = useState<Tab>(initialTab)
+
+  // Sync if navigated to a different game via URL
+  useEffect(() => {
+    const g = searchParams.get("game") as Tab | null
+    if (g === "spin" || g === "draw") setTab(g)
+  }, [searchParams])
 
   return (
     <div className="min-h-screen pb-28">
