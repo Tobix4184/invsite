@@ -2,14 +2,25 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Mail, Phone, Lock, ShieldCheck, Tag, User, Loader2 } from "lucide-react"
+import { Phone, Lock, ShieldCheck, Tag, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Logo } from "@/components/logo"
+import { Captcha } from "@/components/captcha"
 import { SITE } from "@/lib/plans"
 import { authClient } from "@/lib/auth-client"
 import { initAccount, resolveLoginEmail } from "@/app/actions/account"
 
 type Mode = "sign-in" | "sign-up"
+
+/** Normalizes a Nigerian phone number to digits only. */
+function normalizePhone(raw: string) {
+  return raw.replace(/[^\d]/g, "")
+}
+
+/** Synthesizes the internal Better Auth email from a phone number. */
+function phoneToEmail(phone: string) {
+  return `${normalizePhone(phone)}@247incum.user`
+}
 
 function Field({
   id,
@@ -20,15 +31,17 @@ function Field({
   placeholder,
   value,
   onChange,
+  inputMode,
 }: {
   id: string
   label: string
   hint?: string
-  icon: typeof Mail
+  icon: typeof Phone
   type?: string
   placeholder?: string
   value: string
   onChange: (v: string) => void
+  inputMode?: "text" | "numeric" | "tel"
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -41,6 +54,7 @@ function Field({
         <input
           id={id}
           type={type}
+          inputMode={inputMode}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -55,10 +69,9 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
   const router = useRouter()
   const [mode, setMode] = useState<Mode>(promoCode ? "sign-up" : "sign-in")
   const [loading, setLoading] = useState(false)
+  const [captcha, setCaptcha] = useState("")
+  const [captchaValid, setCaptchaValid] = useState(false)
   const [form, setForm] = useState({
-    name: "",
-    identifier: "",
-    email: "",
     phone: "",
     password: "",
     confirm: "",
@@ -67,20 +80,17 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
   const set = (key: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [key]: v }))
 
   async function handleSignIn() {
-    if (!form.identifier || !form.password) {
-      toast.error("Enter your email/phone and password")
+    if (!form.phone || !form.password) {
+      toast.error("Enter your phone number and password")
       return
     }
     setLoading(true)
     try {
-      const { email } = await resolveLoginEmail(form.identifier)
-      if (!email) {
-        toast.error("No account found with that email or phone")
-        return
-      }
-      const { error } = await authClient.signIn.email({ email, password: form.password })
+      const { email } = await resolveLoginEmail(normalizePhone(form.phone))
+      const loginEmail = email ?? phoneToEmail(form.phone)
+      const { error } = await authClient.signIn.email({ email: loginEmail, password: form.password })
       if (error) {
-        toast.error(error.message || "Invalid login details")
+        toast.error(error.message || "Invalid phone number or password")
         return
       }
       toast.success("Welcome back!")
@@ -94,8 +104,9 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
   }
 
   async function handleSignUp() {
-    if (!form.name || !form.email || !form.phone || !form.password) {
-      toast.error("Please fill in all required fields")
+    const phone = normalizePhone(form.phone)
+    if (phone.length < 10) {
+      toast.error("Enter a valid phone number")
       return
     }
     if (form.password.length < 8) {
@@ -106,18 +117,23 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
       toast.error("Passwords do not match")
       return
     }
+    if (!captchaValid) {
+      toast.error("The security code is incorrect")
+      return
+    }
     setLoading(true)
     try {
       const result = await authClient.signUp.email({
-        email: form.email.toLowerCase(),
+        email: phoneToEmail(phone),
         password: form.password,
-        name: form.name,
+        name: phone,
       })
       if (result.error) {
-        toast.error(result.error.message || "Could not create account")
+        const msg = result.error.message || "Could not create account"
+        toast.error(/exist/i.test(msg) ? "An account with this phone number already exists" : msg)
         return
       }
-      await initAccount({ phone: form.phone, inviteCode: form.invite, promoCode })
+      await initAccount({ phone, inviteCode: form.invite, promoCode })
       toast.success(`Welcome to ${SITE.name}!`)
       router.push("/dashboard")
       router.refresh()
@@ -153,17 +169,17 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
             <>
               <p className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Get started</p>
               <h1 className="text-[2rem] font-black leading-tight tracking-tight text-balance">
-                Start earning daily returns
+                Start earning every day
               </h1>
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                Join {SITE.name} — invest, earn, and grow with device-tier plans.
+                Join {SITE.name} — invest in valued assets and earn fixed daily returns.
               </p>
 
               {/* Perks row */}
               <div className="mt-4 flex gap-3">
                 {[
-                  { val: "5%", sub: "daily max" },
-                  { val: "9", sub: "plan tiers" },
+                  { val: SITE.packageCount + "", sub: "packages" },
+                  { val: "45d+", sub: "earning cycle" },
                   { val: "₦" + SITE.welcomeBonus.toLocaleString(), sub: "sign-up bonus" },
                 ].map(({ val, sub }) => (
                   <div key={sub} className="flex-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-center">
@@ -203,25 +219,48 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
             mode === "sign-in" ? handleSignIn() : handleSignUp()
           }}
         >
+          <Field
+            id="phone"
+            label="Phone Number"
+            icon={Phone}
+            type="tel"
+            inputMode="tel"
+            placeholder="080XXXXXXXX"
+            value={form.phone}
+            onChange={set("phone")}
+          />
+
+          <Field
+            id="password"
+            label="Password"
+            icon={Lock}
+            type="password"
+            placeholder="••••••••"
+            value={form.password}
+            onChange={set("password")}
+          />
+
           {mode === "sign-up" && (
-            <Field id="name" label="Full Name" icon={User} placeholder="John Doe" value={form.name} onChange={set("name")} />
-          )}
-
-          {mode === "sign-in" ? (
-            <Field id="identifier" label="Email or Phone" icon={Mail} placeholder="email@example.com or 080..." value={form.identifier} onChange={set("identifier")} />
-          ) : (
             <>
-              <Field id="email" label="Email Address" icon={Mail} type="email" placeholder="example@email.com" value={form.email} onChange={set("email")} />
-              <Field id="phone" label="Phone Number" icon={Phone} type="tel" placeholder="080XXXXXXXX" value={form.phone} onChange={set("phone")} />
-            </>
-          )}
-
-          <Field id="password" label="Password" icon={Lock} type="password" placeholder="••••••••" value={form.password} onChange={set("password")} />
-
-          {mode === "sign-up" && (
-            <>
-              <Field id="confirm" label="Confirm Password" icon={ShieldCheck} type="password" placeholder="••••••••" value={form.confirm} onChange={set("confirm")} />
-              <Field id="invite" label="Invite Code" hint="optional" icon={Tag} placeholder="Enter invite code" value={form.invite} onChange={set("invite")} />
+              <Field
+                id="confirm"
+                label="Confirm Password"
+                icon={ShieldCheck}
+                type="password"
+                placeholder="••••••••"
+                value={form.confirm}
+                onChange={set("confirm")}
+              />
+              <Field
+                id="invite"
+                label="Invite Code"
+                hint="optional"
+                icon={Tag}
+                placeholder="Enter invite code"
+                value={form.invite}
+                onChange={set("invite")}
+              />
+              <Captcha value={captcha} onChange={setCaptcha} onValidChange={setCaptchaValid} />
             </>
           )}
 

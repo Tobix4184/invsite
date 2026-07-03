@@ -156,6 +156,7 @@ export const SITE = {
   name: '247 Incum',
   short: '247',
   tagline: 'Earn Every Hour, Every Day',
+  packageCount: 7,
   signInBonus: 100,
   welcomeBonus: 500,
   minWithdrawal: 1000,

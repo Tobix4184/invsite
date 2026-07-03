@@ -58,7 +58,7 @@ export default async function DashboardPage() {
 
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-black tracking-tight">Poco Plans</h2>
+            <h2 className="text-lg font-black tracking-tight">Investment Packages</h2>
             <Link href="/products" className="text-sm font-semibold text-primary">
               View all
             </Link>

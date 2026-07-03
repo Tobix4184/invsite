@@ -8,9 +8,9 @@ type Withdrawal = {
   amount: string | number
   netAmount: string | number | null
   charge: string | number | null
-  bankName: string
-  accountNumber: string
-  accountName: string
+  bankName: string | null
+  accountNumber: string | null
+  accountName: string | null
   status: string
   createdAt: Date | string
   processedAt: Date | string | null

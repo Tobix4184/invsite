@@ -51,6 +51,7 @@ export async function listPromoterSalaries() {
       lastPaidAt: promoterSalary.lastPaidAt,
       userName: userTable.name,
       userEmail: userTable.email,
+      userPhone: profile.phone,
       isPromoter: profile.isPromoter,
     })
     .from(promoterSalary)
@@ -61,17 +62,25 @@ export async function listPromoterSalaries() {
 
 /** Create or update a promoter's weekly salary. Also flags the user as a promoter. */
 export async function setPromoterSalary(input: {
-  email: string
+  identifier: string
   weeklyAmount: number
   note?: string
 }) {
   await requireAdmin()
-  const email = input.email.trim().toLowerCase()
+  const id = input.identifier.trim()
   const amount = Math.max(0, Math.round(Number(input.weeklyAmount) || 0))
-  if (!email) return { ok: false, message: "Enter the promoter's email" }
+  if (!id) return { ok: false, message: "Enter the promoter's phone or email" }
 
-  const [u] = await db.select().from(userTable).where(eq(userTable.email, email))
-  if (!u) return { ok: false, message: "No user with that email" }
+  // Resolve by email first, then by phone number
+  let u: { id: string; name: string | null } | undefined
+  if (id.includes("@")) {
+    ;[u] = await db.select().from(userTable).where(eq(userTable.email, id.toLowerCase()))
+  } else {
+    const digits = id.replace(/[^\d]/g, "")
+    const [p] = await db.select().from(profile).where(eq(profile.phone, digits))
+    if (p) [u] = await db.select().from(userTable).where(eq(userTable.id, p.userId))
+  }
+  if (!u) return { ok: false, message: "No user with that phone or email" }
 
   await db.update(profile).set({ isPromoter: true }).where(eq(profile.userId, u.id))
 

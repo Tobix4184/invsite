@@ -45,6 +45,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
+import { SalaryTab, PromotionsTab } from "@/components/admin/salary-promo-tabs"
 import {
   approveWithdrawal,
   rejectWithdrawal,
@@ -80,6 +81,7 @@ import {
   adminCheckDeposit,
   adminDeleteTransaction,
   saveDepositWithdrawalLimits,
+  saveGameConfig,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -222,6 +224,8 @@ const TABS = [
   "Transactions",
   "Withdrawals",
   "Users",
+  "Salary",
+  "Promotions",
   "Gift Codes",
   "Promoter Codes",
   "Deposits",
@@ -340,6 +344,11 @@ type AdminData = {
   investments: InvestmentRow[]
   financials: Financials
   drawRounds: DrawRound[]
+  spins: SpinRow[]
+  vaults: VaultRow[]
+  drawSlots: DrawSlotRow[]
+  gameStats: GameStats
+  gameConfig: GameConfig
 }
 
 export function AdminDashboard(initial: AdminData) {
@@ -435,6 +444,8 @@ export function AdminDashboard(initial: AdminData) {
         {tab === "Transactions" && <TransactionsTab items={transactions} isModerator={isModerator} onAction={() => refresh()} />}
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
         {tab === "Users" && <UsersTab items={users} isModerator={isModerator} />}
+        {tab === "Salary" && <SalaryTab />}
+        {tab === "Promotions" && <PromotionsTab />}
         {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} isModerator={isModerator} />}
         {tab === "Promoter Codes" && <PromoterCodesTab items={promoterCodes} onAction={() => refresh()} />}
         {tab === "Deposits" && <DepositsTab items={deposits} onAction={() => refresh()} />}
@@ -3194,6 +3205,397 @@ function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () 
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+// ── Salaries Tab ──────────────────────────────────────────────────────────────
+type SalaryRow = {
+  id: number
+  userId: string
+  weeklyAmount: string
+  isActive: boolean
+  note: string | null
+  lastPaidAt: Date | string | null
+  userName: string | null
+  userEmail: string | null
+  userPhone: string | null
+  isPromoter: boolean | null
+}
+
+function SalariesTab() {
+  const [rows, setRows] = useState<SalaryRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [pending, startTransition] = useTransition()
+  const [identifier, setIdentifier] = useState("")
+  const [amount, setAmount] = useState(String(SITE.defaultPromoterSalary))
+  const [note, setNote] = useState("")
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setRows((await listPromoterSalaries()) as SalaryRow[])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  function assign() {
+    startTransition(async () => {
+      const res = await setPromoterSalary({ identifier, weeklyAmount: Number(amount), note })
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      if (res.ok) {
+        setIdentifier("")
+        setNote("")
+        load()
+      }
+    })
+  }
+
+  function toggle(userId: string, isActive: boolean) {
+    startTransition(async () => {
+      await togglePromoterSalary(userId, isActive)
+      load()
+    })
+  }
+
+  function payOne(userId: string) {
+    startTransition(async () => {
+      const res = await payPromoterSalary(userId)
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      load()
+    })
+  }
+
+  function payAll() {
+    startTransition(async () => {
+      const res = await payAllSalaries()
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      load()
+    })
+  }
+
+  const totalWeekly = rows.filter((r) => r.isActive).reduce((s, r) => s + Number(r.weeklyAmount), 0)
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Assign salary */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <p className="mb-3 text-sm font-bold">Assign / Update Salary</p>
+        <div className="flex flex-col gap-2">
+          <input
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="Promoter phone or email"
+            className="rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <div className="flex gap-2">
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              inputMode="numeric"
+              placeholder="Weekly ₦"
+              className="w-32 rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Note (optional)"
+              className="flex-1 rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <button
+            onClick={assign}
+            disabled={pending}
+            className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} Set Salary
+          </button>
+        </div>
+      </div>
+
+      {/* Summary + pay all */}
+      <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3">
+        <div>
+          <p className="text-xs text-muted-foreground">Total weekly payroll</p>
+          <p className="text-lg font-black tabular-nums">{formatNaira(totalWeekly)}</p>
+        </div>
+        <button
+          onClick={payAll}
+          disabled={pending || totalWeekly === 0}
+          className="rounded-xl bg-success px-4 py-2.5 text-sm font-bold text-success-foreground disabled:opacity-50"
+        >
+          Pay All
+        </button>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : rows.length === 0 ? (
+        <Empty label="No promoter salaries yet" />
+      ) : (
+        rows.map((r) => (
+          <div key={r.id} className="rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold">{r.userName ?? "Unknown"}</p>
+                <p className="truncate text-xs text-muted-foreground">{r.userPhone ?? r.userEmail ?? r.userId}</p>
+                {r.note && <p className="mt-1 text-[11px] text-muted-foreground">{r.note}</p>}
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-black tabular-nums">{formatNaira(Number(r.weeklyAmount))}</p>
+                <p className="text-[10px] text-muted-foreground">/week</p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                onClick={() => toggle(r.userId, !r.isActive)}
+                disabled={pending}
+                className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-semibold text-muted-foreground disabled:opacity-60"
+              >
+                {r.isActive ? <ToggleRight className="h-4 w-4 text-success" /> : <ToggleLeft className="h-4 w-4" />}
+                {r.isActive ? "Active" : "Paused"}
+              </button>
+              <button
+                onClick={() => payOne(r.userId)}
+                disabled={pending || !r.isActive}
+                className="ml-auto rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-50"
+              >
+                Pay ₦{Number(r.weeklyAmount).toLocaleString()}
+              </button>
+            </div>
+            {r.lastPaidAt && (
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Last paid {new Date(r.lastPaidAt).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+// ── Promotions Tab ────────────────────────────────────────────────────────────
+type PromoRow = {
+  id: number
+  name: string
+  description: string | null
+  conditionValue: string
+  bonusType: string
+  bonusValue: string
+  firstPurchaseOnly: boolean
+  maxRedemptions: number | null
+  redemptions: number
+  isActive: boolean
+}
+
+function PromotionsTab() {
+  const [rows, setRows] = useState<PromoRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [pending, startTransition] = useTransition()
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    conditionValue: String(SITE.launchPromo.packagePrice),
+    bonusType: "percent" as "percent" | "fixed",
+    bonusValue: String(SITE.launchPromo.cashbackPercent),
+    firstPurchaseOnly: true,
+    maxRedemptions: "",
+  })
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setRows((await listPromos()) as PromoRow[])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  function create() {
+    startTransition(async () => {
+      const res = await createPromo({
+        name: form.name,
+        description: form.description,
+        conditionValue: Number(form.conditionValue),
+        bonusType: form.bonusType,
+        bonusValue: Number(form.bonusValue),
+        firstPurchaseOnly: form.firstPurchaseOnly,
+        maxRedemptions: form.maxRedemptions ? Number(form.maxRedemptions) : null,
+      })
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      if (res.ok) {
+        setForm((f) => ({ ...f, name: "", description: "" }))
+        load()
+      }
+    })
+  }
+
+  function toggle(id: number, isActive: boolean) {
+    startTransition(async () => {
+      await togglePromo(id, isActive)
+      load()
+    })
+  }
+
+  function remove(id: number) {
+    startTransition(async () => {
+      const res = await deletePromo(id)
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      load()
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Create promo */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <p className="mb-3 flex items-center gap-2 text-sm font-bold">
+          <Megaphone className="h-4 w-4 text-primary" /> Create Promotion
+        </p>
+        <div className="flex flex-col gap-2">
+          <input
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            placeholder="Promo name (e.g. Launch Cashback)"
+            className="rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <input
+            value={form.description}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Description (optional)"
+            className="rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+            Min package price (₦)
+          </label>
+          <input
+            value={form.conditionValue}
+            onChange={(e) => setForm((f) => ({ ...f, conditionValue: e.target.value }))}
+            inputMode="numeric"
+            placeholder="Min package price"
+            className="rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <div className="flex gap-2">
+            <select
+              value={form.bonusType}
+              onChange={(e) => setForm((f) => ({ ...f, bonusType: e.target.value as "percent" | "fixed" }))}
+              className="rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            >
+              <option value="percent">Percent %</option>
+              <option value="fixed">Fixed ₦</option>
+            </select>
+            <input
+              value={form.bonusValue}
+              onChange={(e) => setForm((f) => ({ ...f, bonusValue: e.target.value }))}
+              inputMode="numeric"
+              placeholder={form.bonusType === "percent" ? "Cashback %" : "Cashback ₦"}
+              className="flex-1 rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={form.maxRedemptions}
+              onChange={(e) => setForm((f) => ({ ...f, maxRedemptions: e.target.value }))}
+              inputMode="numeric"
+              placeholder="Max redemptions (blank = unlimited)"
+              className="flex-1 rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, firstPurchaseOnly: !f.firstPurchaseOnly }))}
+              className="flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2.5 text-xs font-semibold text-muted-foreground"
+            >
+              {form.firstPurchaseOnly ? (
+                <ToggleRight className="h-4 w-4 text-success" />
+              ) : (
+                <ToggleLeft className="h-4 w-4" />
+              )}
+              First buy only
+            </button>
+          </div>
+          <button
+            onClick={create}
+            disabled={pending}
+            className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} Create Promo
+          </button>
+        </div>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : rows.length === 0 ? (
+        <Empty label="No promotions yet" />
+      ) : (
+        rows.map((p) => (
+          <div key={p.id} className="rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold">{p.name}</p>
+                {p.description && <p className="text-xs text-muted-foreground">{p.description}</p>}
+              </div>
+              <StatusBadge status={p.isActive ? "completed" : "failed"} />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg bg-surface px-2.5 py-1.5">
+                <p className="text-muted-foreground">Min buy</p>
+                <p className="font-bold tabular-nums">{formatNaira(Number(p.conditionValue))}</p>
+              </div>
+              <div className="rounded-lg bg-surface px-2.5 py-1.5">
+                <p className="text-muted-foreground">Cashback</p>
+                <p className="font-bold tabular-nums">
+                  {p.bonusType === "percent" ? `${Number(p.bonusValue)}%` : formatNaira(Number(p.bonusValue))}
+                </p>
+              </div>
+              <div className="rounded-lg bg-surface px-2.5 py-1.5">
+                <p className="text-muted-foreground">Redeemed</p>
+                <p className="font-bold tabular-nums">
+                  {p.redemptions}
+                  {p.maxRedemptions ? ` / ${p.maxRedemptions}` : ""}
+                </p>
+              </div>
+              <div className="rounded-lg bg-surface px-2.5 py-1.5">
+                <p className="text-muted-foreground">Scope</p>
+                <p className="font-bold">{p.firstPurchaseOnly ? "First buy" : "Any buy"}</p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                onClick={() => toggle(p.id, !p.isActive)}
+                disabled={pending}
+                className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-semibold text-muted-foreground disabled:opacity-60"
+              >
+                {p.isActive ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                {p.isActive ? "Pause" : "Activate"}
+              </button>
+              <button
+                onClick={() => remove(p.id)}
+                disabled={pending}
+                className="ml-auto flex items-center gap-1 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs font-semibold text-destructive disabled:opacity-60"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Remove
+              </button>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   )
 }
