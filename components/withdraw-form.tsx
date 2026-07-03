@@ -141,7 +141,15 @@ function BankPicker({
   )
 }
 
-export function WithdrawForm({ balance }: { balance: number }) {
+export function WithdrawForm({
+  balance,
+  minWithdrawal,
+  withdrawalCharge,
+}: {
+  balance: number
+  minWithdrawal: number
+  withdrawalCharge: number
+}) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [loading, setLoading] = useState(true)
@@ -171,7 +179,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
   }, [])
 
   const amount = Number(form.amount)
-  const charge = amount > 0 ? Math.round((amount * SITE.withdrawalCharge) / 100) : 0
+  const charge = amount > 0 ? Math.round((amount * withdrawalCharge) / 100) : 0
   const net = amount - charge
 
   function handleSubmit(e: React.FormEvent) {
@@ -220,8 +228,8 @@ export function WithdrawForm({ balance }: { balance: number }) {
         <div className="mt-4 flex items-start gap-2 rounded-xl border-2 border-ink bg-gold/20 px-3 py-2.5">
           <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-foreground" />
           <p className="text-[11px] font-semibold leading-relaxed text-foreground">
-            Processed {SITE.withdrawalHours}. {SITE.withdrawalCharge}% fee applies. Min{" "}
-            {formatNaira(SITE.minWithdrawal)}.
+            Processed {SITE.withdrawalHours}. {withdrawalCharge}% fee applies. Min{" "}
+            {formatNaira(minWithdrawal)}.
           </p>
         </div>
       </div>
@@ -252,7 +260,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
           {/* Quick amounts */}
           <div className="mb-4 grid grid-cols-3 gap-2">
             {[1000, 2000, 5000, 10000, 20000, 50000]
-              .filter((q) => q >= SITE.minWithdrawal && q <= balance)
+              .filter((q) => q >= minWithdrawal && q <= balance)
               .map((q) => (
                 <button
                   key={q}
@@ -273,7 +281,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
             <input
               type="number"
               inputMode="numeric"
-              placeholder={`Enter amount (min ${formatNaira(SITE.minWithdrawal)})`}
+              placeholder={`Enter amount (min ${formatNaira(minWithdrawal)})`}
               value={form.amount}
               onChange={(e) => set("amount")(e.target.value)}
               className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
@@ -286,7 +294,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
                 <span>Amount</span><span className="tabular-nums font-semibold text-foreground">{formatNaira(amount)}</span>
               </div>
               <div className="flex justify-between py-0.5 text-muted-foreground">
-                <span>Fee ({SITE.withdrawalCharge}%)</span><span className="tabular-nums text-destructive">- {formatNaira(charge)}</span>
+                <span>Fee ({withdrawalCharge}%)</span><span className="tabular-nums text-destructive">- {formatNaira(charge)}</span>
               </div>
               <div className="mt-1.5 flex justify-between border-t-2 border-ink pt-1.5">
                 <span className="font-bold">You receive</span>
@@ -297,7 +305,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
 
           <button
             onClick={() => setStep("bank")}
-            disabled={amount < SITE.minWithdrawal || amount > balance}
+            disabled={amount < minWithdrawal || amount > balance}
             className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-4 text-sm font-black uppercase text-primary-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-50"
           >
             Continue <ArrowRight className="h-4 w-4" />
@@ -371,7 +379,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
 
           <div className="mb-4 flex flex-col gap-2 rounded-2xl border-2 border-ink bg-surface p-4 text-sm">
             <Row label="Amount" value={formatNaira(amount)} />
-            <Row label={`Fee (${SITE.withdrawalCharge}%)`} value={`- ${formatNaira(charge)}`} accent="destructive" />
+            <Row label={`Fee (${withdrawalCharge}%)`} value={`- ${formatNaira(charge)}`} accent="destructive" />
             <div className="border-t-2 border-ink pt-2">
               <Row label="You receive" value={formatNaira(net > 0 ? net : 0)} accent="success" bold />
             </div>

@@ -5,6 +5,7 @@ import { getDashboardData } from "@/app/actions/account"
 import { getInvestments } from "@/app/actions/investments"
 import { getPendingDeposits } from "@/app/actions/deposit"
 import { getActivePromos } from "@/app/actions/promos"
+import { getLiveDepositLimits, getLiveWithdrawalCharge } from "@/app/actions/settings"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { BalanceCard } from "@/components/balance-card"
@@ -23,11 +24,13 @@ export default async function DashboardPage() {
   if (!session?.user) redirect("/")
 
   const userId = session.user.id
-  const [data, investments, pendingDeposits, activePromos] = await Promise.all([
+  const [data, investments, pendingDeposits, activePromos, limits, charge] = await Promise.all([
     getDashboardData(),
     getInvestments(),
     getPendingDeposits(),
     getActivePromos(),
+    getLiveDepositLimits(),
+    getLiveWithdrawalCharge(),
   ])
 
   const todayIncome = investments
@@ -37,7 +40,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen pb-28">
       <WelcomePopup isNewUser={data.isNewUser} />
-      <PendingDepositPopup deposits={pendingDeposits} />
+      <PendingDepositPopup deposits={pendingDeposits} minDeposit={limits.minDeposit} withdrawalCharge={charge} />
       {!data.isNewUser && <PromoPopup promos={activePromos} />}
       <AppHeader isPromoter={data.isPromoter} />
 
