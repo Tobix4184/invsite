@@ -54,6 +54,7 @@ import {
 } from "@/app/actions/salary"
 import { listPromos, createPromo, togglePromo, deletePromo } from "@/app/actions/promos"
 import { adminGetTasks, adminCreateTask, adminUpdateTask, adminSetTaskStatus } from "@/app/actions/tasks"
+import { getGameConfig, saveGameConfig } from "@/app/actions/settings"
 import {
   approveWithdrawal,
   rejectWithdrawal,
@@ -240,6 +241,7 @@ const TABS = [
   "Bank Accounts",
   "Milestones",
   "Tasks",
+  "Game Config",
 ] as const
 type Tab = (typeof TABS)[number]
 
@@ -461,7 +463,195 @@ export function AdminDashboard(initial: AdminData) {
         {tab === "Bank Accounts" && <BankAccountsTab items={bankAccounts} />}
         {tab === "Milestones" && <MilestonesTab items={milestones} isModerator={isModerator} />}
         {tab === "Tasks" && <TasksTab />}
+        {tab === "Game Config" && <GameConfigTab />}
       </div>
+    </div>
+  )
+}
+
+// ─── Game Config Tab ─────────────────────────────────────────────────────────
+
+type GameCfg = Awaited<ReturnType<typeof getGameConfig>>
+type SpinPrize = { amount: number; weight: number }
+
+function GameConfigTab() {
+  const [pending, startTransition] = useTransition()
+  const [loading, setLoading] = useState(true)
+
+  // Spin prizes
+  const [prizes, setPrizes] = useState<SpinPrize[]>([])
+
+  // Lucky Draw
+  const [slotCost, setSlotCost] = useState("200")
+  const [share1, setShare1] = useState("50")
+  const [share2, setShare2] = useState("30")
+  const [share3, setShare3] = useState("20")
+
+  // Plays per action
+  const [playsPerInvest, setPlaysPerInvest] = useState("1")
+  const [playsPerReferral, setPlaysPerReferral] = useState("1")
+
+  useEffect(() => {
+    getGameConfig().then((cfg: GameCfg) => {
+      setPrizes(cfg.spinPrizes)
+      setSlotCost(String(cfg.luckyDrawSlotCost))
+      const [s1 = 0.5, s2 = 0.3, s3 = 0.2] = cfg.luckyDrawPrizeShares
+      setShare1(String(Math.round(s1 * 100)))
+      setShare2(String(Math.round(s2 * 100)))
+      setShare3(String(Math.round(s3 * 100)))
+      setPlaysPerInvest(String(cfg.gamePlaysPerInvestment))
+      setPlaysPerReferral(String(cfg.gamePlaysPerReferral))
+      setLoading(false)
+    })
+  }, [])
+
+  const addPrize = () => setPrizes((p) => [...p, { amount: 0, weight: 10 }])
+  const removePrize = (i: number) => setPrizes((p) => p.filter((_, idx) => idx !== i))
+  const updatePrize = (i: number, key: keyof SpinPrize, val: string) =>
+    setPrizes((p) => p.map((prize, idx) => idx === i ? { ...prize, [key]: Number(val) } : prize))
+
+  const totalWeight = prizes.reduce((s, p) => s + p.weight, 0)
+
+  function handleSave() {
+    const s1 = Number(share1) / 100
+    const s2 = Number(share2) / 100
+    const s3 = 1 - s1 - s2
+    if (s3 < 0 || s1 + s2 > 1) {
+      toast.error("Prize shares must add up to 100%")
+      return
+    }
+    startTransition(async () => {
+      await saveGameConfig({
+        spinPrizes: prizes,
+        luckyDrawSlotCost: Number(slotCost),
+        luckyDrawPrizeShares: [s1, s2, parseFloat(s3.toFixed(4))],
+        gamePlaysPerInvestment: Number(playsPerInvest),
+        gamePlaysPerReferral: Number(playsPerReferral),
+      })
+      toast.success("Game config saved — changes are live immediately")
+    })
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+  }
+
+  const fieldCls = "w-full rounded-xl border-2 border-ink bg-card px-3 py-2.5 text-sm font-semibold focus:outline-none"
+  const labelCls = "mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground"
+
+  return (
+    <div className="flex flex-col gap-6">
+      <h2 className="text-base font-black">Game Config</h2>
+
+      {/* ── Slot machine prizes ────────────────────────────── */}
+      <section className="rounded-2xl border-2 border-ink bg-card p-4 shadow-[3px_3px_0_0_var(--ink)]">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="font-black">Lucky Roulette — Spin Prizes</p>
+          <button
+            onClick={addPrize}
+            className="flex items-center gap-1 rounded-lg border-2 border-ink bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground"
+          >
+            <Plus className="h-3 w-3" /> Add Prize
+          </button>
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Amount = reward in naira (0 = no win). Weight = probability (higher = more likely). Total weight: <strong>{totalWeight}</strong>
+        </p>
+
+        <div className="flex flex-col gap-2">
+          {prizes.map((p, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="flex-1">
+                <label className={labelCls}>Amount (₦)</label>
+                <input
+                  type="number"
+                  value={p.amount}
+                  onChange={(e) => updatePrize(i, "amount", e.target.value)}
+                  className={fieldCls}
+                  min={0}
+                />
+              </div>
+              <div className="w-24">
+                <label className={labelCls}>Weight</label>
+                <input
+                  type="number"
+                  value={p.weight}
+                  onChange={(e) => updatePrize(i, "weight", e.target.value)}
+                  className={fieldCls}
+                  min={1}
+                />
+              </div>
+              <div className="w-24 text-right">
+                <label className={labelCls}>Chance</label>
+                <p className="pt-2.5 text-sm font-bold text-muted-foreground">
+                  {totalWeight > 0 ? ((p.weight / totalWeight) * 100).toFixed(1) : 0}%
+                </p>
+              </div>
+              <button
+                onClick={() => removePrize(i)}
+                className="mt-5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-ink bg-destructive/10 text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Lucky Draw config ──────────────────────────────── */}
+      <section className="rounded-2xl border-2 border-ink bg-card p-4 shadow-[3px_3px_0_0_var(--ink)]">
+        <p className="mb-3 font-black">Lucky Draw</p>
+
+        <label className={labelCls}>Pool contribution per slot (₦)</label>
+        <input type="number" value={slotCost} onChange={(e) => setSlotCost(e.target.value)} className={`${fieldCls} mb-4`} min={0} />
+
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          Prize shares — must add to 100%
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: "1st Place %", val: share1, set: setShare1 },
+            { label: "2nd Place %", val: share2, set: setShare2 },
+            { label: "3rd (auto)", val: String(Math.max(0, 100 - Number(share1) - Number(share2))), set: () => {} },
+          ].map(({ label, val, set }) => (
+            <div key={label}>
+              <label className={labelCls}>{label}</label>
+              <input
+                type="number"
+                value={val}
+                onChange={(e) => set(e.target.value)}
+                className={fieldCls}
+                min={0}
+                max={100}
+                readOnly={label === "3rd (auto)"}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Plays per action ──────────────────────────────── */}
+      <section className="rounded-2xl border-2 border-ink bg-card p-4 shadow-[3px_3px_0_0_var(--ink)]">
+        <p className="mb-3 font-black">Plays Earned</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={labelCls}>Spins per investment</label>
+            <input type="number" value={playsPerInvest} onChange={(e) => setPlaysPerInvest(e.target.value)} className={fieldCls} min={0} />
+          </div>
+          <div>
+            <label className={labelCls}>Spins per referral</label>
+            <input type="number" value={playsPerReferral} onChange={(e) => setPlaysPerReferral(e.target.value)} className={fieldCls} min={0} />
+          </div>
+        </div>
+      </section>
+
+      <button
+        onClick={handleSave}
+        disabled={pending}
+        className="w-full rounded-2xl border-2 border-ink bg-primary py-4 text-sm font-black uppercase tracking-wide text-primary-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-60"
+      >
+        {pending ? "Saving..." : "Save Game Config"}
+      </button>
     </div>
   )
 }
@@ -2519,7 +2709,7 @@ function Empty({ label }: { label: string }) {
   )
 }
 
-// ── Games Admin Tab ────────────────────────────────────────���──────────────────
+// ── Games Admin Tab ────────────────────────────────────────���───────────────���──
 
 type GameSubTab = "overview" | "spin" | "vault" | "draw"
 

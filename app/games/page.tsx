@@ -60,6 +60,7 @@ export default async function GamesPage() {
         recentWinners={recentWinners}
         spinsAvailable={spinState.spinsAvailable}
         slotCost={cfg.luckyDrawSlotCost}
+        spinPrizes={cfg.spinPrizes}
       />
       <BottomNav />
     </>

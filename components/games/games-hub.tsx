@@ -28,6 +28,7 @@ type Props = {
   recentWinners: { name: string; amount: number; drawDate: string; place: number }[]
   spinsAvailable: number
   slotCost: number
+  spinPrizes: { amount: number; weight: number }[]
 }
 
 const TABS: {
@@ -121,7 +122,7 @@ export function GamesHub(props: Props) {
               ))}
             </div>
 
-            {tab === "spin" && <StakeSpinGame balance={balance} spinsAvailable={props.spinsAvailable} />}
+            {tab === "spin" && <StakeSpinGame balance={balance} spinsAvailable={props.spinsAvailable} spinPrizes={props.spinPrizes} />}
             {tab === "draw" && (
               <LuckyDrawGame
                 balance={balance}

@@ -12,8 +12,19 @@ import {
   user as userTable,
   referral,
 } from "@/lib/db/schema"
-import { SITE, pickSpinPrize } from "@/lib/plans"
+import { SITE } from "@/lib/plans"
 import { getGameConfig } from "@/app/actions/settings"
+
+/** Picks a random reward from a live-configured prize table. */
+function pickSpinPrizeLive(prizes: { amount: number; weight: number }[]): number {
+  const total = prizes.reduce((s, p) => s + p.weight, 0)
+  let r = Math.random() * total
+  for (const p of prizes) {
+    r -= p.weight
+    if (r <= 0) return p.amount
+  }
+  return 0
+}
 import { getUserId } from "@/lib/session"
 import { eq, sql, and, desc } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
@@ -27,7 +38,7 @@ import { revalidatePath } from "next/cache"
 //     i.e. the referrer has earned commission from them)
 // Each game spends from its own entitlement, tracked by counting rows.
 
-/** Total plays a user has earned from investments + valid referrals. */
+/** Total plays a user has earned from investments + valid referrals (reads live config). */
 async function earnedPlays(userId: string): Promise<{ investments: number; referrals: number; total: number }> {
   const [inv] = await db
     .select({ c: sql<number>`count(*)::int` })
@@ -41,7 +52,10 @@ async function earnedPlays(userId: string): Promise<{ investments: number; refer
 
   const investments = Number(inv?.c ?? 0)
   const referrals = Number(ref?.c ?? 0)
-  const total = investments * SITE.gamePlaysPerInvestment + referrals * SITE.gamePlaysPerReferral
+
+  // Read live plays-per-investment / referral from DB so admin changes take effect immediately
+  const cfg = await getGameConfig()
+  const total = investments * cfg.gamePlaysPerInvestment + referrals * cfg.gamePlaysPerReferral
   return { investments, referrals, total }
 }
 
@@ -82,8 +96,10 @@ export async function playSpin() {
     }
   }
 
-  // Award a random reward drop. Worst case is ₦0 — nothing is ever deducted.
-  const prize = pickSpinPrize()
+  // Award a random reward drop using live admin-configured prizes.
+  // Worst case is ₦0 — nothing is ever deducted from the user.
+  const cfg = await getGameConfig()
+  const prize = pickSpinPrizeLive(cfg.spinPrizes)
   const outcome = prize > 0 ? "win" : "lose"
 
   // Record the spin first (this consumes exactly one play).
@@ -230,10 +246,12 @@ export async function claimFreeDrawSlot() {
 
   await db.insert(luckyDrawSlot).values({ userId, source: "free", drawDate: today })
 
-  // House-funded contribution to today's prize pool (no user money involved)
+  // House-funded contribution to today's prize pool (no user money involved).
+  // Uses live slot cost from admin config.
+  const cfg2 = await getGameConfig()
   await db
     .update(luckyDrawRound)
-    .set({ prizePool: sql`${luckyDrawRound.prizePool} + ${SITE.luckyDrawSlotCost}` })
+    .set({ prizePool: sql`${luckyDrawRound.prizePool} + ${cfg2.luckyDrawSlotCost}` })
     .where(eq(luckyDrawRound.drawDate, today))
 
   revalidatePath("/games")
