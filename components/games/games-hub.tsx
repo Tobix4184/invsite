@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Dices, Ticket, ArrowLeft, ShieldAlert } from "lucide-react"
 import Link from "next/link"
 import { StakeSpinGame } from "./stake-spin"
@@ -27,6 +28,7 @@ type Props = {
   recentWinners: { name: string; amount: number; drawDate: string; place: number }[]
   spinsAvailable: number
   slotCost: number
+  spinPrizes: { amount: number; weight: number }[]
 }
 
 const TABS: {
@@ -37,13 +39,21 @@ const TABS: {
   inactiveColor: string
   delay: string
 }[] = [
-  { id: "spin", label: "Stake & Spin", icon: Dices, activeColor: "text-gold", inactiveColor: "text-gold/60", delay: "0ms" },
+  { id: "spin", label: "Lucky Roulette", icon: Dices, activeColor: "text-gold", inactiveColor: "text-gold/60", delay: "0ms" },
   { id: "draw", label: "Lucky Draw", icon: Ticket, activeColor: "text-success", inactiveColor: "text-success/60", delay: "120ms" },
 ]
 
 export function GamesHub(props: Props) {
   const { balance, hasDeposited } = props
-  const [tab, setTab] = useState<Tab>("spin")
+  const searchParams = useSearchParams()
+  const initialTab = (searchParams.get("game") as Tab | null) ?? "spin"
+  const [tab, setTab] = useState<Tab>(initialTab)
+
+  // Sync if navigated to a different game via URL
+  useEffect(() => {
+    const g = searchParams.get("game") as Tab | null
+    if (g === "spin" || g === "draw") setTab(g)
+  }, [searchParams])
 
   return (
     <div className="min-h-screen pb-28">
@@ -80,7 +90,7 @@ export function GamesHub(props: Props) {
             <div>
               <p className="text-lg font-black uppercase">Deposit Required</p>
               <p className="mt-1 text-sm text-muted-foreground text-pretty">
-                Make your first deposit to unlock all game features — Stake &amp; Spin and Lucky Draw.
+                Make your first deposit to unlock all game features — Lucky Roulette and Lucky Draw.
               </p>
             </div>
             <Link
@@ -112,7 +122,7 @@ export function GamesHub(props: Props) {
               ))}
             </div>
 
-            {tab === "spin" && <StakeSpinGame balance={balance} spinsAvailable={props.spinsAvailable} />}
+            {tab === "spin" && <StakeSpinGame balance={balance} spinsAvailable={props.spinsAvailable} spinPrizes={props.spinPrizes} />}
             {tab === "draw" && (
               <LuckyDrawGame
                 balance={balance}

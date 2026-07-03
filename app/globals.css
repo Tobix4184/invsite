@@ -241,6 +241,14 @@
   animation: pop-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@utility animate-spin-slow {
+  animation: spin-slow 4s linear infinite;
+}
+
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 4px 4px 0 0 var(--ink); }
   50%      { box-shadow: 4px 4px 0 0 var(--primary); }

@@ -23,6 +23,13 @@ export const SETTING_KEYS = {
   vaultBonus30: "game_vault_bonus_30",            // percent e.g. "40"
   vaultPenalty: "game_vault_penalty",             // percent e.g. "10"
   vaultMin: "game_vault_min",                     // naira e.g. "1000"
+  // Spin slot prizes — JSON array of {amount, weight} e.g. '[{"amount":0,"weight":26},...]'
+  spinPrizes: "game_spin_prizes",
+  // Lucky Draw prize shares — JSON array of 3 fractions summing to 1 e.g. '[0.5,0.3,0.2]'
+  luckyDrawPrizeShares: "game_lucky_draw_prize_shares",
+  // Plays earned per investment / per qualifying referral
+  gamePlaysPerInvestment: "game_plays_per_investment",
+  gamePlaysPerReferral: "game_plays_per_referral",
 } as const
 
 /** Reads a single setting value, returns null if missing. */
@@ -68,6 +75,19 @@ export async function getGameConfig() {
   const vaultPenalty = parseFloat(raw(g.vaultPenalty, String(SITE.vaultTiers[0].penaltyPercent)))
   const vaultMin = parseInt(raw(g.vaultMin, String(SITE.vaultMin)), 10)
 
+  const defaultSpinPrizes = SITE.spinPrizes
+  const spinPrizesRaw = map.get(SETTING_KEYS.spinPrizes)
+  const spinPrizes: { amount: number; weight: number }[] = spinPrizesRaw
+    ? JSON.parse(spinPrizesRaw)
+    : defaultSpinPrizes
+
+  const defaultShares = SITE.luckyDrawPrizeShares
+  const sharesRaw = map.get(SETTING_KEYS.luckyDrawPrizeShares)
+  const luckyDrawPrizeShares: number[] = sharesRaw ? JSON.parse(sharesRaw) : defaultShares
+
+  const gamePlaysPerInvestment = parseInt(raw(SETTING_KEYS.gamePlaysPerInvestment, String(SITE.gamePlaysPerInvestment)), 10)
+  const gamePlaysPerReferral   = parseInt(raw(SETTING_KEYS.gamePlaysPerReferral,   String(SITE.gamePlaysPerReferral)), 10)
+
   return {
     withdrawalCharge: withdrawalChargePct,
     stakeHouseEdge: houseEdge,
@@ -75,6 +95,10 @@ export async function getGameConfig() {
     stakeMax,
     stakeMultipliers: multipliers,
     luckyDrawSlotCost: slotCost,
+    luckyDrawPrizeShares,
+    spinPrizes,
+    gamePlaysPerInvestment,
+    gamePlaysPerReferral,
     vaultTiers: [
       { days: 7,  bonusPercent: vaultBonus7,  penaltyPercent: vaultPenalty },
       { days: 14, bonusPercent: vaultBonus14, penaltyPercent: vaultPenalty },
@@ -131,6 +155,32 @@ export async function getPlatformInfo() {
     withdrawalHours:  SITE.withdrawalHours,
     signInBonus:      SITE.signInBonus,
   }
+}
+
+/**
+ * Saves game configuration values to the DB. Called from the admin dashboard.
+ * Only updates keys that are explicitly passed (partial update).
+ */
+export async function saveGameConfig(config: {
+  spinPrizes?: { amount: number; weight: number }[]
+  luckyDrawSlotCost?: number
+  luckyDrawPrizeShares?: number[]
+  gamePlaysPerInvestment?: number
+  gamePlaysPerReferral?: number
+}): Promise<void> {
+  const g = SETTING_KEYS
+  const tasks: Promise<void>[] = []
+  if (config.spinPrizes !== undefined)
+    tasks.push(setSetting(g.spinPrizes, JSON.stringify(config.spinPrizes)))
+  if (config.luckyDrawSlotCost !== undefined)
+    tasks.push(setSetting(g.luckyDrawSlotCost, String(config.luckyDrawSlotCost)))
+  if (config.luckyDrawPrizeShares !== undefined)
+    tasks.push(setSetting(g.luckyDrawPrizeShares, JSON.stringify(config.luckyDrawPrizeShares)))
+  if (config.gamePlaysPerInvestment !== undefined)
+    tasks.push(setSetting(g.gamePlaysPerInvestment, String(config.gamePlaysPerInvestment)))
+  if (config.gamePlaysPerReferral !== undefined)
+    tasks.push(setSetting(g.gamePlaysPerReferral, String(config.gamePlaysPerReferral)))
+  await Promise.all(tasks)
 }
 
 /** Convenience: returns pause flags + site freeze state. */
