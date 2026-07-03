@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation"
 import { getSession } from "@/lib/session"
 import { getDashboardData } from "@/app/actions/account"
-import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { ProfileView } from "@/components/profile-view"
 
@@ -14,7 +13,6 @@ export default async function ProfilePage() {
 
   return (
     <div className="min-h-screen pb-24">
-      <AppHeader title="Profile" />
       <ProfileView
         name={data.name}
         email={data.email}
