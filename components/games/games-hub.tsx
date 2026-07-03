@@ -21,12 +21,11 @@ type Props = {
   today: string
   round: Round
   todaySlotsCount: number
-  freeSlotAvailable: boolean
+  freeSlotsRemaining: number
   hasActiveInvestment: boolean
   referralSlotsAvailable: number
   recentWinners: { name: string; amount: number; drawDate: string; place: number }[]
-  stakeMin: number
-  stakeMax: number
+  spinsAvailable: number
   slotCost: number
 }
 
@@ -113,14 +112,14 @@ export function GamesHub(props: Props) {
               ))}
             </div>
 
-            {tab === "spin" && <StakeSpinGame balance={balance} stakeMin={props.stakeMin} stakeMax={props.stakeMax} />}
+            {tab === "spin" && <StakeSpinGame balance={balance} spinsAvailable={props.spinsAvailable} />}
             {tab === "draw" && (
               <LuckyDrawGame
                 balance={balance}
                 today={props.today}
                 round={props.round}
                 todaySlotsCount={props.todaySlotsCount}
-                freeSlotAvailable={props.freeSlotAvailable}
+                freeSlotsRemaining={props.freeSlotsRemaining}
                 hasActiveInvestment={props.hasActiveInvestment}
                 referralSlotsAvailable={props.referralSlotsAvailable}
                 recentWinners={props.recentWinners}

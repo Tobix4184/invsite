@@ -57,6 +57,7 @@ import {
   approveWithdrawal,
   rejectWithdrawal,
   adjustBalance,
+  clearUserBalance,
   createGiftCode,
   processAllIncome,
   addBankAccount,
@@ -918,6 +919,16 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
     })
   }
 
+  function handleClearBalance(userId: string, name: string) {
+    if (!confirm(`Clear ${name}'s wallet balance to ₦0? This cannot be undone.`)) return
+    startTransition(async () => {
+      const res = await clearUserBalance(userId)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
   if (items.length === 0) return <Empty label="No users" />
 
   return (
@@ -1010,6 +1021,13 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
                 className="flex-1 rounded-xl border-2 border-ink bg-secondary py-2 text-xs font-bold text-muted-foreground"
               >
                 Adjust Balance
+              </button>
+              <button
+                onClick={() => handleClearBalance(u.id, u.name ?? u.email ?? "this user")}
+                disabled={pending}
+                className="flex items-center justify-center gap-1 rounded-xl border-2 border-ink bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive disabled:opacity-60"
+              >
+                Clear
               </button>
               <button
                 onClick={() => handleTogglePromoter(u.id)}

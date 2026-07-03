@@ -4,7 +4,7 @@ import { db } from "@/lib/db"
 import { wallet, investment, luckyDrawSlot, referral } from "@/lib/db/schema"
 import { eq, and, sql } from "drizzle-orm"
 import { getGameConfig } from "@/app/actions/settings"
-import { getLuckyDrawState, getRecentDrawWinners } from "@/app/actions/games"
+import { getLuckyDrawState, getRecentDrawWinners, getSpinState } from "@/app/actions/games"
 import { GamesHub } from "@/components/games/games-hub"
 import { BottomNav } from "@/components/bottom-nav"
 
@@ -15,11 +15,12 @@ export default async function GamesPage() {
   if (!session?.user) redirect("/")
   const userId = session.user.id
 
-  const [w, cfg, drawState, recentWinners] = await Promise.all([
+  const [w, cfg, drawState, recentWinners, spinState] = await Promise.all([
     db.select().from(wallet).where(eq(wallet.userId, userId)).then((r) => r[0]),
     getGameConfig(),
     getLuckyDrawState(),
     getRecentDrawWinners(),
+    getSpinState(),
   ])
 
   const balance = Number(w?.balance ?? 0)
@@ -53,12 +54,11 @@ export default async function GamesPage() {
         today={drawState.today}
         round={drawState.round}
         todaySlotsCount={drawState.slotsEntered}
-        freeSlotAvailable={drawState.freeSlotAvailable}
+        freeSlotsRemaining={drawState.freeSlotsRemaining}
         hasActiveInvestment={drawState.hasActiveInvestment}
         referralSlotsAvailable={referralSlotsAvailable}
         recentWinners={recentWinners}
-        stakeMin={cfg.stakeMin}
-        stakeMax={cfg.stakeMax}
+        spinsAvailable={spinState.spinsAvailable}
         slotCost={cfg.luckyDrawSlotCost}
       />
       <BottomNav />

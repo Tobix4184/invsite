@@ -275,6 +275,36 @@ export async function adjustBalance(userId: string, amount: number, note: string
   return { ok: true, message: "Balance adjusted" }
 }
 
+/** Admin-only: zero out a single user's wallet balance. */
+export async function clearUserBalance(userId: string) {
+  await requireAdmin()
+  const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
+  if (!w) return { ok: false, message: "Wallet not found" }
+  const current = Number(w.balance)
+  await db
+    .update(wallet)
+    .set({ balance: "0", updatedAt: new Date() })
+    .where(eq(wallet.userId, userId))
+  if (current > 0) {
+    await db.insert(transaction).values({
+      userId,
+      type: "debit",
+      amount: String(current),
+      description: "Admin cleared balance",
+    })
+  }
+  revalidatePath("/admin")
+  return { ok: true, message: "User balance cleared" }
+}
+
+/** Admin-only: zero out every user's wallet balance. Use to reset the platform. */
+export async function clearAllBalances() {
+  await requireAdmin()
+  await db.update(wallet).set({ balance: "0", updatedAt: new Date() })
+  revalidatePath("/admin")
+  return { ok: true, message: "All user balances cleared" }
+}
+
 export async function createGiftCode(data: { code: string; amount: number; maxUses: number }) {
   await requireAdmin()
   const code = data.code.trim().toUpperCase()

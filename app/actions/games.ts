@@ -312,52 +312,6 @@ export async function claimReferralDrawSlot() {
   return { ok: true, message: `Referral bonus slot entered! You have ${remaining - 1} more referral slot${remaining - 1 === 1 ? "" : "s"} to claim.` }
 }
 
-export async function buyDrawSlots(count: number) {
-  const userId = await getUserId()
-  const today = todayStr()
-  const cfg = await getGameConfig()
-
-  if (count < 1 || count > 50) return { ok: false, message: "Invalid slot count" }
-
-  const round = await getOrCreateRound(today)
-  if (round.status !== "open") return { ok: false, message: "Draw already closed for today" }
-
-  const totalCost = count * cfg.luckyDrawSlotCost
-  const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
-  if (!w || Number(w.balance) < totalCost) {
-    return { ok: false, message: `Insufficient balance. Need ₦${totalCost.toLocaleString()}` }
-  }
-
-  // Deduct cost and grow prize pool
-  await db
-    .update(wallet)
-    .set({ balance: sql`${wallet.balance} - ${totalCost}`, updatedAt: new Date() })
-    .where(eq(wallet.userId, userId))
-
-  await db
-    .update(luckyDrawRound)
-    .set({ prizePool: sql`${luckyDrawRound.prizePool} + ${totalCost}` })
-    .where(eq(luckyDrawRound.drawDate, today))
-
-  const rows = Array.from({ length: count }, () => ({
-    userId,
-    source: "purchased" as const,
-    purchaseAmount: String(cfg.luckyDrawSlotCost),
-    drawDate: today,
-  }))
-  await db.insert(luckyDrawSlot).values(rows)
-
-  await db.insert(transaction).values({
-    userId,
-    type: "game_slots",
-    amount: String(totalCost),
-    description: `Bought ${count} Lucky Draw slot${count > 1 ? "s" : ""}`,
-  })
-
-  revalidatePath("/games")
-  return { ok: true, message: `${count} slot${count > 1 ? "s" : ""} purchased` }
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
 // LOCK VAULT
 // ──────────────────────────────────────────────────────────────────────────────
