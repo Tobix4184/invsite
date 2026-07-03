@@ -15,7 +15,7 @@ export function NewDepositClient({ balance, minDeposit }: { balance: number; min
   const amountNum = Number(amount)
   const isValid = amountNum >= minDeposit
 
-  const QUICK = [500, 1000, 2000, 5000, 10000, 20000, 50000].filter((q) => q >= minDeposit)
+  const QUICK = [500, 1000, 2000, 3000, 5000, 10000, 20000, 50000].filter((q) => q >= minDeposit)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
