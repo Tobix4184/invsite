@@ -38,7 +38,7 @@ const TABS: {
   inactiveColor: string
   delay: string
 }[] = [
-  { id: "spin", label: "Stake & Spin", icon: Dices, activeColor: "text-gold", inactiveColor: "text-gold/60", delay: "0ms" },
+  { id: "spin", label: "Lucky Roulette", icon: Dices, activeColor: "text-gold", inactiveColor: "text-gold/60", delay: "0ms" },
   { id: "draw", label: "Lucky Draw", icon: Ticket, activeColor: "text-success", inactiveColor: "text-success/60", delay: "120ms" },
 ]
 
@@ -89,7 +89,7 @@ export function GamesHub(props: Props) {
             <div>
               <p className="text-lg font-black uppercase">Deposit Required</p>
               <p className="mt-1 text-sm text-muted-foreground text-pretty">
-                Make your first deposit to unlock all game features — Stake &amp; Spin and Lucky Draw.
+                Make your first deposit to unlock all game features — Lucky Roulette and Lucky Draw.
               </p>
             </div>
             <Link
