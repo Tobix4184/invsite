@@ -5,18 +5,28 @@ import useSWR from "swr"
 import { BellDot, X, Clock3, Users, Wallet, ArrowDownToLine, TrendingUp, ShieldCheck, Send, Headphones, BadgeCheck } from "lucide-react"
 import { Logo } from "@/components/logo"
 import { SITE, formatNaira } from "@/lib/plans"
-import { getPlatformInfo } from "@/app/actions/settings"
 
-type PlatformInfo = Awaited<ReturnType<typeof getPlatformInfo>>
+type PlatformInfo = {
+  minDeposit: number
+  minWithdrawal: number
+  withdrawalCharge: number
+  referralLevel1: number
+  referralLevel2: number
+  promoterLevel1: number
+  withdrawalHours: string
+  signInBonus: number
+}
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export function AppHeader({ title, isPromoter = false }: { title?: string; isPromoter?: boolean }) {
   const isHome = !title
   const [open, setOpen] = useState(false)
 
-  // Fetch live admin-set values; fall back to SITE defaults while loading
+  // Fetch live admin-set values via API route (keeps server-only pg/dns out of the browser bundle)
   const { data: info } = useSWR<PlatformInfo>(
-    "platform-info",
-    () => getPlatformInfo(),
+    "/api/platform-info",
+    fetcher,
     { revalidateOnFocus: false, dedupingInterval: 60_000 }
   )
 
