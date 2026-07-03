@@ -108,6 +108,31 @@ export async function getLiveWithdrawalCharge(): Promise<number> {
   return isNaN(parsed) ? SITE.withdrawalCharge : parsed
 }
 
+/**
+ * Returns all live platform-info values shown in the AppHeader info panel.
+ * Fetched from the DB so admin changes apply immediately — no hardcoded SITE fallbacks
+ * for the user-visible display values.
+ */
+export async function getPlatformInfo() {
+  const rows = await db.select().from(siteSetting)
+  const map = new Map(rows.map((r) => [r.key, r.value]))
+
+  const minDep = parseInt(map.get(SETTING_KEYS.minDeposit) ?? "", 10)
+  const minWd  = parseInt(map.get(SETTING_KEYS.minWithdrawal) ?? "", 10)
+  const charge = parseFloat(map.get(SETTING_KEYS.withdrawalCharge) ?? "")
+
+  return {
+    minDeposit:       isNaN(minDep)  ? SITE.minDeposit              : minDep,
+    minWithdrawal:    isNaN(minWd)   ? (SITE.minWithdrawal ?? 1000) : minWd,
+    withdrawalCharge: isNaN(charge)  ? SITE.withdrawalCharge        : charge,
+    referralLevel1:   SITE.referralLevel1,
+    referralLevel2:   SITE.referralLevel2,
+    promoterLevel1:   SITE.promoterLevel1,
+    withdrawalHours:  SITE.withdrawalHours,
+    signInBonus:      SITE.signInBonus,
+  }
+}
+
 /** Convenience: returns pause flags + site freeze state. */
 export async function getPauseFlags(): Promise<{ depositsPaused: boolean; withdrawalsPaused: boolean; siteFrozen: boolean }> {
   const rows = await db.select().from(siteSetting)
