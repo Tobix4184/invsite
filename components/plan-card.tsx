@@ -18,7 +18,6 @@ export function PlanCard({ plan }: { plan: Plan }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [confirm, setConfirm] = useState(false)
-  const [autoReinvest, setAutoReinvest] = useState(true)
 
   const daily = getDailyEarning(plan)
   const total = getTotalEarning(plan)
@@ -27,7 +26,7 @@ export function PlanCard({ plan }: { plan: Plan }) {
 
   function handleBuy() {
     startTransition(async () => {
-      const res = await buyPlan(plan.id, { autoReinvest })
+      const res = await buyPlan(plan.id)
       if (res.ok) {
         toast.success(res.message)
         setConfirm(false)
@@ -92,23 +91,6 @@ export function PlanCard({ plan }: { plan: Plan }) {
       <div className="border-t-2 border-ink p-3.5">
         {confirm ? (
           <div className="flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => setAutoReinvest((v) => !v)}
-              disabled={pending}
-              className="flex items-center gap-2.5"
-            >
-              <span
-                className={`relative h-5 w-9 shrink-0 rounded-full border-2 border-ink transition-colors ${autoReinvest ? "bg-success" : "bg-surface"}`}
-                role="switch"
-                aria-checked={autoReinvest}
-              >
-                <span
-                  className={`absolute top-[1px] h-3.5 w-3.5 rounded-full border-2 border-ink bg-background transition-all ${autoReinvest ? "left-[16px]" : "left-[1px]"}`}
-                />
-              </span>
-              <span className="select-none text-xs font-bold text-muted-foreground">Auto-reinvest returns</span>
-            </button>
             <div className="flex gap-2.5">
               <button
                 onClick={() => setConfirm(false)}

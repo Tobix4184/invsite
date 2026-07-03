@@ -8,12 +8,10 @@ import { accrueIncomeForUser } from "@/lib/income-engine"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
-export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean }) {
+export async function buyPlan(planId: number) {
   const userId = await getUserId()
   const plan = PLANS.find((p) => p.id === planId)
   if (!plan) return { ok: false, message: "Plan not found" }
-
-  const autoReinvest = opts?.autoReinvest !== false // default true
 
   const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
   const balance = Number(w?.balance ?? 0)
@@ -45,7 +43,6 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
     dailyEarning: String(daily),
     totalEarning: String(total),
     durationDays: plan.durationDays,
-    autoReinvest,
   })
 
   await db.insert(transaction).values({
@@ -193,25 +190,4 @@ export async function getInvestments() {
       )
     )
     .orderBy(desc(investment.createdAt))
-}
-
-export async function toggleAutoReinvest(investmentId: number) {
-  const userId = await getUserId()
-
-  // Verify ownership
-  const [inv] = await db
-    .select({ autoReinvest: investment.autoReinvest })
-    .from(investment)
-    .where(and(eq(investment.id, investmentId), eq(investment.userId, userId)))
-
-  if (!inv) return { ok: false, message: "Investment not found" }
-
-  const newState = !inv.autoReinvest
-  await db
-    .update(investment)
-    .set({ autoReinvest: newState })
-    .where(eq(investment.id, investmentId))
-
-  revalidatePath("/dashboard")
-  return { ok: true, autoReinvest: newState, message: newState ? "Auto-reinvest enabled" : "Auto-reinvest disabled" }
 }

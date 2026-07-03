@@ -21,25 +21,38 @@ export type Plan = {
 export const PLANS: Plan[] = [
   {
     id: 1,
-    name: 'Basic',
+    name: 'Starter',
     tier: 'Entry',
-    asset: 'Gold Reserve',
-    assetImage: '/assets/gold.png',
-    price: 10000,
-    dailyEarning: 370,
-    durationDays: 45,
+    asset: 'Treasury Savings',
+    assetImage: '/assets/treasury.png',
+    price: 3000,
+    dailyEarning: 132,
+    durationDays: 40,
     withdrawalTier: 'tier3',
     accentColor: '#00D4FF',
     badgeClass: 'bg-primary text-primary-foreground',
   },
   {
     id: 2,
+    name: 'Basic',
+    tier: 'Entry',
+    asset: 'Gold Reserve',
+    assetImage: '/assets/gold.png',
+    price: 10000,
+    dailyEarning: 407,
+    durationDays: 45,
+    withdrawalTier: 'tier3',
+    accentColor: '#00D4FF',
+    badgeClass: 'bg-primary text-primary-foreground',
+  },
+  {
+    id: 3,
     name: 'Hustle',
     tier: 'Popular',
     asset: 'Solar Energy Farm',
     assetImage: '/assets/solar.png',
     price: 35000,
-    dailyEarning: 1300,
+    dailyEarning: 1430,
     durationDays: 45,
     withdrawalTier: 'tier3',
     popular: true,
@@ -47,65 +60,65 @@ export const PLANS: Plan[] = [
     badgeClass: 'bg-primary text-primary-foreground',
   },
   {
-    id: 3,
+    id: 4,
     name: 'Grind',
     tier: 'Growth',
     asset: 'Agricultural Estate',
     assetImage: '/assets/agriculture.png',
     price: 80000,
-    dailyEarning: 3000,
+    dailyEarning: 3300,
     durationDays: 50,
     withdrawalTier: 'tier2',
     accentColor: '#34D399',
     badgeClass: 'bg-success text-success-foreground',
   },
   {
-    id: 4,
+    id: 5,
     name: 'Wealth',
     tier: 'Premium',
     asset: 'Real Estate Fund',
     assetImage: '/assets/realestate.png',
     price: 150000,
-    dailyEarning: 5600,
+    dailyEarning: 6160,
     durationDays: 55,
     withdrawalTier: 'tier2',
     accentColor: '#34D399',
     badgeClass: 'bg-success text-success-foreground',
   },
   {
-    id: 5,
+    id: 6,
     name: 'Empire',
     tier: 'VIP',
     asset: 'Oil & Gas Holding',
     assetImage: '/assets/oil.png',
     price: 300000,
-    dailyEarning: 11200,
+    dailyEarning: 12320,
     durationDays: 60,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
     badgeClass: 'bg-gold text-gold-foreground',
   },
   {
-    id: 6,
+    id: 7,
     name: 'Legend',
     tier: 'VIP',
     asset: 'Data Center Grid',
     assetImage: '/assets/datacenter.png',
     price: 500000,
-    dailyEarning: 18500,
+    dailyEarning: 20350,
     durationDays: 65,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
     badgeClass: 'bg-gold text-gold-foreground',
   },
   {
-    id: 7,
+    id: 8,
     name: 'Sovereign',
     tier: 'VIP',
     asset: 'Diamond Holdings',
     assetImage: '/assets/diamond.png',
     price: 1000000,
-    dailyEarning: 37000,
+    dailyEarning: 40700,
     durationDays: 70,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
@@ -156,7 +169,10 @@ export const SITE = {
   name: '247 Incum',
   short: '247',
   tagline: 'Earn Every Hour, Every Day',
-  packageCount: 7,
+  packageCount: 8,
+
+  // Phone numbers that are auto-granted the admin role on signup.
+  adminPhones: ['08077229485'],
   signInBonus: 100,
   welcomeBonus: 500,
   minWithdrawal: 1000,
@@ -182,13 +198,32 @@ export const SITE = {
     cashbackPercent: 60,
   },
 
-  // Stake & Spin
-  stakeMin: 500,
-  stakeMax: 50000,
+  // ── Free-play games (no wallet money is ever staked) ─────────────────────
+  // Plays are EARNED, not bought: users get plays for every package they buy
+  // and for every referral who becomes a valid (investing) member.
+  gamePlaysPerInvestment: 1,
+  gamePlaysPerReferral: 1,
+
+  // Stake & Spin — spinning a free play awards a random reward "drop".
+  // No stake is deducted; the worst outcome is simply ₦0.
+  spinPrizes: [
+    { amount: 0, weight: 26 },
+    { amount: 100, weight: 26 },
+    { amount: 200, weight: 20 },
+    { amount: 350, weight: 13 },
+    { amount: 500, weight: 9 },
+    { amount: 1000, weight: 5 },
+    { amount: 2500, weight: 1 },
+  ] as { amount: number; weight: number }[],
+
+  // Legacy stake fields kept for backward compatibility (unused by the new spin)
+  stakeMin: 0,
+  stakeMax: 0,
   stakeHouseEdge: 0.65,
   stakeMultipliers: [1.5, 1.8, 2.0, 2.5, 3.0] as number[],
 
-  // Lucky Draw
+  // Lucky Draw — slots are free (earned from investments + referrals).
+  // Each slot entered adds this house-funded amount to the daily prize pool.
   luckyDrawSlotCost: 200,
   luckyDrawFreePerInvestment: 1,
   luckyDrawPrizeShares: [0.5, 0.3, 0.2] as number[],
@@ -211,6 +246,25 @@ export const SITE = {
     lockVault: false, // removed from UI
     virtualAccount: false, // coming soon
   },
+}
+
+/** Picks a random reward drop (Naira) from the weighted spin prize table. */
+export function pickSpinPrize(): number {
+  const prizes = SITE.spinPrizes
+  const total = prizes.reduce((s, p) => s + p.weight, 0)
+  let r = Math.random() * total
+  for (const p of prizes) {
+    r -= p.weight
+    if (r <= 0) return p.amount
+  }
+  return 0
+}
+
+/** Masks a phone number for display, e.g. "08077229485" -> "0807*****485". */
+export function maskPhone(phone: string): string {
+  const digits = (phone || '').replace(/[^\d]/g, '')
+  if (digits.length < 7) return digits || 'Member'
+  return `${digits.slice(0, 4)}*****${digits.slice(-3)}`
 }
 
 export function formatNaira(value: number | string): string {

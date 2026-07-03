@@ -156,7 +156,7 @@ export const investment = pgTable("investment", {
   daysPaid: integer("daysPaid").notNull().default(0),
   amountEarned: numeric("amountEarned", { precision: 14, scale: 2 }).notNull().default("0"),
   status: text("status").notNull().default("active"),
-  autoReinvest: boolean("autoReinvest").notNull().default(true),
+  autoReinvest: boolean("autoReinvest").notNull().default(false),
   lastPayoutAt: timestamp("lastPayoutAt").notNull().defaultNow(),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })

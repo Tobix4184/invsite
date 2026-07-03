@@ -1,10 +1,8 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
+import { useState, useEffect } from "react"
 import { formatNaira } from "@/lib/plans"
-import { Clock, RotateCcw } from "lucide-react"
-import { toast } from "sonner"
-import { toggleAutoReinvest } from "@/app/actions/investments"
+import { Clock } from "lucide-react"
 import useSWR from "swr"
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
@@ -32,8 +30,6 @@ function getCountdown(lastPayoutAt: Date | string): string {
 }
 
 export function ActiveInvestments({ investments: initialInvestments }: { investments: Inv[] }) {
-  const [pending, startTransition] = useTransition()
-  const [togglingId, setTogglingId] = useState<number | null>(null)
   const [, setTick] = useState(0)
 
   const { data } = useSWR('/api/live-balance', fetcher, {
@@ -50,15 +46,6 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
     return () => clearInterval(t)
   }, [])
 
-  function handleToggle(id: number) {
-    setTogglingId(id)
-    startTransition(async () => {
-      const res = await toggleAutoReinvest(id)
-      toast[res.ok ? "success" : "error"](res.message)
-      setTogglingId(null)
-    })
-  }
-
   if (investments.length === 0) return null
 
   return (
@@ -73,7 +60,6 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
           const pct = Math.min(100, Math.round((inv.daysPaid / inv.durationDays) * 100))
           const countdown = getCountdown(inv.lastPayoutAt)
           const isReady = countdown === "Ready"
-          const isToggling = pending && togglingId === inv.id
 
           return (
             <article
@@ -123,32 +109,6 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
                   <p className="mt-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
                     {inv.daysPaid}/{inv.durationDays} days
                   </p>
-                </div>
-
-                {/* Auto-reinvest toggle */}
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase text-muted-foreground">Auto</span>
-                  <button
-                    type="button"
-                    onClick={() => handleToggle(inv.id)}
-                    disabled={isToggling}
-                    className={`relative h-5 w-9 shrink-0 rounded-full border-2 border-ink transition-colors disabled:opacity-40 ${
-                      inv.autoReinvest ? "bg-success" : "bg-surface"
-                    }`}
-                    title={inv.autoReinvest ? "Auto-reinvest earnings: ON" : "Auto-reinvest earnings: OFF"}
-                    role="switch"
-                    aria-checked={inv.autoReinvest}
-                  >
-                    {isToggling ? (
-                      <span className="absolute inset-0 flex items-center justify-center">
-                        <RotateCcw className="h-3 w-3 animate-spin text-foreground" />
-                      </span>
-                    ) : (
-                      <span className={`absolute top-[1px] h-3.5 w-3.5 rounded-full border-2 border-ink bg-background transition-all ${
-                        inv.autoReinvest ? "left-[16px]" : "left-[1px]"
-                      }`} />
-                    )}
-                  </button>
                 </div>
               </div>
             </article>
