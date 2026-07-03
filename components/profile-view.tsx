@@ -35,10 +35,10 @@ export function ProfileView(props: Props) {
   const [pending, startTransition] = useTransition()
 
   const menu = [
-    { label: "Transactions", icon: ListFilter, href: "/transactions", color: "text-foreground", bg: "bg-secondary" },
+    { label: "Transactions", icon: ListFilter, href: "/transactions", color: "text-foreground", bg: "bg-surface" },
     { label: "Deposit",      icon: ArrowDownToLine, href: "/deposits", color: "text-success",   bg: "bg-success/12" },
     { label: "Withdraw",     icon: ArrowUpFromLine, href: "/withdraw",color: "text-primary",    bg: "bg-primary/12" },
-    { label: "Gift Code",    icon: Ticket,          href: "/gift-code",color: "text-amber-400", bg: "bg-amber-400/12" },
+    { label: "Gift Code",    icon: Ticket,          href: "/gift-code",color: "text-gold",      bg: "bg-gold/12" },
     { label: "My Network",   icon: UsersRound,      href: "/team",    color: "text-primary",    bg: "bg-primary/12" },
     { label: "Support",      icon: MessageCircleHeart, href: SITE.telegramGroup, color: "text-primary",  bg: "bg-primary/12" },
     ...(props.role === "admin" || props.role === "moderator"
@@ -63,18 +63,15 @@ export function ProfileView(props: Props) {
     .toUpperCase() || "PC"
 
   return (
-    <main className="mx-auto flex max-w-md flex-col gap-4 px-4 py-5">
+    <main className="mx-auto flex max-w-md flex-col gap-4 px-4 py-5 animate-fade-up">
 
       {/* Identity card */}
-      <section className="relative overflow-hidden rounded-3xl border border-border bg-card p-5">
-        {/* Warm orb accent */}
-        <div
-          className="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full opacity-15"
-          style={{ background: 'radial-gradient(circle, oklch(0.75 0.16 75) 0%, transparent 70%)' }}
-        />
+      <section className="card-glass relative overflow-hidden rounded-3xl p-5">
+        {/* Cyan orb accent */}
+        <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/20 blur-3xl" />
         <div className="relative flex items-center gap-4">
           {/* Avatar */}
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-xl font-black text-primary-foreground">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-xl font-black text-primary-foreground glow-primary">
             {initials}
           </div>
           <div className="min-w-0">
@@ -104,7 +101,7 @@ export function ProfileView(props: Props) {
       </section>
 
       {/* Menu list */}
-      <section className="overflow-hidden rounded-3xl border border-border bg-card">
+      <section className="card-glass overflow-hidden rounded-3xl">
         {menu.map((item, i) => (
           <button
             key={item.label}
@@ -113,13 +110,13 @@ export function ProfileView(props: Props) {
               else router.push(item.href)
             }}
             className={`flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-surface active:bg-surface ${
-              i !== menu.length - 1 ? "border-b border-border" : ""
+              i !== menu.length - 1 ? "border-b border-border/60" : ""
             }`}
           >
             <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${item.bg}`}>
               <item.icon className={`h-4 w-4 ${item.color}`} strokeWidth={1.8} />
             </span>
-            <span className="flex-1 text-sm font-semibold">{item.label}</span>
+            <span className="flex-1 text-sm font-bold">{item.label}</span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
         ))}
@@ -144,7 +141,7 @@ export function ProfileView(props: Props) {
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 rounded-2xl border border-border bg-card p-3 text-center">
+    <div className="card-glass flex flex-col items-center gap-0.5 rounded-2xl p-3 text-center">
       <p className="text-sm font-black tabular-nums">{value}</p>
       <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
     </div>

@@ -480,7 +480,7 @@ function TransactionsTab({ items, onAction, isModerator = false }: { items: Txn[
 
   const tint = (type: string) => {
     if (type === "deposit" || type === "earning" || type === "bonus" || type === "referral") return "text-success"
-    if (type === "withdrawal") return "text-amber-400"
+    if (type === "withdrawal") return "text-gold"
     if (type === "adjustment") return "text-sky-400"
     return "text-muted-foreground"
   }
@@ -635,7 +635,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
   const cards = [
     { label: "Total Users", value: String(stats.users), icon: Users, tint: "text-primary" },
     { label: "Total Deposited", value: formatNaira(stats.totalDeposited), icon: Wallet, tint: "text-success" },
-    { label: "Total Withdrawn", value: formatNaira(stats.totalWithdrawn), icon: ArrowUpFromLine, tint: "text-amber-400" },
+    { label: "Total Withdrawn", value: formatNaira(stats.totalWithdrawn), icon: ArrowUpFromLine, tint: "text-gold" },
     { label: "User Balances", value: formatNaira(stats.totalBalance), icon: Wallet, tint: "text-sky-400" },
     { label: "Active Investments", value: String(stats.activeInvestments), icon: TrendingUp, tint: "text-success" },
     { label: "Pending Withdrawals", value: String(stats.pendingWithdrawals), icon: ArrowUpFromLine, tint: "text-destructive" },
@@ -955,7 +955,7 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
                   </span>
                 )}
                 {u.isPromoter && (
-                  <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-400">
+                  <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold uppercase text-gold">
                     <Star className="mr-0.5 inline h-2.5 w-2.5" />promoter
                   </span>
                 )}
@@ -1037,7 +1037,7 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
                 disabled={pending}
                 className={`flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-bold ${
                   u.isPromoter
-                    ? "border border-amber-400/40 bg-amber-400/10 text-amber-400"
+                    ? "border border-gold/40 bg-gold/10 text-gold"
                     : "border border-border bg-secondary text-muted-foreground"
                 }`}
               >
@@ -1421,7 +1421,7 @@ function PromoterCodesTab({ items, onAction }: { items: PromoterCode[]; onAction
                   >
                     Edit
                   </button>
-                  <button onClick={() => toggle(c.id)} disabled={pending} className={`flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-bold disabled:opacity-60 ${c.isActive ? "border border-amber-400/40 bg-amber-400/10 text-amber-400" : "border border-success/40 bg-success/10 text-success"}`}>
+                  <button onClick={() => toggle(c.id)} disabled={pending} className={`flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-bold disabled:opacity-60 ${c.isActive ? "border border-gold/40 bg-gold/10 text-gold" : "border border-success/40 bg-success/10 text-success"}`}>
                     {c.isActive ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                     {c.isActive ? "Off" : "On"}
                   </button>
@@ -1564,9 +1564,9 @@ function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => vo
       {/* ── Sabuss Live Feed ── */}
       <div>
         <div className="mb-3 flex items-center gap-2">
-          <Zap className="h-4 w-4 text-amber-400" />
+          <Zap className="h-4 w-4 text-gold" />
           <h3 className="text-sm font-black">Sabuss Live Feed</h3>
-          <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+          <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold text-gold">
             {sabussFeed.length} entries
           </span>
         </div>
@@ -2031,7 +2031,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                     </button>
                   </div>
                   {!acc.sabussApiKey && (
-                    <p className="mt-1 rounded-lg bg-amber-500/10 px-3 py-1.5 text-[11px] text-amber-500">
+                    <p className="mt-1 rounded-lg bg-gold/10 px-3 py-1.5 text-[11px] text-gold">
                       No API key — webhook will still auto-approve by account number. Add an API key for extra security.
                     </p>
                   )}
@@ -2048,7 +2048,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                       disabled={pending}
                       className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold disabled:opacity-60 ${
                         acc.isActive
-                          ? "border border-amber-400/40 bg-amber-400/10 text-amber-400"
+                          ? "border border-gold/40 bg-gold/10 text-gold"
                           : "bg-success text-success-foreground"
                       }`}
                     >
@@ -2152,8 +2152,8 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-4">
-        <p className="flex items-center gap-2 text-sm font-bold text-amber-400">
+      <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4">
+        <p className="flex items-center gap-2 text-sm font-bold text-gold">
           <Trophy className="h-4 w-4" /> Referral Milestones
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -2236,8 +2236,8 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
                 <>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/15">
-                        <Trophy className="h-5 w-5 text-amber-400" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold/15">
+                        <Trophy className="h-5 w-5 text-gold" />
                       </div>
                       <div>
                         <p className="font-bold">{m.referralCount} Referrals</p>
@@ -2252,7 +2252,7 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
                     <button
                       onClick={() => handleToggle(m.id)}
                       disabled={pending}
-                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold disabled:opacity-60 ${m.isActive ? "border border-amber-400/40 bg-amber-400/10 text-amber-400" : "bg-success text-success-foreground"}`}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold disabled:opacity-60 ${m.isActive ? "border border-gold/40 bg-gold/10 text-gold" : "bg-success text-success-foreground"}`}
                     >
                       {m.isActive ? <><ToggleLeft className="h-4 w-4" /> Deactivate</> : <><ToggleRight className="h-4 w-4" /> Activate</>}
                     </button>
@@ -2277,7 +2277,7 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    pending: "bg-amber-400/15 text-amber-400",
+    pending: "bg-gold/15 text-gold",
     processing: "bg-primary/15 text-primary",
     success: "bg-success/15 text-success",
     approved: "bg-success/15 text-success",
@@ -2490,10 +2490,10 @@ function GamesAdminTab({
           </div>
 
           {/* Withdrawal charge editor — changes apply instantly to pending withdrawals */}
-          <div className="rounded-2xl border border-amber-400/30 bg-card p-4">
+          <div className="rounded-2xl border border-gold/30 bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <p className="font-bold text-sm">Withdrawal Charge</p>
-              <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">LIVE</span>
+              <span className="rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-bold text-gold">LIVE</span>
             </div>
             <p className="mb-3 text-[11px] text-muted-foreground">
               Changes apply immediately — even to withdrawals already pending approval.
@@ -2512,7 +2512,7 @@ function GamesAdminTab({
               <button
                 onClick={saveWithdrawalCharge}
                 disabled={pending}
-                className="flex items-center gap-1.5 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-black disabled:opacity-60"
+                className="flex items-center gap-1.5 rounded-xl bg-gold px-4 py-2 text-sm font-bold text-gold-foreground disabled:opacity-60"
               >
                 {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                 Save
@@ -2538,7 +2538,7 @@ function GamesAdminTab({
               ].map((r) => (
                 <div key={r.label} className="flex justify-between border-b border-border/50 pb-2 last:border-0 last:pb-0">
                   <span className="text-muted-foreground">{r.label}</span>
-                  <span className={`font-mono font-bold ${"highlight" in r && r.highlight ? "text-amber-400" : ""}`}>{r.value}</span>
+                  <span className={`font-mono font-bold ${"highlight" in r && r.highlight ? "text-gold" : ""}`}>{r.value}</span>
                 </div>
               ))}
             </div>
@@ -2824,7 +2824,7 @@ function FinancialsTab({ data }: { data: Financials }) {
   const cards = [
     { label: "Withdrawal Charges (Revenue)", value: data.withdrawalCharges, color: "text-success" },
     { label: "Total Approved Payouts", value: data.totalPayouts, color: "text-destructive" },
-    { label: "Pending Payouts", value: data.pendingPayouts, color: "text-amber-400" },
+    { label: "Pending Payouts", value: data.pendingPayouts, color: "text-gold" },
     { label: "Total Deposits Received", value: data.totalDeposits, color: "text-primary" },
     { label: "Active Investment Volume", value: data.activeInvestmentVolume, color: "text-primary" },
     { label: "Platform Total Earned (all wallets)", value: data.platformTotalEarned, color: "text-muted-foreground" },
@@ -2962,7 +2962,7 @@ function InvestmentsTab({ items, onAction, isModerator = false }: { items: Inves
                 <button
                   onClick={() => handleCancel(inv.id)}
                   disabled={pending}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-400/30 bg-amber-400/10 py-2 text-xs font-bold text-amber-400 disabled:opacity-60"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gold/30 bg-gold/10 py-2 text-xs font-bold text-gold disabled:opacity-60"
                 >
                   <Ban className="h-3.5 w-3.5" /> Cancel
                 </button>
@@ -3082,7 +3082,7 @@ function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () 
                 <p className="text-[10px] text-muted-foreground">Prize Pool</p>
               </div>
               <div className="flex-1 rounded-xl bg-background/60 p-3 text-center">
-                <p className={`font-bold ${todayRound.status === "drawn" ? "text-success" : "text-amber-400"}`}>
+                <p className={`font-bold ${todayRound.status === "drawn" ? "text-success" : "text-gold"}`}>
                   {todayRound.status === "drawn" ? "Drawn" : "Open"}
                 </p>
                 <p className="text-[10px] text-muted-foreground">Status</p>

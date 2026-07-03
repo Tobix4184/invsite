@@ -111,7 +111,7 @@ export function LuckyDrawGame({
 
       {/* Recent winners feed — FOMO driver */}
       {recentWinners.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="card-glass rounded-2xl p-4">
           <div className="mb-3 flex items-center gap-2">
             <Trophy className="h-4 w-4 text-primary" />
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Recent Winners</p>
@@ -151,11 +151,11 @@ export function LuckyDrawGame({
         <p className="text-xs text-muted-foreground">1st 35% · 2nd 20% · 3rd 15%</p>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
-          <div className="rounded-xl border border-border bg-background/60 px-3 py-2 text-center">
+          <div className="rounded-xl border border-border bg-surface px-3 py-2 text-center">
             <p className="font-mono text-lg font-bold text-foreground">{slots}</p>
             <p className="text-[10px] text-muted-foreground">Your Slots</p>
           </div>
-          <div className="rounded-xl border border-border bg-background/60 px-3 py-2 text-center">
+          <div className="rounded-xl border border-border bg-surface px-3 py-2 text-center">
             {drawClosed ? (
               <>
                 <p className="text-xs font-bold text-destructive">Drawn</p>
@@ -168,7 +168,7 @@ export function LuckyDrawGame({
               </>
             )}
           </div>
-          <div className="rounded-xl border border-border bg-background/60 px-3 py-2 text-center">
+          <div className="rounded-xl border border-border bg-surface px-3 py-2 text-center">
             <p className="text-xs font-bold text-foreground">{today}</p>
             <p className="text-[10px] text-muted-foreground">Date</p>
           </div>
@@ -203,7 +203,7 @@ export function LuckyDrawGame({
           )}
 
           {/* Buy slots */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+          <div className="flex flex-col gap-3 card-glass rounded-2xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-primary" />
@@ -215,7 +215,7 @@ export function LuckyDrawGame({
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setBuyCount((c) => Math.max(1, c - 1))}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-secondary"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface"
               >
                 <Minus className="h-4 w-4" />
               </button>
@@ -225,7 +225,7 @@ export function LuckyDrawGame({
               </div>
               <button
                 onClick={() => setBuyCount((c) => Math.min(50, c + 1))}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-secondary"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface"
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -239,7 +239,7 @@ export function LuckyDrawGame({
                   className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
                     buyCount === n
                       ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-secondary text-muted-foreground"
+                      : "border-border bg-surface text-muted-foreground"
                   }`}
                 >
                   {n}×
@@ -260,7 +260,7 @@ export function LuckyDrawGame({
       )}
 
       {drawClosed && (
-        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center gap-3 card-glass rounded-2xl p-4">
           <Clock className="h-5 w-5 text-muted-foreground" />
           <div>
             <p className="text-sm font-bold">Draw Complete</p>
@@ -276,7 +276,7 @@ export function LuckyDrawGame({
           { icon: Trophy, label: "Top 3 win", sub: "cash prizes" },
           { icon: Zap, label: "Instant", sub: "wallet credit" },
         ].map(({ icon: Icon, label, sub }) => (
-          <div key={label} className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-card p-3 text-center">
+          <div key={label} className="flex flex-col items-center gap-1 card-glass rounded-2xl p-3 text-center">
             <Icon className="h-4 w-4 text-primary" />
             <p className="text-xs font-bold text-foreground">{label}</p>
             <p className="text-[10px] text-muted-foreground">{sub}</p>

@@ -30,29 +30,30 @@ export function GiftCodeForm() {
   }
 
   return (
-    <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
+    <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5 animate-fade-up">
       <div className="flex items-center gap-3">
         <Link
           href="/dashboard"
           aria-label="Back"
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground active:scale-95"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-xl font-bold tracking-tight">Redeem Gift Code</h1>
+        <h1 className="text-xl font-black tracking-tight">Redeem Gift Code</h1>
       </div>
 
-      <section className="flex flex-col items-center gap-4 rounded-3xl border border-border bg-gradient-to-br from-pink-400/20 via-card to-card p-6 text-center">
-        <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-pink-400/15">
-          <Gift className="h-8 w-8 text-pink-400" />
+      <section className="card-glass relative flex flex-col items-center gap-4 overflow-hidden rounded-3xl p-6 text-center glow-gold">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gold/20 blur-3xl" />
+        <span className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gold/15">
+          <Gift className="h-8 w-8 text-gold" />
         </span>
-        <p className="text-sm text-muted-foreground text-pretty">
+        <p className="relative text-sm text-muted-foreground text-pretty">
           Enter a valid gift code below to instantly credit your wallet. Daily gift codes are shared in our Telegram
           channel.
         </p>
       </section>
 
-      <div className="rounded-2xl border border-border bg-secondary/50 px-4 focus-within:border-primary">
+      <div className="rounded-2xl border border-border bg-surface px-4 transition-colors focus-within:border-primary">
         <input
           placeholder="ENTER GIFT CODE"
           value={code}
@@ -64,7 +65,7 @@ export function GiftCodeForm() {
       <button
         onClick={handleRedeem}
         disabled={pending}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-black text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
       >
         {pending && <Loader2 className="h-5 w-5 animate-spin" />}
         Redeem Code

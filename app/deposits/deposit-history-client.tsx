@@ -24,13 +24,13 @@ type Deposit = {
 type CheckResult = { status: string; message?: string }
 
 const STATUS_META: Record<string, { icon: typeof Clock; tint: string; bg: string; label: string }> = {
-  pending:      { icon: Clock,        tint: "text-amber-400",   bg: "bg-amber-400/10",   label: "Pending Payment" },
-  processing:   { icon: Loader2,      tint: "text-primary",     bg: "bg-primary/10",     label: "Processing" },
-  success:      { icon: CheckCircle,  tint: "text-success",     bg: "bg-success/10",     label: "Completed" },
-  approved:     { icon: CheckCircle,  tint: "text-success",     bg: "bg-success/10",     label: "Completed" },
-  failed:       { icon: XCircle,      tint: "text-destructive", bg: "bg-destructive/10", label: "Failed" },
-  rejected:     { icon: XCircle,      tint: "text-destructive", bg: "bg-destructive/10", label: "Rejected" },
-  needs_review: { icon: AlertCircle,  tint: "text-orange-400",  bg: "bg-orange-400/10",  label: "Needs Review" },
+  pending:      { icon: Clock,        tint: "text-gold",        bg: "bg-gold/12",        label: "Pending Payment" },
+  processing:   { icon: Loader2,      tint: "text-primary",     bg: "bg-primary/12",     label: "Processing" },
+  success:      { icon: CheckCircle,  tint: "text-success",     bg: "bg-success/12",     label: "Completed" },
+  approved:     { icon: CheckCircle,  tint: "text-success",     bg: "bg-success/12",     label: "Completed" },
+  failed:       { icon: XCircle,      tint: "text-destructive", bg: "bg-destructive/12", label: "Failed" },
+  rejected:     { icon: XCircle,      tint: "text-destructive", bg: "bg-destructive/12", label: "Rejected" },
+  needs_review: { icon: AlertCircle,  tint: "text-gold",        bg: "bg-gold/12",        label: "Needs Review" },
 }
 
 function DepositCard({ dep }: { dep: Deposit }) {
@@ -78,11 +78,11 @@ function DepositCard({ dep }: { dep: Deposit }) {
   }, [dep.reference, router])
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div className="card-glass rounded-3xl p-4">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-lg font-bold">{formatNaira(Number(dep.amount))}</p>
+          <p className="text-lg font-black tabular-nums">{formatNaira(Number(dep.amount))}</p>
           <p className="font-mono text-[11px] text-muted-foreground">{dep.reference}</p>
         </div>
         <span
@@ -121,7 +121,7 @@ function DepositCard({ dep }: { dep: Deposit }) {
           })}
         </span>
         {dep.expiresAt && dep.status === "pending" && !isExpired && (
-          <span className="text-amber-400">
+          <span className="text-gold">
             Expires:{" "}
             {new Date(dep.expiresAt).toLocaleTimeString("en-NG", {
               hour: "2-digit",

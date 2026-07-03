@@ -23,7 +23,7 @@ export default async function WithdrawPage() {
   const balance = Number(w?.balance ?? 0)
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-28">
       <AppHeader title="Withdraw" />
       <WithdrawForm balance={balance} />
       {withdrawals.length > 0 && (

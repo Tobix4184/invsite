@@ -44,11 +44,11 @@ function CopyField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/60 p-1.5 pl-3">
+      <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface p-1.5 pl-3">
         <span className="min-w-0 flex-1 truncate font-mono text-sm">{value}</span>
         <button
           onClick={copy}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-90"
+          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-all hover:opacity-90 active:scale-95"
         >
           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           {copied ? "Copied" : "Copy"}
@@ -59,9 +59,8 @@ function CopyField({ label, value }: { label: string; value: string }) {
 }
 
 export function TeamView({ data, milestonesData }: { data: TeamData; milestonesData: MilestonesData }) {
-  const [origin, setOrigin] = useState('')
+  const [origin, setOrigin] = useState("")
 
-  // Get the current domain on client side
   useEffect(() => {
     setOrigin(window.location.origin)
   }, [])
@@ -70,20 +69,20 @@ export function TeamView({ data, milestonesData }: { data: TeamData; milestonesD
   const level1Rate = data.isPromoter ? SITE.promoterLevel1 : SITE.referralLevel1
 
   return (
-    <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
-      <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/30 via-card to-card p-5">
-        <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-success/20 blur-2xl" />
+    <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5 animate-fade-up">
+      <section className="card-glass relative overflow-hidden rounded-3xl p-5 glow-primary">
+        <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/25 blur-3xl" />
         <div className="relative">
-          <div className="flex items-center gap-2 text-success">
+          <div className="flex items-center gap-2 text-primary">
             <Share2 className="h-5 w-5" />
-            <p className="text-sm font-semibold">Invite & Earn</p>
+            <p className="text-sm font-bold">Invite &amp; Earn</p>
             {data.isPromoter && (
-              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-bold text-amber-400">
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-gold/15 px-2 py-0.5 text-xs font-bold text-gold">
                 <Star className="h-3 w-3" /> Promoter
               </span>
             )}
           </div>
-          <h2 className="mt-1 text-xl font-bold text-balance">
+          <h2 className="mt-2 text-xl font-black text-balance">
             Earn {level1Rate}% on Level 1 and {SITE.referralLevel2}% on Level 2 deposits
           </h2>
           <div className="mt-4 flex flex-col gap-3">
@@ -94,23 +93,32 @@ export function TeamView({ data, milestonesData }: { data: TeamData; milestonesD
       </section>
 
       <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <Coins className="h-5 w-5 text-success" />
-          <p className="mt-2 text-2xl font-bold tabular-nums">{formatNaira(data.totalCommission)}</p>
+        <div className="card-glass rounded-2xl p-4">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-success/12">
+            <Coins className="h-4 w-4 text-success" />
+          </span>
+          <p className="mt-2.5 text-2xl font-black tabular-nums">{formatNaira(data.totalCommission)}</p>
           <p className="text-xs text-muted-foreground">Total commission</p>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <Users className="h-5 w-5 text-primary" />
-          <p className="mt-2 text-2xl font-bold tabular-nums">{data.totalMembers}</p>
+        <div className="card-glass rounded-2xl p-4">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/12">
+            <Users className="h-4 w-4 text-primary" />
+          </span>
+          <p className="mt-2.5 text-2xl font-black tabular-nums">{data.totalMembers}</p>
           <p className="text-xs text-muted-foreground">Total members</p>
         </div>
       </section>
 
-      {milestonesData.milestones.length > 0 && (
-        <MilestonesSection data={milestonesData} />
-      )}
+      {milestonesData.milestones.length > 0 && <MilestonesSection data={milestonesData} />}
 
-      <LevelBlock title="Level 1 Members" rate={level1Rate} tint={data.isPromoter ? "text-amber-400" : "text-primary"} bg={data.isPromoter ? "bg-amber-400/15" : "bg-primary/15"} members={data.level1} isPromoter={data.isPromoter} />
+      <LevelBlock
+        title="Level 1 Members"
+        rate={level1Rate}
+        tint={data.isPromoter ? "text-gold" : "text-primary"}
+        bg={data.isPromoter ? "bg-gold/15" : "bg-primary/15"}
+        members={data.level1}
+        isPromoter={data.isPromoter}
+      />
       <LevelBlock title="Level 2 Members" rate={SITE.referralLevel2} tint="text-primary" bg="bg-primary/15" members={data.level2} />
     </main>
   )
@@ -133,40 +141,33 @@ function MilestonesSection({ data }: { data: MilestonesData }) {
   }
 
   return (
-    <section className="rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-400/10 via-card to-card">
-      <div className="flex items-center justify-between border-b border-border p-4">
+    <section className="card-glass overflow-hidden rounded-3xl">
+      <div className="flex items-center justify-between border-b border-border/60 p-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-400/15">
-            <Trophy className="h-4 w-4 text-amber-400" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold/15">
+            <Trophy className="h-4 w-4 text-gold" />
           </span>
           <div>
-            <p className="font-semibold leading-tight">Referral Milestones</p>
+            <p className="font-black leading-tight">Referral Milestones</p>
             <p className="text-xs text-muted-foreground">You have {data.referralCount} referrals</p>
           </div>
         </div>
       </div>
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border/60">
         {data.milestones.map((m) => {
           const progress = Math.min((data.referralCount / m.referralCount) * 100, 100)
           return (
             <div key={m.id} className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${m.claimed ? "bg-success/15" : "bg-amber-400/15"}`}>
-                  {m.claimed ? (
-                    <Check className="h-5 w-5 text-success" />
-                  ) : (
-                    <Gift className="h-5 w-5 text-amber-400" />
-                  )}
+                <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${m.claimed ? "bg-success/15" : "bg-gold/15"}`}>
+                  {m.claimed ? <Check className="h-5 w-5 text-success" /> : <Gift className="h-5 w-5 text-gold" />}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">{m.referralCount} Referrals</p>
-                  <p className="text-xs text-success font-medium">{formatNaira(Number(m.rewardAmount))}</p>
+                  <p className="text-sm font-bold">{m.referralCount} Referrals</p>
+                  <p className="text-xs font-semibold text-success">{formatNaira(Number(m.rewardAmount))}</p>
                   {!m.claimed && (
-                    <div className="mt-1 h-1.5 w-24 rounded-full bg-secondary overflow-hidden">
-                      <div
-                        className="h-full bg-amber-400 transition-all"
-                        style={{ width: `${progress}%` }}
-                      />
+                    <div className="mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-surface">
+                      <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${progress}%` }} />
                     </div>
                   )}
                 </div>
@@ -177,13 +178,15 @@ function MilestonesSection({ data }: { data: MilestonesData }) {
                 <button
                   onClick={() => handleClaim(m.id)}
                   disabled={pending}
-                  className="flex items-center gap-1.5 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
+                  className="flex items-center gap-1.5 rounded-xl bg-gold px-4 py-2 text-sm font-bold text-gold-foreground transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
                 >
                   {claimingId === m.id && <Loader2 className="h-4 w-4 animate-spin" />}
                   Claim
                 </button>
               ) : (
-                <span className="text-xs text-muted-foreground">{data.referralCount}/{m.referralCount}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {data.referralCount}/{m.referralCount}
+                </span>
               )}
             </div>
           )
@@ -209,41 +212,43 @@ function LevelBlock({
   isPromoter?: boolean
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border p-4">
+    <section className="card-glass overflow-hidden rounded-3xl">
+      <div className="flex items-center justify-between border-b border-border/60 p-4">
         <div className="flex items-center gap-3">
-          <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${bg}`}>
+          <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${bg}`}>
             <Users className={`h-4 w-4 ${tint}`} />
           </span>
           <div>
-            <p className="font-semibold leading-tight">{title}</p>
+            <p className="font-black leading-tight">{title}</p>
             <p className="text-xs text-muted-foreground">
               {rate}% commission{isPromoter && " (Promoter)"}
             </p>
           </div>
         </div>
-        <span className="rounded-full bg-secondary px-3 py-1 text-sm font-bold tabular-nums">{members.length}</span>
+        <span className="rounded-full bg-surface px-3 py-1 text-sm font-bold tabular-nums">{members.length}</span>
       </div>
       {members.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-          <UserPlus className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">No members yet</p>
+        <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface">
+            <UserPlus className="h-6 w-6 text-muted-foreground/50" />
+          </span>
+          <p className="mt-1 text-sm font-semibold text-muted-foreground">No members yet</p>
           <p className="text-xs text-muted-foreground/70">Share your invitation code to start building your team.</p>
         </div>
       ) : (
-        <ul className="divide-y divide-border">
+        <ul className="divide-y divide-border/60">
           {members.map((m, i) => (
             <li key={i} className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-bold">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-sm font-bold">
                   {m.name.charAt(0).toUpperCase()}
                 </span>
                 <div>
-                  <p className="text-sm font-semibold leading-tight">{m.name}</p>
+                  <p className="text-sm font-bold leading-tight">{m.name}</p>
                   <p className="text-xs text-muted-foreground">{m.email}</p>
                 </div>
               </div>
-              <span className="text-sm font-bold text-success tabular-nums">{formatNaira(m.commission)}</span>
+              <span className="text-sm font-black text-success tabular-nums">{formatNaira(m.commission)}</span>
             </li>
           ))}
         </ul>

@@ -20,7 +20,7 @@ const SPIN_SEGMENTS = [
   { label: "LOSE", color: "bg-destructive/20 text-destructive border-destructive/40" },
   { label: "2.0x", color: "bg-primary/20 text-primary border-primary/40" },
   { label: "LOSE", color: "bg-destructive/20 text-destructive border-destructive/40" },
-  { label: "2.5x", color: "bg-amber-400/20 text-amber-400 border-amber-400/40" },
+  { label: "2.5x", color: "bg-gold/20 text-gold border-gold/40" },
   { label: "LOSE", color: "bg-destructive/20 text-destructive border-destructive/40" },
   { label: "1.8x", color: "bg-success/20 text-success border-success/40" },
   { label: "3.0x", color: "bg-primary/20 text-primary border-primary/40" },
@@ -92,7 +92,7 @@ export function StakeSpinGame({
   return (
     <div className="flex flex-col gap-4">
       {/* Wheel */}
-      <div className="relative flex flex-col items-center rounded-3xl border border-border bg-card px-4 py-6">
+      <div className="card-glass relative flex flex-col items-center rounded-3xl px-4 py-6">
         <p className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
           Spin the Wheel
         </p>
@@ -178,24 +178,24 @@ export function StakeSpinGame({
         )}
 
         {/* Balance chip */}
-        <div className="mb-3 rounded-full border border-border bg-secondary/50 px-4 py-1.5 text-xs text-muted-foreground">
-          Balance: <span className="font-mono font-bold text-foreground">₦{localBalance.toLocaleString()}</span>
+        <div className="mb-3 rounded-full border border-border bg-surface px-4 py-1.5 text-xs text-muted-foreground">
+          Balance: <span className="font-bold tabular-nums text-foreground">₦{localBalance.toLocaleString()}</span>
         </div>
       </div>
 
       {/* Stake selector */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <p className="mb-3 text-sm font-bold">Choose Stake Amount</p>
+      <div className="card-glass rounded-2xl p-4">
+        <p className="mb-3 text-sm font-black">Choose Stake Amount</p>
         <div className="mb-3 flex flex-wrap gap-2">
           {STAKE_PRESETS.map((p) => (
             <button
               key={p}
               onClick={() => { setStake(p); setCustomStake("") }}
               disabled={p > localBalance}
-              className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all disabled:opacity-40 ${
+              className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all active:scale-95 disabled:opacity-40 ${
                 stake === p && !customStake
                   ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-secondary text-muted-foreground"
+                  : "border-border bg-surface text-muted-foreground"
               }`}
             >
               ₦{p.toLocaleString()}
@@ -207,7 +207,7 @@ export function StakeSpinGame({
           placeholder={`Custom (₦${stakeMin.toLocaleString()} – ₦${stakeMax.toLocaleString()})`}
           value={customStake}
           onChange={(e) => setCustomStake(e.target.value)}
-          className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+          className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
         />
       </div>
 
@@ -215,7 +215,7 @@ export function StakeSpinGame({
       <button
         onClick={handleSpin}
         disabled={spinning || pending}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground shadow-lg disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-black text-primary-foreground glow-primary transition-all active:scale-[0.98] disabled:opacity-60"
       >
         {spinning || pending ? (
           <>
@@ -229,7 +229,7 @@ export function StakeSpinGame({
       </button>
 
       {/* House info */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="card-glass rounded-2xl p-4">
         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">How it works</p>
         <ul className="flex flex-col gap-1.5 text-xs text-muted-foreground">
           <li>• Stake any amount and spin the wheel</li>

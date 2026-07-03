@@ -340,7 +340,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
                 placeholder="Account holder name"
                 value={form.accountName}
                 onChange={(e) => set("accountName")(e.target.value)}
-                className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-3.5 text-sm outline-none focus:border-primary"
+                className="w-full rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm outline-none focus:border-primary"
               />
             </div>
           </div>
