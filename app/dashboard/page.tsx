@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session"
 import { getDashboardData } from "@/app/actions/account"
 import { getInvestments } from "@/app/actions/investments"
 import { getPendingDeposits } from "@/app/actions/deposit"
+import { getActivePromos } from "@/app/actions/promos"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { BalanceCard } from "@/components/balance-card"
@@ -12,6 +13,7 @@ import { PlanCard } from "@/components/plan-card"
 import { ActiveInvestments } from "@/components/active-investments"
 import { WelcomePopup } from "@/components/welcome-popup"
 import { PendingDepositPopup } from "@/components/pending-deposit-popup"
+import { PromoPopup } from "@/components/promo-popup"
 import { PLANS, maskPhone } from "@/lib/plans"
 
 export const dynamic = "force-dynamic"
@@ -21,10 +23,11 @@ export default async function DashboardPage() {
   if (!session?.user) redirect("/")
 
   const userId = session.user.id
-  const [data, investments, pendingDeposits] = await Promise.all([
+  const [data, investments, pendingDeposits, activePromos] = await Promise.all([
     getDashboardData(),
     getInvestments(),
     getPendingDeposits(),
+    getActivePromos(),
   ])
 
   const todayIncome = investments
@@ -35,6 +38,7 @@ export default async function DashboardPage() {
     <div className="min-h-screen pb-28">
       <WelcomePopup isNewUser={data.isNewUser} />
       <PendingDepositPopup deposits={pendingDeposits} />
+      {!data.isNewUser && <PromoPopup promos={activePromos} />}
       <AppHeader isPromoter={data.isPromoter} />
 
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5 animate-fade-up">
