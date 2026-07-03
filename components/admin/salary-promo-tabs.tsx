@@ -99,7 +99,7 @@ export function SalaryTab() {
     <div className="flex flex-col gap-5">
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="rounded-2xl border-2 border-ink bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Users className="h-4 w-4" />
             <span className="text-xs font-semibold">Active Promoters</span>
@@ -108,7 +108,7 @@ export function SalaryTab() {
             {(rows ?? []).filter((r) => r.isActive).length}
           </p>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="rounded-2xl border-2 border-ink bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Wallet className="h-4 w-4" />
             <span className="text-xs font-semibold">Weekly Payroll</span>
@@ -118,14 +118,14 @@ export function SalaryTab() {
       </div>
 
       {/* Add / update salary */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border-2 border-ink bg-card p-4">
         <h3 className="mb-3 text-sm font-bold">Set Promoter Salary</h3>
         <div className="flex flex-col gap-2.5">
           <input
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             placeholder="Promoter phone number or email"
-            className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            className="w-full rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
           />
           <div className="flex gap-2.5">
             <input
@@ -133,13 +133,13 @@ export function SalaryTab() {
               onChange={(e) => setAmount(e.target.value)}
               inputMode="numeric"
               placeholder="Weekly ₦"
-              className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+              className="w-full rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Note (optional)"
-              className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+              className="w-full rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
           </div>
           <button
@@ -171,7 +171,7 @@ export function SalaryTab() {
       ) : (
         <div className="flex flex-col gap-2.5">
           {rows.map((r) => (
-            <div key={r.id} className="rounded-2xl border border-border bg-card p-4">
+            <div key={r.id} className="rounded-2xl border-2 border-ink bg-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold">{r.userName || "User"}</p>
@@ -188,7 +188,7 @@ export function SalaryTab() {
               <div className="mt-3 flex items-center gap-2">
                 <button
                   onClick={() => toggle(r.userId, !r.isActive)}
-                  className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold"
+                  className="flex items-center gap-1 rounded-lg border-2 border-ink px-2.5 py-1.5 text-xs font-semibold"
                 >
                   {r.isActive ? (
                     <ToggleRight className="h-4 w-4 text-success" />
@@ -290,20 +290,20 @@ export function PromotionsTab() {
   return (
     <div className="flex flex-col gap-5">
       {/* Create promo */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border-2 border-ink bg-card p-4">
         <h3 className="mb-3 text-sm font-bold">Create Promotion</h3>
         <div className="flex flex-col gap-2.5">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Promo name (e.g. Weekend Cashback)"
-            className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            className="w-full rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
           />
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Description shown to users"
-            className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            className="w-full rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
           />
           <div className="flex gap-2.5">
             <div className="flex-1">
@@ -315,7 +315,7 @@ export function PromotionsTab() {
                 onChange={(e) => setConditionValue(e.target.value)}
                 inputMode="numeric"
                 placeholder="35000"
-                className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+                className="w-full rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
               />
             </div>
             <div className="flex-1">
@@ -327,14 +327,14 @@ export function PromotionsTab() {
                 onChange={(e) => setMaxRedemptions(e.target.value)}
                 inputMode="numeric"
                 placeholder="Unlimited"
-                className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+                className="w-full rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
               />
             </div>
           </div>
           <div className="flex gap-2.5">
             <div className="flex-1">
               <label className="mb-1 block text-[10px] font-bold uppercase text-muted-foreground">Bonus type</label>
-              <div className="flex gap-1 rounded-xl border border-border bg-surface p-1">
+              <div className="flex gap-1 rounded-xl border-2 border-ink bg-surface p-1">
                 {(["percent", "fixed"] as const).map((t) => (
                   <button
                     key={t}
@@ -357,7 +357,7 @@ export function PromotionsTab() {
                 onChange={(e) => setBonusValue(e.target.value)}
                 inputMode="numeric"
                 placeholder={bonusType === "percent" ? "60" : "21000"}
-                className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+                className="w-full rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
               />
             </div>
           </div>
@@ -389,7 +389,7 @@ export function PromotionsTab() {
       ) : (
         <div className="flex flex-col gap-2.5">
           {rows.map((p) => (
-            <div key={p.id} className="rounded-2xl border border-border bg-card p-4">
+            <div key={p.id} className="rounded-2xl border-2 border-ink bg-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -430,7 +430,7 @@ export function PromotionsTab() {
               <div className="mt-3 flex items-center gap-2">
                 <button
                   onClick={() => toggle(p.id, !p.isActive)}
-                  className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold"
+                  className="flex items-center gap-1 rounded-lg border-2 border-ink px-2.5 py-1.5 text-xs font-semibold"
                 >
                   {p.isActive ? (
                     <ToggleRight className="h-4 w-4 text-success" />

@@ -43,12 +43,12 @@ function CopyField({ label, value }: { label: string; value: string }) {
   }
   return (
     <div>
-      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface p-1.5 pl-3">
+      <p className="mb-1.5 text-xs font-black uppercase tracking-wide opacity-80">{label}</p>
+      <div className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-surface p-1.5 pl-3">
         <span className="min-w-0 flex-1 truncate font-mono text-sm">{value}</span>
         <button
           onClick={copy}
-          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-all hover:opacity-90 active:scale-95"
+          className="press flex shrink-0 items-center gap-1.5 rounded-xl border-2 border-ink bg-primary px-3 py-2 text-xs font-black text-primary-foreground shadow-[2px_2px_0_0_var(--ink)]"
         >
           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           {copied ? "Copied" : "Copy"}
@@ -70,14 +70,13 @@ export function TeamView({ data, milestonesData }: { data: TeamData; milestonesD
 
   return (
     <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5 animate-fade-up">
-      <section className="card-glass relative overflow-hidden rounded-3xl p-5 glow-primary">
-        <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/25 blur-3xl" />
+      <section className="relative overflow-hidden rounded-3xl border-2 border-ink bg-primary p-5 text-primary-foreground shadow-[5px_5px_0_0_var(--ink)]">
         <div className="relative">
-          <div className="flex items-center gap-2 text-primary">
+          <div className="flex items-center gap-2">
             <Share2 className="h-5 w-5" />
-            <p className="text-sm font-bold">Invite &amp; Earn</p>
+            <p className="text-sm font-black uppercase tracking-wide">Invite &amp; Earn</p>
             {data.isPromoter && (
-              <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-gold/15 px-2 py-0.5 text-xs font-bold text-gold">
+              <span className="ml-auto inline-flex items-center gap-1 rounded-full border-2 border-ink bg-gold px-2 py-0.5 text-xs font-black text-gold-foreground">
                 <Star className="h-3 w-3" /> Promoter
               </span>
             )}
@@ -94,18 +93,18 @@ export function TeamView({ data, milestonesData }: { data: TeamData; milestonesD
 
       <section className="grid grid-cols-2 gap-3">
         <div className="card-glass rounded-2xl p-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-success/12">
-            <Coins className="h-4 w-4 text-success" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-ink bg-success">
+            <Coins className="h-4 w-4 text-success-foreground" />
           </span>
           <p className="mt-2.5 text-2xl font-black tabular-nums">{formatNaira(data.totalCommission)}</p>
-          <p className="text-xs text-muted-foreground">Total commission</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Total commission</p>
         </div>
         <div className="card-glass rounded-2xl p-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/12">
-            <Users className="h-4 w-4 text-primary" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-ink bg-primary">
+            <Users className="h-4 w-4 text-primary-foreground" />
           </span>
           <p className="mt-2.5 text-2xl font-black tabular-nums">{data.totalMembers}</p>
-          <p className="text-xs text-muted-foreground">Total members</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Total members</p>
         </div>
       </section>
 
@@ -114,12 +113,12 @@ export function TeamView({ data, milestonesData }: { data: TeamData; milestonesD
       <LevelBlock
         title="Level 1 Members"
         rate={level1Rate}
-        tint={data.isPromoter ? "text-gold" : "text-primary"}
-        bg={data.isPromoter ? "bg-gold/15" : "bg-primary/15"}
+        tint={data.isPromoter ? "text-gold-foreground" : "text-primary-foreground"}
+        bg={data.isPromoter ? "bg-gold" : "bg-primary"}
         members={data.level1}
         isPromoter={data.isPromoter}
       />
-      <LevelBlock title="Level 2 Members" rate={SITE.referralLevel2} tint="text-primary" bg="bg-primary/15" members={data.level2} />
+      <LevelBlock title="Level 2 Members" rate={SITE.referralLevel2} tint="text-primary-foreground" bg="bg-primary" members={data.level2} />
     </main>
   )
 }
@@ -142,10 +141,10 @@ function MilestonesSection({ data }: { data: MilestonesData }) {
 
   return (
     <section className="card-glass overflow-hidden rounded-3xl">
-      <div className="flex items-center justify-between border-b border-border/60 p-4">
+      <div className="flex items-center justify-between border-b-2 border-ink/15 p-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold/15">
-            <Trophy className="h-4 w-4 text-gold" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-ink bg-gold">
+            <Trophy className="h-4 w-4 text-gold-foreground" />
           </span>
           <div>
             <p className="font-black leading-tight">Referral Milestones</p>
@@ -153,32 +152,32 @@ function MilestonesSection({ data }: { data: MilestonesData }) {
           </div>
         </div>
       </div>
-      <div className="divide-y divide-border/60">
+      <div className="divide-y-2 divide-ink/15">
         {data.milestones.map((m) => {
           const progress = Math.min((data.referralCount / m.referralCount) * 100, 100)
           return (
             <div key={m.id} className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${m.claimed ? "bg-success/15" : "bg-gold/15"}`}>
-                  {m.claimed ? <Check className="h-5 w-5 text-success" /> : <Gift className="h-5 w-5 text-gold" />}
+                <div className={`flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-ink ${m.claimed ? "bg-success" : "bg-gold"}`}>
+                  {m.claimed ? <Check className="h-5 w-5 text-success-foreground" /> : <Gift className="h-5 w-5 text-gold-foreground" />}
                 </div>
                 <div>
-                  <p className="text-sm font-bold">{m.referralCount} Referrals</p>
-                  <p className="text-xs font-semibold text-success">{formatNaira(Number(m.rewardAmount))}</p>
+                  <p className="text-sm font-black">{m.referralCount} Referrals</p>
+                  <p className="text-xs font-bold text-success">{formatNaira(Number(m.rewardAmount))}</p>
                   {!m.claimed && (
-                    <div className="mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-surface">
-                      <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${progress}%` }} />
+                    <div className="mt-1 h-2 w-24 overflow-hidden rounded-full border-2 border-ink bg-surface">
+                      <div className="h-full bg-gold transition-all" style={{ width: `${progress}%` }} />
                     </div>
                   )}
                 </div>
               </div>
               {m.claimed ? (
-                <span className="rounded-full bg-success/15 px-3 py-1.5 text-xs font-bold text-success">Claimed</span>
+                <span className="rounded-full border-2 border-ink bg-success px-3 py-1.5 text-xs font-black text-success-foreground">Claimed</span>
               ) : m.canClaim ? (
                 <button
                   onClick={() => handleClaim(m.id)}
                   disabled={pending}
-                  className="flex items-center gap-1.5 rounded-xl bg-gold px-4 py-2 text-sm font-bold text-gold-foreground transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
+                  className="press flex items-center gap-1.5 rounded-xl border-2 border-ink bg-gold px-4 py-2 text-sm font-black text-gold-foreground shadow-[2px_2px_0_0_var(--ink)] disabled:opacity-60"
                 >
                   {claimingId === m.id && <Loader2 className="h-4 w-4 animate-spin" />}
                   Claim
@@ -213,9 +212,9 @@ function LevelBlock({
 }) {
   return (
     <section className="card-glass overflow-hidden rounded-3xl">
-      <div className="flex items-center justify-between border-b border-border/60 p-4">
+      <div className="flex items-center justify-between border-b-2 border-ink/15 p-4">
         <div className="flex items-center gap-3">
-          <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${bg}`}>
+          <span className={`flex h-9 w-9 items-center justify-center rounded-xl border-2 border-ink ${bg}`}>
             <Users className={`h-4 w-4 ${tint}`} />
           </span>
           <div>
@@ -225,22 +224,22 @@ function LevelBlock({
             </p>
           </div>
         </div>
-        <span className="rounded-full bg-surface px-3 py-1 text-sm font-bold tabular-nums">{members.length}</span>
+        <span className="rounded-full border-2 border-ink bg-surface px-3 py-1 text-sm font-black tabular-nums">{members.length}</span>
       </div>
       {members.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-ink bg-surface">
             <UserPlus className="h-6 w-6 text-muted-foreground/50" />
           </span>
           <p className="mt-1 text-sm font-semibold text-muted-foreground">No members yet</p>
           <p className="text-xs text-muted-foreground/70">Share your invitation code to start building your team.</p>
         </div>
       ) : (
-        <ul className="divide-y divide-border/60">
+        <ul className="divide-y-2 divide-ink/15">
           {members.map((m, i) => (
             <li key={i} className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface text-sm font-bold">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-ink bg-surface text-sm font-black">
                   {m.name.charAt(0).toUpperCase()}
                 </span>
                 <div>

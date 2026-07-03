@@ -16,14 +16,14 @@ type SpinResult = {
 const STAKE_PRESETS = [500, 1000, 2000, 5000, 10000]
 
 const SPIN_SEGMENTS = [
-  { label: "1.5x", color: "bg-success/20 text-success border-success/40" },
-  { label: "LOSE", color: "bg-destructive/20 text-destructive border-destructive/40" },
-  { label: "2.0x", color: "bg-primary/20 text-primary border-primary/40" },
-  { label: "LOSE", color: "bg-destructive/20 text-destructive border-destructive/40" },
-  { label: "2.5x", color: "bg-gold/20 text-gold border-gold/40" },
-  { label: "LOSE", color: "bg-destructive/20 text-destructive border-destructive/40" },
-  { label: "1.8x", color: "bg-success/20 text-success border-success/40" },
-  { label: "3.0x", color: "bg-primary/20 text-primary border-primary/40" },
+  { label: "1.5x", color: "bg-success text-success-foreground border-ink" },
+  { label: "LOSE", color: "bg-destructive text-destructive-foreground border-ink" },
+  { label: "2.0x", color: "bg-primary text-primary-foreground border-ink" },
+  { label: "LOSE", color: "bg-destructive text-destructive-foreground border-ink" },
+  { label: "2.5x", color: "bg-gold text-gold-foreground border-ink" },
+  { label: "LOSE", color: "bg-destructive text-destructive-foreground border-ink" },
+  { label: "1.8x", color: "bg-success text-success-foreground border-ink" },
+  { label: "3.0x", color: "bg-primary text-primary-foreground border-ink" },
 ]
 
 export function StakeSpinGame({
@@ -107,7 +107,7 @@ export function StakeSpinGame({
           {/* Wheel container */}
           <div
             ref={spinRef}
-            className="h-full w-full rounded-full border-4 border-border"
+            className="h-full w-full rounded-full border-4 border-ink"
             style={{
               transition: spinning ? "transform 2s cubic-bezier(0.17, 0.67, 0.21, 0.99)" : "none",
               transform: `rotate(${rotation}deg)`,
@@ -139,7 +139,7 @@ export function StakeSpinGame({
             ))}
             {/* Center circle */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-10 w-10 rounded-full border-2 border-border bg-background flex items-center justify-center">
+              <div className="h-10 w-10 rounded-full border-2 border-ink bg-background flex items-center justify-center">
                 <Dices className="h-5 w-5 text-primary" />
               </div>
             </div>
@@ -151,8 +151,8 @@ export function StakeSpinGame({
           <div
             className={`mb-4 w-full rounded-2xl border p-4 text-center ${
               result.outcome === "win"
-                ? "border-success/40 bg-success/10"
-                : "border-destructive/40 bg-destructive/10"
+                ? "border-ink bg-success/15"
+                : "border-ink bg-destructive/15"
             }`}
           >
             {result.outcome === "win" ? (
@@ -178,7 +178,7 @@ export function StakeSpinGame({
         )}
 
         {/* Balance chip */}
-        <div className="mb-3 rounded-full border border-border bg-surface px-4 py-1.5 text-xs text-muted-foreground">
+        <div className="mb-3 rounded-full border-2 border-ink bg-surface px-4 py-1.5 text-xs font-bold text-muted-foreground">
           Balance: <span className="font-bold tabular-nums text-foreground">₦{localBalance.toLocaleString()}</span>
         </div>
       </div>
@@ -192,10 +192,10 @@ export function StakeSpinGame({
               key={p}
               onClick={() => { setStake(p); setCustomStake("") }}
               disabled={p > localBalance}
-              className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all active:scale-95 disabled:opacity-40 ${
+              className={`rounded-xl border-2 border-ink px-3 py-2 text-xs font-black transition-all active:scale-95 disabled:opacity-40 ${
                 stake === p && !customStake
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-surface text-muted-foreground"
+                  ? "bg-primary text-primary-foreground shadow-[2px_2px_0_0_var(--ink)]"
+                  : "bg-surface text-muted-foreground"
               }`}
             >
               ₦{p.toLocaleString()}
@@ -207,7 +207,7 @@ export function StakeSpinGame({
           placeholder={`Custom (₦${stakeMin.toLocaleString()} – ₦${stakeMax.toLocaleString()})`}
           value={customStake}
           onChange={(e) => setCustomStake(e.target.value)}
-          className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+          className="w-full rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm font-semibold outline-none transition-all focus:ring-2 focus:ring-primary"
         />
       </div>
 
@@ -215,7 +215,7 @@ export function StakeSpinGame({
       <button
         onClick={handleSpin}
         disabled={spinning || pending}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-black text-primary-foreground glow-primary transition-all active:scale-[0.98] disabled:opacity-60"
+        className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-4 text-base font-black uppercase text-primary-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-60"
       >
         {spinning || pending ? (
           <>

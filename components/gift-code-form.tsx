@@ -35,37 +35,36 @@ export function GiftCodeForm() {
         <Link
           href="/dashboard"
           aria-label="Back"
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+          className="press flex h-9 w-9 items-center justify-center rounded-xl border-2 border-ink bg-card text-foreground shadow-[2px_2px_0_0_var(--ink)]"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-xl font-black tracking-tight">Redeem Gift Code</h1>
+        <h1 className="text-xl font-black uppercase tracking-tight">Redeem Gift Code</h1>
       </div>
 
-      <section className="card-glass relative flex flex-col items-center gap-4 overflow-hidden rounded-3xl p-6 text-center glow-gold">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gold/20 blur-3xl" />
-        <span className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gold/15">
-          <Gift className="h-8 w-8 text-gold" />
+      <section className="relative flex flex-col items-center gap-4 overflow-hidden rounded-3xl border-2 border-ink bg-gold p-6 text-center text-gold-foreground shadow-[5px_5px_0_0_var(--ink)]">
+        <span className="relative flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-ink bg-background">
+          <Gift className="h-8 w-8 text-gold-foreground" />
         </span>
-        <p className="relative text-sm text-muted-foreground text-pretty">
+        <p className="relative text-sm font-semibold text-pretty">
           Enter a valid gift code below to instantly credit your wallet. Daily gift codes are shared in our Telegram
           channel.
         </p>
       </section>
 
-      <div className="rounded-2xl border border-border bg-surface px-4 transition-colors focus-within:border-primary">
+      <div className="rounded-2xl border-2 border-ink bg-surface px-4 transition-all focus-within:ring-2 focus-within:ring-primary">
         <input
           placeholder="ENTER GIFT CODE"
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
-          className="w-full bg-transparent py-4 text-center font-mono text-lg font-bold tracking-widest outline-none placeholder:text-sm placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground"
+          className="w-full bg-transparent py-4 text-center font-mono text-lg font-black tracking-widest outline-none placeholder:text-sm placeholder:font-normal placeholder:tracking-normal placeholder:text-muted-foreground"
         />
       </div>
 
       <button
         onClick={handleRedeem}
         disabled={pending}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-black text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+        className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-4 text-base font-black uppercase text-primary-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-60"
       >
         {pending && <Loader2 className="h-5 w-5 animate-spin" />}
         Redeem Code

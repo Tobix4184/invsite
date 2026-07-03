@@ -121,9 +121,9 @@ export function LuckyDrawGame({
               <div key={i} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${
-                    w.place === 1 ? "bg-yellow-400/20 text-yellow-500" :
-                    w.place === 2 ? "bg-zinc-400/20 text-zinc-400" :
-                    "bg-amber-700/20 text-amber-700"
+                    w.place === 1 ? "border-2 border-ink bg-gold text-gold-foreground" :
+                    w.place === 2 ? "border-2 border-ink bg-surface text-foreground" :
+                    "border-2 border-ink bg-gold/60 text-gold-foreground"
                   }`}>
                     {w.place}
                   </span>
@@ -140,22 +140,22 @@ export function LuckyDrawGame({
       )}
 
       {/* Prize pool + stats */}
-      <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-primary/10 p-5 text-center">
+      <div className="relative overflow-hidden rounded-3xl border-2 border-ink bg-primary p-5 text-center text-primary-foreground shadow-[5px_5px_0_0_var(--ink)]">
         <div className="mb-1 flex items-center justify-center gap-2">
-          <Gift className="h-5 w-5 text-primary" />
-          <p className="text-xs font-bold uppercase tracking-widest text-primary">Prize Pool</p>
+          <Gift className="h-5 w-5 text-primary-foreground" />
+          <p className="text-xs font-black uppercase tracking-widest text-primary-foreground">Prize Pool</p>
         </div>
-        <p className="mb-1 font-mono text-4xl font-black text-foreground">
+        <p className="mb-1 font-mono text-4xl font-black text-primary-foreground">
           ₦{prizePool.toLocaleString()}
         </p>
-        <p className="text-xs text-muted-foreground">1st 35% · 2nd 20% · 3rd 15%</p>
+        <p className="text-xs font-semibold text-primary-foreground/80">1st 35% · 2nd 20% · 3rd 15%</p>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
-          <div className="rounded-xl border border-border bg-surface px-3 py-2 text-center">
+          <div className="rounded-xl border-2 border-ink bg-surface px-3 py-2 text-center">
             <p className="font-mono text-lg font-bold text-foreground">{slots}</p>
             <p className="text-[10px] text-muted-foreground">Your Slots</p>
           </div>
-          <div className="rounded-xl border border-border bg-surface px-3 py-2 text-center">
+          <div className="rounded-xl border-2 border-ink bg-surface px-3 py-2 text-center">
             {drawClosed ? (
               <>
                 <p className="text-xs font-bold text-destructive">Drawn</p>
@@ -168,7 +168,7 @@ export function LuckyDrawGame({
               </>
             )}
           </div>
-          <div className="rounded-xl border border-border bg-surface px-3 py-2 text-center">
+          <div className="rounded-xl border-2 border-ink bg-surface px-3 py-2 text-center">
             <p className="text-xs font-bold text-foreground">{today}</p>
             <p className="text-[10px] text-muted-foreground">Date</p>
           </div>
@@ -183,7 +183,7 @@ export function LuckyDrawGame({
             <button
               onClick={handleEnterFree}
               disabled={pending}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-success py-4 text-sm font-bold text-success-foreground disabled:opacity-60"
+              className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-success py-4 text-sm font-black uppercase text-success-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-60"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}
               Enter Free Slot
@@ -195,7 +195,7 @@ export function LuckyDrawGame({
             <button
               onClick={handleReferralSlot}
               disabled={pending}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary bg-primary/10 py-3.5 text-sm font-bold text-primary disabled:opacity-60"
+              className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-card py-3.5 text-sm font-black uppercase text-foreground shadow-[3px_3px_0_0_var(--ink)] disabled:opacity-60"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
               Referral Bonus Slot ({referralLeft} left)
@@ -215,7 +215,7 @@ export function LuckyDrawGame({
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setBuyCount((c) => Math.max(1, c - 1))}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface"
+                className="press flex h-9 w-9 items-center justify-center rounded-xl border-2 border-ink bg-card shadow-[2px_2px_0_0_var(--ink)]"
               >
                 <Minus className="h-4 w-4" />
               </button>
@@ -225,7 +225,7 @@ export function LuckyDrawGame({
               </div>
               <button
                 onClick={() => setBuyCount((c) => Math.min(50, c + 1))}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-surface"
+                className="press flex h-9 w-9 items-center justify-center rounded-xl border-2 border-ink bg-card shadow-[2px_2px_0_0_var(--ink)]"
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -236,10 +236,10 @@ export function LuckyDrawGame({
                 <button
                   key={n}
                   onClick={() => setBuyCount(n)}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
+                  className={`rounded-lg border-2 border-ink px-3 py-1.5 text-xs font-black transition-all active:scale-95 ${
                     buyCount === n
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-surface text-muted-foreground"
+                      ? "bg-primary text-primary-foreground shadow-[2px_2px_0_0_var(--ink)]"
+                      : "bg-surface text-muted-foreground"
                   }`}
                 >
                   {n}×
@@ -250,7 +250,7 @@ export function LuckyDrawGame({
             <button
               onClick={handleBuy}
               disabled={pending || totalCost > localBalance}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60"
+              className="press flex w-full items-center justify-center gap-2 rounded-xl border-2 border-ink bg-primary py-3 text-sm font-black uppercase text-primary-foreground shadow-[3px_3px_0_0_var(--ink)] disabled:opacity-60"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}
               Enter Slot{buyCount > 1 ? `s (${buyCount})` : ""}

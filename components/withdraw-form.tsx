@@ -298,7 +298,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
           <button
             onClick={() => setStep("bank")}
             disabled={amount < SITE.minWithdrawal || amount > balance}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-bold text-primary-foreground disabled:opacity-50"
+            className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-4 text-sm font-black uppercase text-primary-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-50"
           >
             Continue <ArrowRight className="h-4 w-4" />
           </button>
@@ -349,14 +349,14 @@ export function WithdrawForm({ balance }: { balance: number }) {
             <button
               type="button"
               onClick={() => setStep("amount")}
-              className="flex-1 rounded-2xl border border-border py-3.5 text-sm font-bold text-muted-foreground"
+              className="press flex-1 rounded-2xl border-2 border-ink bg-card py-3.5 text-sm font-black text-foreground shadow-[3px_3px_0_0_var(--ink)]"
             >
               Back
             </button>
             <button
               onClick={() => setStep("confirm")}
               disabled={!form.bankName || form.accountNumber.length < 10 || !form.accountName}
-              className="flex-[2] rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
+              className="press flex-[2] rounded-2xl border-2 border-ink bg-primary py-3.5 text-sm font-black uppercase text-primary-foreground shadow-[3px_3px_0_0_var(--ink)] disabled:opacity-50"
             >
               Review <ArrowRight className="ml-1 inline h-4 w-4" />
             </button>
@@ -387,14 +387,14 @@ export function WithdrawForm({ balance }: { balance: number }) {
             <button
               type="button"
               onClick={() => setStep("bank")}
-              className="flex-1 rounded-2xl border border-border py-3.5 text-sm font-bold text-muted-foreground"
+              className="press flex-1 rounded-2xl border-2 border-ink bg-card py-3.5 text-sm font-black text-foreground shadow-[3px_3px_0_0_var(--ink)]"
             >
               Back
             </button>
             <button
               type="submit"
               disabled={pending}
-              className="flex flex-[2] items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+              className="press flex flex-[2] items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-3.5 text-sm font-black uppercase text-primary-foreground shadow-[3px_3px_0_0_var(--ink)] disabled:opacity-60"
             >
               {pending && <Loader2 className="h-4 w-4 animate-spin" />}
               {pending ? "Submitting..." : "Submit Request"}
