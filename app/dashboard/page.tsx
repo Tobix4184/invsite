@@ -44,7 +44,7 @@ export default async function DashboardPage() {
           <h1 className="mt-1 flex items-center gap-2 text-2xl font-black tracking-tight">
             {data.name.split(" ")[0]}
             {data.isPromoter && (
-              <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gold">
+              <span className="rounded-full border-2 border-ink bg-gold px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-gold-foreground">
                 Partner
               </span>
             )}

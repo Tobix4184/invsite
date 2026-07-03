@@ -1,6 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Plus_Jakarta_Sans, Space_Mono } from 'next/font/google'
+import { Archivo, Space_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { getBoolSetting, SETTING_KEYS } from '@/app/actions/settings'
 import { getSession } from '@/lib/session'
@@ -10,9 +10,10 @@ import { eq, count } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import './globals.css'
 
-const jakarta = Plus_Jakarta_Sans({
+const archivo = Archivo({
   subsets: ['latin'],
-  variable: '--font-jakarta',
+  weight: ['400', '500', '600', '700', '800', '900'],
+  variable: '--font-archivo',
 })
 
 const jakartaMono = Space_Mono({
@@ -45,7 +46,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a0e1c',
+  themeColor: '#F3E9D6',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -97,10 +98,10 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={`${jakarta.variable} ${jakartaMono.variable} bg-background`}>
+    <html lang="en" className={`${archivo.variable} ${jakartaMono.variable} bg-background`}>
       <body className="font-sans antialiased">
         {children}
-        <Toaster theme="dark" position="top-center" richColors />
+        <Toaster theme="light" position="top-center" richColors />
         {process.env.NODE_ENV === 'production' && <Analytics />}
 
         {/* Site freeze overlay — covers everything, non-admins cannot interact */}

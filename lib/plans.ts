@@ -30,7 +30,7 @@ export const PLANS: Plan[] = [
     durationDays: 45,
     withdrawalTier: 'tier3',
     accentColor: '#00D4FF',
-    badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+    badgeClass: 'bg-primary text-primary-foreground',
   },
   {
     id: 2,
@@ -44,7 +44,7 @@ export const PLANS: Plan[] = [
     withdrawalTier: 'tier3',
     popular: true,
     accentColor: '#00D4FF',
-    badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+    badgeClass: 'bg-primary text-primary-foreground',
   },
   {
     id: 3,
@@ -57,7 +57,7 @@ export const PLANS: Plan[] = [
     durationDays: 50,
     withdrawalTier: 'tier2',
     accentColor: '#34D399',
-    badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    badgeClass: 'bg-success text-success-foreground',
   },
   {
     id: 4,
@@ -70,7 +70,7 @@ export const PLANS: Plan[] = [
     durationDays: 55,
     withdrawalTier: 'tier2',
     accentColor: '#34D399',
-    badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    badgeClass: 'bg-success text-success-foreground',
   },
   {
     id: 5,
@@ -83,7 +83,7 @@ export const PLANS: Plan[] = [
     durationDays: 60,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
-    badgeClass: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
+    badgeClass: 'bg-gold text-gold-foreground',
   },
   {
     id: 6,
@@ -96,7 +96,7 @@ export const PLANS: Plan[] = [
     durationDays: 65,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
-    badgeClass: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
+    badgeClass: 'bg-gold text-gold-foreground',
   },
   {
     id: 7,
@@ -109,7 +109,7 @@ export const PLANS: Plan[] = [
     durationDays: 70,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
-    badgeClass: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
+    badgeClass: 'bg-gold text-gold-foreground',
   },
 ]
 

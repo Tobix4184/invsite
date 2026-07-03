@@ -37,13 +37,13 @@ export function Captcha({
     const h = canvas.height
     ctx.clearRect(0, 0, w, h)
 
-    // background
-    ctx.fillStyle = "#0d1b3e"
+    // background — cream paper
+    ctx.fillStyle = "#f3e9d6"
     ctx.fillRect(0, 0, w, h)
 
     // noise lines
     for (let i = 0; i < 6; i++) {
-      ctx.strokeStyle = `rgba(0, 200, 255, ${0.15 + Math.random() * 0.25})`
+      ctx.strokeStyle = `rgba(26, 24, 20, ${0.15 + Math.random() * 0.25})`
       ctx.lineWidth = 1 + Math.random()
       ctx.beginPath()
       ctx.moveTo(Math.random() * w, Math.random() * h)
@@ -52,12 +52,12 @@ export function Captcha({
     }
     // noise dots
     for (let i = 0; i < 40; i++) {
-      ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.4})`
+      ctx.fillStyle = `rgba(26,24,20,${Math.random() * 0.35})`
       ctx.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5)
     }
 
-    // characters
-    const colors = ["#00d4ff", "#ffffff", "#7fe7ff", "#ffd27f"]
+    // characters — ink + tangerine
+    const colors = ["#1a1814", "#e8620e", "#1a1814", "#c98a00"]
     const step = w / (text.length + 1)
     for (let i = 0; i < text.length; i++) {
       const fontSize = 26 + Math.random() * 8
@@ -106,13 +106,13 @@ export function Captcha({
           ref={canvasRef}
           width={150}
           height={52}
-          className="h-[52px] w-[150px] shrink-0 rounded-xl border border-border"
+          className="h-[52px] w-[150px] shrink-0 rounded-xl border-2 border-ink"
           aria-label="Captcha image"
         />
         <button
           type="button"
           onClick={refresh}
-          className="flex h-[52px] w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-muted-foreground transition-colors hover:text-primary"
+          className="press flex h-[52px] w-11 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-card text-foreground shadow-[2px_2px_0_0_var(--ink)]"
           aria-label="Refresh captcha"
         >
           <RefreshCw className="h-4 w-4" />
@@ -124,7 +124,7 @@ export function Captcha({
           placeholder="Code"
           autoComplete="off"
           maxLength={6}
-          className="h-[52px] w-full rounded-xl border border-border bg-surface px-4 text-sm uppercase tracking-widest outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground/40 placeholder:normal-case placeholder:tracking-normal"
+          className="h-[52px] w-full rounded-xl border-2 border-ink bg-card px-4 text-sm font-bold uppercase tracking-widest outline-none transition-all focus:ring-2 focus:ring-primary placeholder:text-muted-foreground/50 placeholder:normal-case placeholder:font-normal placeholder:tracking-normal"
         />
       </div>
     </div>

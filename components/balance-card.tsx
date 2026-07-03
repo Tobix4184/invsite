@@ -28,60 +28,54 @@ export function BalanceCard({
   const todayIncome = data?.todayIncome ?? initialTodayIncome
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-primary/25 bg-card p-5 glow-primary">
-      {/* Ambient glow accents */}
-      <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-primary/25 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-14 -left-10 h-36 w-36 rounded-full bg-success/15 blur-3xl" />
+    <section className="relative overflow-hidden rounded-3xl border-2 border-ink bg-primary p-5 text-primary-foreground shadow-[5px_5px_0_0_var(--ink)]">
+      {/* Label row */}
+      <div className="flex items-center justify-between">
+        <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-background px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-foreground">
+          <Wallet className="h-3.5 w-3.5" />
+          Wallet Balance
+        </span>
+        <button
+          onClick={() => setShow((s) => !s)}
+          aria-label={show ? 'Hide balance' : 'Show balance'}
+          className="press flex h-8 w-8 items-center justify-center rounded-lg border-2 border-ink bg-background text-foreground"
+        >
+          {show ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+        </button>
+      </div>
 
-      <div className="relative">
-        {/* Label row */}
-        <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-            <Wallet className="h-3.5 w-3.5 text-primary" />
-            Wallet Balance
+      {/* Balance — oversized editorial number */}
+      <p className="mt-4 text-[3rem] font-black leading-none tracking-tight tabular-nums">
+        {show ? formatNaira(balance) : '₦ ••••'}
+      </p>
+
+      {/* Earnings row */}
+      <div className="mt-3 flex items-center gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-success px-3 py-1 text-xs font-black text-success-foreground">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ink opacity-40" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ink" />
           </span>
-          <button
-            onClick={() => setShow((s) => !s)}
-            aria-label={show ? 'Hide balance' : 'Show balance'}
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {show ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-          </button>
-        </div>
+          {show ? `+${formatNaira(todayIncome)}` : '+₦ •••'} earned today
+        </span>
+      </div>
 
-        {/* Balance — oversized editorial number */}
-        <p className="mt-3 text-[2.9rem] font-black leading-none tracking-tight tabular-nums">
-          {show ? formatNaira(balance) : '₦ ••••'}
-        </p>
-
-        {/* Earnings row */}
-        <div className="mt-3 flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/12 px-3 py-1 text-xs font-bold text-success">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-70" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
-            </span>
-            {show ? `+${formatNaira(todayIncome)}` : '+₦ •••'} earned today
-          </span>
-        </div>
-
-        {/* Action buttons */}
-        <div className="mt-5 grid grid-cols-2 gap-2.5">
-          <Link
-            href="/deposits"
-            className="flex items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-sm font-black text-primary-foreground transition-all active:scale-[0.98]"
-          >
-            <ArrowDownToLine className="h-4 w-4" />
-            Deposit
-          </Link>
-          <Link
-            href="/withdraw"
-            className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface py-3.5 text-sm font-black text-foreground transition-all active:scale-[0.98]"
-          >
-            <ArrowUpFromLine className="h-4 w-4" />
-            Withdraw
-          </Link>
-        </div>
+      {/* Action buttons */}
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <Link
+          href="/deposits"
+          className="press flex items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-background py-3.5 text-sm font-black text-foreground shadow-[3px_3px_0_0_var(--ink)]"
+        >
+          <ArrowDownToLine className="h-4 w-4" />
+          Deposit
+        </Link>
+        <Link
+          href="/withdraw"
+          className="press flex items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-gold py-3.5 text-sm font-black text-gold-foreground shadow-[3px_3px_0_0_var(--ink)]"
+        >
+          <ArrowUpFromLine className="h-4 w-4" />
+          Withdraw
+        </Link>
       </div>
     </section>
   )

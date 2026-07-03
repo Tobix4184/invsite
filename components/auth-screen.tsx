@@ -49,7 +49,7 @@ function Field({
         {label}
         {hint && <span className="ml-1 font-normal normal-case opacity-50">({hint})</span>}
       </label>
-      <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+      <div className="flex items-center gap-3 rounded-2xl border-2 border-ink bg-card px-4 transition-all focus-within:ring-2 focus-within:ring-primary">
         <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
         <input
           id={id}
@@ -153,14 +153,10 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden">
-      {/* Decorative aurora orbs */}
-      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
-      <div className="pointer-events-none absolute -left-20 top-1/3 h-64 w-64 rounded-full bg-success/10 blur-3xl" />
-
       {/* Brand */}
       <header className="relative px-5 pt-10 pb-5">
         <div className="mx-auto flex max-w-md items-center gap-3">
-          <Logo className="h-11 w-11 rounded-2xl ring-1 ring-primary/30" />
+          <Logo className="h-11 w-11 rounded-2xl border-2 border-ink" />
           <div className="leading-none">
             <span className="block text-lg font-black tracking-tight">{SITE.name}</span>
             <span className="mt-1 block text-[11px] font-medium text-muted-foreground">{SITE.tagline}</span>
@@ -176,7 +172,7 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
         >
           {/* Heading */}
           <div className="mb-6">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-primary">
+            <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-gold px-3 py-1 text-[11px] font-black uppercase tracking-widest text-gold-foreground">
               {isSignIn ? "Welcome back" : "Get started"}
             </span>
             <h1 className="mt-3 text-[2rem] font-black leading-[1.1] tracking-tight text-balance text-gradient">
@@ -262,7 +258,7 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
             <button
               type="submit"
               disabled={loading}
-              className="group mt-1 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60 glow-primary"
+              className="press group mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-4 text-sm font-black uppercase tracking-wide text-primary-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-60"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

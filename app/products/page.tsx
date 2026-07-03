@@ -21,9 +21,8 @@ export default async function ProductsPage() {
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5 animate-fade-up">
         {/* Hero */}
         <section className="card-glass relative overflow-hidden rounded-3xl p-5">
-          <div className="pointer-events-none absolute -right-14 -top-14 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
           <div className="relative">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-primary">
+            <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-gold px-3 py-1 text-[11px] font-black uppercase tracking-widest text-gold-foreground">
               <Layers className="h-3.5 w-3.5" />
               {SITE.packageCount} packages
             </span>

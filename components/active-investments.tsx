@@ -78,18 +78,18 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
           return (
             <article
               key={inv.id}
-              className="card-glass relative overflow-hidden rounded-2xl p-4"
+              className="card-glass relative overflow-hidden rounded-2xl p-4 pl-5"
             >
               {/* Left accent stripe */}
-              <span className={`absolute left-0 top-0 h-full w-1 ${inv.status === "active" ? "bg-success" : "bg-muted"}`} />
+              <span className={`absolute left-0 top-0 h-full w-2 border-r-2 border-ink ${inv.status === "active" ? "bg-success" : "bg-surface"}`} />
 
               {/* Top: plan name + status */}
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-black tracking-tight">{inv.planName}</h3>
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                  inv.status === "active" ? "bg-success/12 text-success" : "bg-muted text-muted-foreground"
+                <h3 className="text-base font-black uppercase tracking-tight">{inv.planName}</h3>
+                <span className={`inline-flex items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${
+                  inv.status === "active" ? "bg-success text-success-foreground" : "bg-surface text-muted-foreground"
                 }`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${inv.status === "active" ? "bg-success" : "bg-muted-foreground"}`} />
+                  <span className={`h-1.5 w-1.5 rounded-full border border-ink ${inv.status === "active" ? "bg-background" : "bg-muted-foreground"}`} />
                   {inv.status}
                 </span>
               </div>
@@ -105,8 +105,8 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
                   <p className="text-sm font-black tabular-nums">{formatNaira(Number(inv.amountEarned))}</p>
                 </div>
                 {inv.status === "active" && (
-                  <div className={`ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                    isReady ? "bg-success/12 text-success" : "bg-primary/10 text-primary"
+                  <div className={`ml-auto inline-flex items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-[11px] font-black ${
+                    isReady ? "bg-success text-success-foreground" : "bg-primary text-primary-foreground"
                   }`}>
                     <Clock className="h-3 w-3" />
                     {isReady ? "Ready" : countdown}
@@ -117,23 +117,23 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
               {/* Progress */}
               <div className="mt-3.5 flex items-center gap-3">
                 <div className="flex-1">
-                  <div className="h-1.5 overflow-hidden rounded-full bg-surface">
-                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                  <div className="h-2.5 overflow-hidden rounded-full border-2 border-ink bg-surface">
+                    <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
                   </div>
-                  <p className="mt-1.5 text-[10px] tabular-nums text-muted-foreground">
+                  <p className="mt-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
                     {inv.daysPaid}/{inv.durationDays} days
                   </p>
                 </div>
 
                 {/* Auto-reinvest toggle */}
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-semibold text-muted-foreground">Auto</span>
+                  <span className="text-[10px] font-black uppercase text-muted-foreground">Auto</span>
                   <button
                     type="button"
                     onClick={() => handleToggle(inv.id)}
                     disabled={isToggling}
-                    className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
-                      inv.autoReinvest ? "bg-success" : "bg-muted"
+                    className={`relative h-5 w-9 shrink-0 rounded-full border-2 border-ink transition-colors disabled:opacity-40 ${
+                      inv.autoReinvest ? "bg-success" : "bg-surface"
                     }`}
                     title={inv.autoReinvest ? "Auto-reinvest earnings: ON" : "Auto-reinvest earnings: OFF"}
                     role="switch"
@@ -141,11 +141,11 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
                   >
                     {isToggling ? (
                       <span className="absolute inset-0 flex items-center justify-center">
-                        <RotateCcw className="h-3 w-3 animate-spin text-white" />
+                        <RotateCcw className="h-3 w-3 animate-spin text-foreground" />
                       </span>
                     ) : (
-                      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${
-                        inv.autoReinvest ? "left-[18px]" : "left-0.5"
+                      <span className={`absolute top-[1px] h-3.5 w-3.5 rounded-full border-2 border-ink bg-background transition-all ${
+                        inv.autoReinvest ? "left-[16px]" : "left-[1px]"
                       }`} />
                     )}
                   </button>
