@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, ArrowDownToLine, ArrowUpFromLine, Wallet } from 'lucide-react'
 import { formatNaira } from '@/lib/plans'
 import useSWR from 'swr'
 
@@ -28,49 +28,52 @@ export function BalanceCard({
   const todayIncome = data?.todayIncome ?? initialTodayIncome
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="relative overflow-hidden rounded-3xl border-2 border-ink bg-primary p-5 text-primary-foreground shadow-[5px_5px_0_0_var(--ink)]">
       {/* Label row */}
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+        <span className="inline-flex items-center gap-2 rounded-full border-2 border-ink bg-background px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-foreground">
+          <Wallet className="h-3.5 w-3.5" />
           Wallet Balance
-        </p>
+        </span>
         <button
           onClick={() => setShow((s) => !s)}
           aria-label={show ? 'Hide balance' : 'Show balance'}
-          className="text-muted-foreground transition-colors hover:text-foreground"
+          className="press flex h-8 w-8 items-center justify-center rounded-lg border-2 border-ink bg-background text-foreground"
         >
           {show ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
         </button>
       </div>
 
       {/* Balance — oversized editorial number */}
-      <p className="mt-2 text-[2.8rem] font-black leading-none tracking-tight tabular-nums">
+      <p className="mt-4 text-[3rem] font-black leading-none tracking-tight tabular-nums">
         {show ? formatNaira(balance) : '₦ ••••'}
       </p>
 
       {/* Earnings row */}
       <div className="mt-3 flex items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-sm bg-success/12 px-2.5 py-1 text-xs font-bold text-success">
-          <span className="h-1.5 w-1.5 rounded-full bg-success" />
-          {show ? `+${formatNaira(todayIncome)}` : '+₦ •••'} today
+        <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-ink bg-success px-3 py-1 text-xs font-black text-success-foreground">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ink opacity-40" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ink" />
+          </span>
+          {show ? `+${formatNaira(todayIncome)}` : '+₦ •••'} earned today
         </span>
       </div>
 
-      {/* Divider */}
-      <div className="my-4 h-px bg-border" />
-
-      {/* Action buttons — full-width rows, not pill circles */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Action buttons */}
+      <div className="mt-5 grid grid-cols-2 gap-3">
         <Link
           href="/deposits"
-          className="flex items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity active:opacity-80"
+          className="press flex items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-background py-3.5 text-sm font-black text-foreground shadow-[3px_3px_0_0_var(--ink)]"
         >
+          <ArrowDownToLine className="h-4 w-4" />
           Deposit
         </Link>
         <Link
           href="/withdraw"
-          className="flex items-center justify-center gap-2 rounded-lg border border-border bg-surface py-3 text-sm font-bold text-foreground transition-opacity active:opacity-80"
+          className="press flex items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-gold py-3.5 text-sm font-black text-gold-foreground shadow-[3px_3px_0_0_var(--ink)]"
         >
+          <ArrowUpFromLine className="h-4 w-4" />
           Withdraw
         </Link>
       </div>

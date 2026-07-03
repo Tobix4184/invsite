@@ -164,7 +164,7 @@ export async function startDeposit(amount: number) {
     return { ok: false, message: "No active payment accounts available. Please try again later." }
   }
 
-  const reference = `POCO_${userId.slice(0, 8)}_${Date.now()}`
+  const reference = `INCUM_${userId.slice(0, 8)}_${Date.now()}`
   const expiresAt = new Date()
   expiresAt.setMinutes(expiresAt.getMinutes() + SITE.paymentExpiryMinutes)
   

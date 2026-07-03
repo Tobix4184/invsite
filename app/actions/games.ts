@@ -12,82 +12,120 @@ import {
   user as userTable,
   referral,
 } from "@/lib/db/schema"
-import { SITE } from "@/lib/plans"
+import { SITE, pickSpinPrize } from "@/lib/plans"
 import { getGameConfig } from "@/app/actions/settings"
 import { getUserId } from "@/lib/session"
 import { eq, sql, and, desc } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
 // ──────────────────────────────────────────────────────────────────────────────
-// STAKE & SPIN
+// FREE-PLAY ENTITLEMENTS
+// ──────────────────────────────────────────────────────────────────────────────
+// Games never take money from the wallet. Instead, plays are EARNED:
+//   • 1 play for every package the user has invested in
+//   • 1 play for every valid referral (a referred member who has invested,
+//     i.e. the referrer has earned commission from them)
+// Each game spends from its own entitlement, tracked by counting rows.
+
+/** Total plays a user has earned from investments + valid referrals. */
+async function earnedPlays(userId: string): Promise<{ investments: number; referrals: number; total: number }> {
+  const [inv] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(investment)
+    .where(eq(investment.userId, userId))
+
+  const [ref] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(referral)
+    .where(and(eq(referral.referrerId, userId), sql`${referral.totalCommission} > 0`))
+
+  const investments = Number(inv?.c ?? 0)
+  const referrals = Number(ref?.c ?? 0)
+  const total = investments * SITE.gamePlaysPerInvestment + referrals * SITE.gamePlaysPerReferral
+  return { investments, referrals, total }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// STAKE & SPIN (free play — awards a random reward drop, never costs money)
 // ──────────────────────────────────────────────────────────────────────────────
 
-export async function playSpin(stakeAmount: number) {
+/** How many free spins the user has left right now. */
+export async function getSpinState() {
   const userId = await getUserId()
-  const cfg = await getGameConfig()
-
-  if (stakeAmount < cfg.stakeMin || stakeAmount > cfg.stakeMax) {
-    return { ok: false, message: `Stake must be between ₦${cfg.stakeMin.toLocaleString()} and ₦${cfg.stakeMax.toLocaleString()}` }
-  }
-
+  const earned = await earnedPlays(userId)
+  const [used] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(stakeSpin)
+    .where(eq(stakeSpin.userId, userId))
   const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
-  if (!w || Number(w.balance) < stakeAmount) {
-    return { ok: false, message: "Insufficient balance" }
+
+  return {
+    spinsAvailable: Math.max(0, earned.total - Number(used?.c ?? 0)),
+    balance: Number(w?.balance ?? 0),
+  }
+}
+
+export async function playSpin() {
+  const userId = await getUserId()
+
+  const earned = await earnedPlays(userId)
+  const [used] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(stakeSpin)
+    .where(eq(stakeSpin.userId, userId))
+  const spinsAvailable = earned.total - Number(used?.c ?? 0)
+
+  if (spinsAvailable <= 0) {
+    return {
+      ok: false,
+      message: "No free spins left. Invest in a package or refer a friend to earn more spins.",
+    }
   }
 
-  // Determine outcome: house wins cfg.stakeHouseEdge fraction of the time
-  const rand = Math.random()
-  const userWins = rand > cfg.stakeHouseEdge
+  // Award a random reward drop. Worst case is ₦0 — nothing is ever deducted.
+  const prize = pickSpinPrize()
+  const outcome = prize > 0 ? "win" : "lose"
 
-  let winAmount = 0
-  let multiplier = 0
-
-  if (userWins) {
-    const mults = cfg.stakeMultipliers
-    multiplier = mults[Math.floor(Math.random() * mults.length)]
-    winAmount = Math.round(stakeAmount * multiplier)
-  }
-
-  const outcome = userWins ? "win" : "lose"
-  const netChange = userWins ? winAmount - stakeAmount : -stakeAmount
-
-  // Update wallet atomically
-  await db
-    .update(wallet)
-    .set({
-      balance: sql`${wallet.balance} + ${netChange}`,
-      updatedAt: new Date(),
-    })
-    .where(eq(wallet.userId, userId))
-
-  // Record the spin
+  // Record the spin first (this consumes exactly one play).
   await db.insert(stakeSpin).values({
     userId,
-    stakeAmount: String(stakeAmount),
+    stakeAmount: "0",
     outcome,
-    multiplier: String(multiplier || 0),
-    winAmount: String(winAmount),
+    multiplier: "0",
+    winAmount: String(prize),
   })
 
-  // Record transaction
-  await db.insert(transaction).values({
-    userId,
-    type: outcome === "win" ? "game_win" : "game_loss",
-    amount: String(Math.abs(netChange)),
-    description:
-      outcome === "win"
-        ? `Stake & Spin — won ${multiplier}x (₦${winAmount.toLocaleString()})`
-        : `Stake & Spin — lost stake of ₦${stakeAmount.toLocaleString()}`,
-  })
+  let newBalance: number | undefined
+  if (prize > 0) {
+    const [w] = await db
+      .update(wallet)
+      .set({
+        balance: sql`${wallet.balance} + ${prize}`,
+        totalEarned: sql`${wallet.totalEarned} + ${prize}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(wallet.userId, userId))
+      .returning({ balance: wallet.balance })
+    newBalance = Number(w?.balance ?? 0)
+
+    await db.insert(transaction).values({
+      userId,
+      type: "game_win",
+      amount: String(prize),
+      description: `Stake & Spin reward drop — ₦${prize.toLocaleString()}`,
+    })
+  } else {
+    const [w] = await db.select({ balance: wallet.balance }).from(wallet).where(eq(wallet.userId, userId))
+    newBalance = Number(w?.balance ?? 0)
+  }
 
   revalidatePath("/games")
   return {
     ok: true,
     outcome,
-    multiplier,
-    winAmount,
-    netChange,
-    newBalance: Number(w.balance) + netChange,
+    winAmount: prize,
+    spinsLeft: Math.max(0, spinsAvailable - 1),
+    newBalance,
   }
 }
 
@@ -128,23 +166,21 @@ export async function getLuckyDrawState() {
 
   const round = await getOrCreateRound(today)
 
-  // Count active investments
-  const activeInvestments = await db
-    .select()
+  // Count investments (each one grants a free draw slot)
+  const [invCount] = await db
+    .select({ c: sql<number>`count(*)::int` })
     .from(investment)
-    .where(and(eq(investment.userId, userId), eq(investment.status, "active")))
+    .where(eq(investment.userId, userId))
+  const investmentCount = Number(invCount?.c ?? 0)
 
-  // 1 free slot per investment — lifetime (not per day). Check if ANY free slot
-  // has ever been claimed by this user (across all draw dates).
-  const freeSlotsClaimed = await db
-    .select()
+  // Free slots already claimed (lifetime)
+  const [freeClaimed] = await db
+    .select({ c: sql<number>`count(*)::int` })
     .from(luckyDrawSlot)
     .where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.source, "free")))
 
-  const hasUsedFreeSlot = freeSlotsClaimed.length > 0
-  const hasActiveInvestment = activeInvestments.length > 0
-  // Free slot is available only if they have an active investment AND haven't used it yet
-  const freeSlotAvailable = hasActiveInvestment && !hasUsedFreeSlot
+  const freeSlotsRemaining = Math.max(0, investmentCount - Number(freeClaimed?.c ?? 0))
+  const hasActiveInvestment = investmentCount > 0
 
   // Count slots entered for today's draw
   const existingSlots = await db
@@ -157,7 +193,8 @@ export async function getLuckyDrawState() {
   return {
     round,
     today,
-    freeSlotAvailable,
+    freeSlotsRemaining,
+    freeSlotAvailable: freeSlotsRemaining > 0,
     hasActiveInvestment,
     slotsEntered: existingSlots.length,
     balance: Number(w?.balance ?? 0),
@@ -172,26 +209,32 @@ export async function claimFreeDrawSlot() {
   const round = await getOrCreateRound(today)
   if (round.status !== "open") return { ok: false, message: "Draw already closed for today" }
 
-  const activeInvestments = await db
-    .select()
+  const [invCount] = await db
+    .select({ c: sql<number>`count(*)::int` })
     .from(investment)
-    .where(and(eq(investment.userId, userId), eq(investment.status, "active")))
+    .where(eq(investment.userId, userId))
+  const investmentCount = Number(invCount?.c ?? 0)
 
-  if (activeInvestments.length === 0) {
-    return { ok: false, message: "You need an active investment to use your free slot" }
+  if (investmentCount === 0) {
+    return { ok: false, message: "You need an investment to earn a free slot" }
   }
 
-  // Check if free slot has EVER been used (lifetime, not per day)
-  const existing = await db
-    .select()
+  const [freeClaimed] = await db
+    .select({ c: sql<number>`count(*)::int` })
     .from(luckyDrawSlot)
     .where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.source, "free")))
 
-  if (existing.length > 0) {
-    return { ok: false, message: "Free slot already used" }
+  if (Number(freeClaimed?.c ?? 0) >= investmentCount) {
+    return { ok: false, message: "All free slots used. Invest again to earn more." }
   }
 
   await db.insert(luckyDrawSlot).values({ userId, source: "free", drawDate: today })
+
+  // House-funded contribution to today's prize pool (no user money involved)
+  await db
+    .update(luckyDrawRound)
+    .set({ prizePool: sql`${luckyDrawRound.prizePool} + ${SITE.luckyDrawSlotCost}` })
+    .where(eq(luckyDrawRound.drawDate, today))
 
   revalidatePath("/games")
   return { ok: true, message: "Free slot entered!" }
@@ -267,52 +310,6 @@ export async function claimReferralDrawSlot() {
 
   revalidatePath("/games")
   return { ok: true, message: `Referral bonus slot entered! You have ${remaining - 1} more referral slot${remaining - 1 === 1 ? "" : "s"} to claim.` }
-}
-
-export async function buyDrawSlots(count: number) {
-  const userId = await getUserId()
-  const today = todayStr()
-  const cfg = await getGameConfig()
-
-  if (count < 1 || count > 50) return { ok: false, message: "Invalid slot count" }
-
-  const round = await getOrCreateRound(today)
-  if (round.status !== "open") return { ok: false, message: "Draw already closed for today" }
-
-  const totalCost = count * cfg.luckyDrawSlotCost
-  const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
-  if (!w || Number(w.balance) < totalCost) {
-    return { ok: false, message: `Insufficient balance. Need ₦${totalCost.toLocaleString()}` }
-  }
-
-  // Deduct cost and grow prize pool
-  await db
-    .update(wallet)
-    .set({ balance: sql`${wallet.balance} - ${totalCost}`, updatedAt: new Date() })
-    .where(eq(wallet.userId, userId))
-
-  await db
-    .update(luckyDrawRound)
-    .set({ prizePool: sql`${luckyDrawRound.prizePool} + ${totalCost}` })
-    .where(eq(luckyDrawRound.drawDate, today))
-
-  const rows = Array.from({ length: count }, () => ({
-    userId,
-    source: "purchased" as const,
-    purchaseAmount: String(cfg.luckyDrawSlotCost),
-    drawDate: today,
-  }))
-  await db.insert(luckyDrawSlot).values(rows)
-
-  await db.insert(transaction).values({
-    userId,
-    type: "game_slots",
-    amount: String(totalCost),
-    description: `Bought ${count} Lucky Draw slot${count > 1 ? "s" : ""}`,
-  })
-
-  revalidatePath("/games")
-  return { ok: true, message: `${count} slot${count > 1 ? "s" : ""} purchased` }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

@@ -5,9 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-heading: var(--font-archivo), 'Archivo', system-ui, sans-serif;
+  --font-sans: var(--font-archivo), 'Archivo', system-ui, sans-serif;
+  --font-mono: var(--font-jakarta-mono), 'Space Mono', monospace;
 
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
@@ -20,6 +20,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -35,6 +36,7 @@
   --color-foreground: var(--foreground);
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-ink: var(--ink);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -44,66 +46,133 @@
   --radius-3xl: calc(var(--radius) * 2.4);
 }
 
-/* Poco — Pure black fintech. Sharp, bold, premium. */
+/* ─────────────────────────────────────────────────────────────
+   247 Incum — NEO-BRUTALIST LIGHT.
+   Warm cream paper, solid ink borders, hard offset shadows,
+   vivid tangerine primary. No blur, no gradients, no glow.
+   Chunky, confident, unmistakably NOT a dark crypto clone.
+   ───────────────────────────────────────────────────────────── */
 :root {
-  /* True black base — no warm tint */
-  --background: oklch(0.08 0.004 50);
-  --foreground: oklch(0.97 0.004 50);
+  /* Warm cream paper */
+  --background: oklch(0.965 0.018 78);
+  --foreground: oklch(0.19 0.015 55);
 
-  /* Card — barely lifted from background */
-  --card: oklch(0.12 0.005 50);
-  --card-foreground: oklch(0.97 0.004 50);
+  /* Ink — the universal border/shadow color */
+  --ink: oklch(0.19 0.015 55);
 
-  /* Surface — inner wells */
-  --surface: oklch(0.16 0.006 50);
+  /* Card — crisp white panels */
+  --card: oklch(0.995 0.004 90);
+  --card-foreground: oklch(0.19 0.015 55);
 
-  --popover: oklch(0.11 0.005 50);
-  --popover-foreground: oklch(0.97 0.004 50);
+  /* Surface — warm cream inner wells */
+  --surface: oklch(0.935 0.024 78);
 
-  /* Amber — used sparingly as the sole accent */
-  --primary: oklch(0.78 0.17 72);
-  --primary-foreground: oklch(0.08 0.005 50);
+  --popover: oklch(0.995 0.004 90);
+  --popover-foreground: oklch(0.19 0.015 55);
 
-  --secondary: oklch(0.16 0.006 50);
-  --secondary-foreground: oklch(0.97 0.004 50);
+  /* Vivid tangerine — primary accent */
+  --primary: oklch(0.705 0.185 45);
+  --primary-foreground: oklch(0.19 0.015 55);
 
-  --muted: oklch(0.16 0.005 50);
-  --muted-foreground: oklch(0.52 0.008 50);
+  --secondary: oklch(0.995 0.004 90);
+  --secondary-foreground: oklch(0.19 0.015 55);
 
-  --accent: oklch(0.19 0.007 50);
-  --accent-foreground: oklch(0.97 0.004 50);
+  --muted: oklch(0.935 0.024 78);
+  --muted-foreground: oklch(0.46 0.02 60);
 
-  --brand: oklch(0.78 0.17 72);
-  --brand-foreground: oklch(0.08 0.005 50);
+  --accent: oklch(0.9 0.03 78);
+  --accent-foreground: oklch(0.19 0.015 55);
 
-  --gold: oklch(0.78 0.17 72);
-  --gold-foreground: oklch(0.08 0.005 50);
+  --brand: oklch(0.705 0.185 45);
+  --brand-foreground: oklch(0.19 0.015 55);
 
-  /* Bright green — earnings / positive */
-  --success: oklch(0.72 0.19 155);
-  --success-foreground: oklch(0.08 0.03 155);
+  /* Bold sunflower — highlights / VIP */
+  --gold: oklch(0.84 0.16 88);
+  --gold-foreground: oklch(0.19 0.015 55);
 
-  --destructive: oklch(0.62 0.22 25);
+  /* Bold grass green — earnings / positive */
+  --success: oklch(0.66 0.17 150);
+  --success-foreground: oklch(0.19 0.015 55);
 
-  /* Hard white border — editorial feel */
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.78 0.17 72);
+  /* Bold vermilion — negative / danger */
+  --destructive: oklch(0.6 0.225 27);
+  --destructive-foreground: oklch(0.99 0.004 90);
 
-  /* Sharp corners — nothing rounded like the competitor */
-  --radius: 0.5rem;
+  /* SOLID ink borders — the neo-brutalist signature */
+  --border: oklch(0.19 0.015 55);
+  --input: oklch(0.19 0.015 55);
+  --ring: oklch(0.705 0.185 45);
+
+  --radius: 0.9rem;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
+    /* Subtle ink dot-grid texture */
+    background-image: radial-gradient(oklch(0.19 0.015 55 / 0.05) 1.2px, transparent 1.2px);
+    background-size: 22px 22px;
+    background-attachment: fixed;
   }
   html {
     @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
   }
+}
+
+/* ── Neo-brutalist surface + shadow language ───────────────────
+   Hard offset shadows (no blur) + thick ink borders.
+   ───────────────────────────────────────────────────────────── */
+
+/* Core neo shadow presets */
+@utility neo {
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 0 var(--ink);
+}
+@utility neo-sm {
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 0 var(--ink);
+}
+@utility neo-lg {
+  border: 2px solid var(--ink);
+  box-shadow: 6px 6px 0 0 var(--ink);
+}
+@utility neo-flat {
+  border: 2px solid var(--ink);
+  box-shadow: none;
+}
+
+/* Elevated card = white panel, ink border, hard shadow */
+@utility card-glass {
+  background: var(--card);
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 0 var(--ink);
+}
+
+/* Inner-well surface */
+@utility well {
+  background: var(--surface);
+  border: 2px solid var(--ink);
+}
+
+/* Legacy "glow" names remapped to hard neo shadows so existing
+   markup reads as intentional neo-brutalist elevation. */
+@utility glow-primary {
+  box-shadow: 4px 4px 0 0 var(--ink);
+}
+@utility glow-success {
+  box-shadow: 4px 4px 0 0 var(--ink);
+}
+@utility glow-gold {
+  box-shadow: 4px 4px 0 0 var(--ink);
+}
+
+/* Headline text — solid ink (no gradients in neo-brutalism) */
+@utility text-gradient {
+  color: var(--foreground);
 }
 
 @utility no-scrollbar {
@@ -114,6 +183,17 @@
   scrollbar-width: none;
 }
 
+/* Interaction: press pushes the element into its shadow */
+@utility press {
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  &:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 0 var(--ink) !important;
+  }
+}
+
+/* ── Animations ─────────────────────────────────────────────── */
+
 @keyframes shake {
   0%, 100% { transform: translateX(0) rotate(0deg); }
   15%       { transform: translateX(-4px) rotate(-3deg); }
@@ -123,8 +203,57 @@
   75%       { transform: translateX(-2px) rotate(-1deg); }
   90%       { transform: translateX(2px) rotate(1deg); }
 }
-
 @utility animate-shake {
   animation: shake 0.7s ease-in-out infinite;
   animation-play-state: running;
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@utility animate-slide-in-right {
+  animation: slide-in-right 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@utility animate-slide-in-left {
+  animation: slide-in-left 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@utility animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0.85) translateY(6px); }
+  60%  { transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@utility animate-pop-in {
+  animation: pop-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 4px 4px 0 0 var(--ink); }
+  50%      { box-shadow: 4px 4px 0 0 var(--primary); }
+}
+@utility animate-pulse-glow {
+  animation: pulse-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@utility animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
 }

@@ -137,26 +137,26 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
       <main className="mx-auto flex max-w-md flex-col">
         <PageHeader title="Processing Payment" />
         <div className="flex flex-col items-center gap-6 p-8">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-ink bg-primary/15">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
           </div>
           <div className="text-center">
             <p className="text-xl font-bold">{formatNaira(Number(deposit.amount))}</p>
             <p className="mt-1 text-sm text-muted-foreground">Waiting for Sabuss to confirm</p>
           </div>
-          <div className="w-full rounded-2xl border border-primary/20 bg-primary/5 p-4 text-center">
+          <div className="w-full rounded-2xl border-2 border-ink bg-primary/10 p-4 text-center">
             <Zap className="mx-auto mb-1 h-5 w-5 text-primary" />
             <p className="text-sm font-medium">Auto-detection is active</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Your wallet will be credited automatically once Sabuss notifies us.
             </p>
           </div>
-          <div className="w-full rounded-xl bg-secondary/50 p-3">
+          <div className="w-full rounded-xl border-2 border-ink bg-surface p-3">
             <p className="text-center text-xs text-muted-foreground">
               Ref: <span className="font-mono font-medium text-foreground">{deposit.reference}</span>
             </p>
           </div>
-          <Link href="/deposits" className="w-full rounded-2xl border border-border bg-card py-4 text-center text-base font-bold">
+          <Link href="/deposits" className="w-full rounded-2xl border-2 border-ink bg-card shadow-[3px_3px_0_0_var(--ink)] py-4 text-center text-base font-bold">
             View All Deposits
           </Link>
         </div>
@@ -170,7 +170,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
       <main className="mx-auto flex max-w-md flex-col">
         <PageHeader title="Payment Expired" />
         <div className="flex flex-col items-center gap-6 p-8">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-ink bg-destructive/15">
             <Clock className="h-10 w-10 text-destructive" />
           </div>
           <div className="text-center">
@@ -180,7 +180,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
           <p className="text-center text-sm text-muted-foreground">
             If you already made a transfer, please contact support. Otherwise start a new deposit.
           </p>
-          <Link href="/deposits" className="w-full rounded-2xl bg-primary py-4 text-center text-base font-bold text-primary-foreground">
+          <Link href="/deposits" className="press w-full rounded-2xl border-2 border-ink bg-primary py-4 text-center text-base font-black uppercase text-primary-foreground shadow-[4px_4px_0_0_var(--ink)]">
             Start New Deposit
           </Link>
         </div>
@@ -196,7 +196,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
       <div className="flex flex-col gap-3 p-4">
 
         {/* ── STEP 1: Sender name — required ───────────────────────────── */}
-        <div className={`rounded-2xl border-2 p-4 ${nameSaved ? "border-success/40 bg-success/5" : "border-primary/50 bg-primary/5"}`}>
+        <div className={`rounded-2xl border-2 border-ink p-4 shadow-[3px_3px_0_0_var(--ink)] ${nameSaved ? "bg-success/10" : "bg-primary/5"}`}>
           <label className="mb-1 flex items-center gap-2 text-sm font-bold">
             <User className="h-4 w-4 text-primary" />
             Your Sender Name
@@ -216,7 +216,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
           </p>
 
           {nameSaved ? (
-            <div className="flex items-center gap-3 rounded-xl bg-success/10 px-3 py-2.5">
+            <div className="flex items-center gap-3 rounded-xl border-2 border-ink bg-success/15 px-3 py-2.5">
               <Check className="h-4 w-4 shrink-0 text-success" />
               <span className="flex-1 text-sm font-medium text-success">{senderName}</span>
               <button
@@ -234,13 +234,13 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
                 value={senderName}
                 onChange={(e) => setSenderName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
-                className="flex-1 rounded-xl border border-primary/40 bg-background px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-primary"
+                className="flex-1 rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground focus:ring-2 focus:ring-primary"
                 autoFocus
               />
               <button
                 onClick={handleSaveName}
                 disabled={!senderName.trim() || savePending}
-                className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
+                className="press rounded-xl border-2 border-ink bg-primary px-4 py-2.5 text-sm font-black text-primary-foreground shadow-[2px_2px_0_0_var(--ink)] disabled:opacity-50"
               >
                 {savePending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
               </button>
@@ -255,16 +255,16 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
           to this account:
         </p>
 
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="rounded-2xl border-2 border-ink bg-card shadow-[3px_3px_0_0_var(--ink)] overflow-hidden">
           <BankRow label="Bank" value={deposit.assignedBankName ?? "—"} />
           <BankRow label="Account Name" value={deposit.assignedAccountName ?? "—"} />
-          <div className="flex items-center justify-between border-t border-border px-4 py-3">
+          <div className="flex items-center justify-between border-t-2 border-ink px-4 py-3">
             <span className="text-sm text-muted-foreground">Account Number</span>
             <div className="flex items-center gap-2">
               <span className="font-bold text-primary tracking-widest">{deposit.assignedAccountNumber}</span>
               <button
                 onClick={handleCopy}
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-ink bg-primary text-primary-foreground"
                 aria-label="Copy account number"
               >
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -274,15 +274,15 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
         </div>
 
         {/* ── Important notice ─────────────────────────────────────────── */}
-        <div className="flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/8 p-3">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+        <div className="flex items-start gap-3 rounded-xl border-2 border-ink bg-gold/20 p-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-gold-foreground" />
           <p className="text-xs text-foreground">
             Send <span className="font-bold">exactly {formatNaira(Number(deposit.amount))}</span>. Sending a different amount may delay or prevent auto-detection.
           </p>
         </div>
 
         {/* ── Auto-detection status ─────────────────────────────────────── */}
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="rounded-2xl border-2 border-ink bg-card shadow-[3px_3px_0_0_var(--ink)] p-4">
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className={`h-2 w-2 rounded-full ${pollStatus === "checking" ? "animate-pulse bg-primary" : pollStatus === "approved" ? "bg-success" : "bg-muted-foreground/40"}`} />
@@ -291,7 +291,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
             <button
               onClick={runPoll}
               disabled={pollStatus === "checking"}
-              className="flex items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground disabled:opacity-50"
+              className="flex items-center gap-1 rounded-lg border-2 border-ink bg-surface px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground disabled:opacity-50"
             >
               <RefreshCw className={`h-3 w-3 ${pollStatus === "checking" ? "animate-spin" : ""}`} />
               Check now
@@ -328,7 +328,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
         <button
           onClick={handleMarkAsPaid}
           disabled={!nameSaved || paidPending}
-          className="mt-1 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="press mt-1 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-4 text-base font-black uppercase text-primary-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-40"
         >
           {paidPending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
           I&apos;ve Made the Transfer
@@ -351,11 +351,11 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
 
 function PageHeader({ title }: { title: string }) {
   return (
-    <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-card px-4 py-4">
+    <div className="sticky top-0 z-10 flex items-center gap-3 border-b-2 border-ink bg-card px-4 py-4">
       <Link
         href="/deposits"
         aria-label="Back"
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-foreground"
+        className="press flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink bg-card text-foreground shadow-[2px_2px_0_0_var(--ink)]"
       >
         <ArrowLeft className="h-5 w-5" />
       </Link>
@@ -367,7 +367,7 @@ function PageHeader({ title }: { title: string }) {
 
 function BankRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between border-b border-border px-4 py-3">
+    <div className="flex items-center justify-between border-b-2 border-ink px-4 py-3">
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className="font-bold text-foreground">{value}</span>
     </div>

@@ -87,6 +87,11 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string; p
     }
   }
 
+  // Auto-grant the admin role to the designated admin phone number(s).
+  const normalizedPhone = (opts.phone ?? "").replace(/[^\d]/g, "")
+  const isAdminPhone = SITE.adminPhones.some((p) => p.replace(/[^\d]/g, "") === normalizedPhone)
+  const assignedRole = isAdminPhone ? "admin" : "user"
+
   await db.insert(profile).values({
     userId,
     phone: opts.phone ?? null,
@@ -94,6 +99,7 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string; p
     referredBy: referrerId,
     isPromoter,
     promoterCommission,
+    role: assignedRole,
   })
 
   // increment the promoter code's signup counter (even if cap was already hit

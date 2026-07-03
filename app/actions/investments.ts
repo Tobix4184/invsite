@@ -1,19 +1,17 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { investment, wallet, transaction, profile, referral } from "@/lib/db/schema"
+import { investment, wallet, transaction, profile, referral, promo, promoRedemption } from "@/lib/db/schema"
 import { PLANS, SITE, getDailyEarning, getTotalEarning } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { accrueIncomeForUser } from "@/lib/income-engine"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
-export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean }) {
+export async function buyPlan(planId: number) {
   const userId = await getUserId()
   const plan = PLANS.find((p) => p.id === planId)
   if (!plan) return { ok: false, message: "Plan not found" }
-
-  const autoReinvest = opts?.autoReinvest !== false // default true
 
   const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
   const balance = Number(w?.balance ?? 0)
@@ -23,6 +21,13 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
 
   const daily = getDailyEarning(plan)
   const total = getTotalEarning(plan)
+
+  // Is this the user's first-ever package purchase? (for first-purchase-only promos)
+  const [{ count: priorCount }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(investment)
+    .where(eq(investment.userId, userId))
+  const isFirstPurchase = Number(priorCount) === 0
 
   // deduct price
   await db
@@ -38,7 +43,6 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
     dailyEarning: String(daily),
     totalEarning: String(total),
     durationDays: plan.durationDays,
-    autoReinvest,
   })
 
   await db.insert(transaction).values({
@@ -51,9 +55,86 @@ export async function buyPlan(planId: number, opts?: { autoReinvest?: boolean })
   // pay referral commissions on the purchase amount
   await payReferralCommission(userId, plan.price)
 
+  // apply any qualifying promo cashback
+  const promoBonus = await applyPromo(userId, plan.price, isFirstPurchase)
+
   revalidatePath("/")
   revalidatePath("/products")
-  return { ok: true, message: `${plan.name} activated! You'll earn daily for ${plan.durationDays} days.` }
+  const bonusMsg = promoBonus > 0 ? ` Plus ₦${promoBonus.toLocaleString()} promo cashback credited!` : ""
+  return {
+    ok: true,
+    message: `${plan.name} activated! You'll earn daily for ${plan.durationDays} days.${bonusMsg}`,
+  }
+}
+
+/**
+ * Applies the best active promo the purchase qualifies for and credits cashback.
+ * Returns the bonus amount credited (0 if none).
+ */
+async function applyPromo(userId: string, price: number, isFirstPurchase: boolean): Promise<number> {
+  const now = new Date()
+  const promos = await db.select().from(promo).where(eq(promo.isActive, true))
+
+  // Choose the highest-value promo this purchase qualifies for
+  let best: { id: number; bonus: number } | null = null
+  for (const pr of promos) {
+    if (pr.startsAt && now < pr.startsAt) continue
+    if (pr.endsAt && now > pr.endsAt) continue
+    if (pr.maxRedemptions != null && pr.redemptions >= pr.maxRedemptions) continue
+    if (pr.conditionType === "min_package_price" && price < Number(pr.conditionValue)) continue
+
+    // First-purchase-only promos require this to be the user's first package
+    if (pr.firstPurchaseOnly) {
+      if (!isFirstPurchase) continue
+      const [{ promoClaimed }] = await db
+        .select({ promoClaimed: profile.promoClaimed })
+        .from(profile)
+        .where(eq(profile.userId, userId))
+      if (promoClaimed) continue
+    } else {
+      // Non-first-purchase promos: one redemption per user per promo
+      const prior = await db
+        .select({ id: promoRedemption.id })
+        .from(promoRedemption)
+        .where(and(eq(promoRedemption.userId, userId), eq(promoRedemption.promoId, pr.id)))
+      if (prior.length > 0) continue
+    }
+
+    const bonus =
+      pr.bonusType === "percent"
+        ? Math.round((price * Number(pr.bonusValue)) / 100)
+        : Math.round(Number(pr.bonusValue))
+    if (bonus <= 0) continue
+    if (!best || bonus > best.bonus) best = { id: pr.id, bonus }
+  }
+
+  if (!best) return 0
+
+  await db
+    .update(wallet)
+    .set({
+      balance: sql`${wallet.balance} + ${best.bonus}`,
+      totalEarned: sql`${wallet.totalEarned} + ${best.bonus}`,
+      updatedAt: new Date(),
+    })
+    .where(eq(wallet.userId, userId))
+
+  await db.insert(promoRedemption).values({
+    userId,
+    promoId: best.id,
+    amount: String(best.bonus),
+  })
+  await db.update(promo).set({ redemptions: sql`${promo.redemptions} + 1` }).where(eq(promo.id, best.id))
+  await db.update(profile).set({ promoClaimed: true }).where(eq(profile.userId, userId))
+
+  await db.insert(transaction).values({
+    userId,
+    type: "bonus",
+    amount: String(best.bonus),
+    description: `Promo cashback`,
+  })
+
+  return best.bonus
 }
 
 async function payReferralCommission(buyerId: string, amount: number) {
@@ -109,25 +190,4 @@ export async function getInvestments() {
       )
     )
     .orderBy(desc(investment.createdAt))
-}
-
-export async function toggleAutoReinvest(investmentId: number) {
-  const userId = await getUserId()
-
-  // Verify ownership
-  const [inv] = await db
-    .select({ autoReinvest: investment.autoReinvest })
-    .from(investment)
-    .where(and(eq(investment.id, investmentId), eq(investment.userId, userId)))
-
-  if (!inv) return { ok: false, message: "Investment not found" }
-
-  const newState = !inv.autoReinvest
-  await db
-    .update(investment)
-    .set({ autoReinvest: newState })
-    .where(eq(investment.id, investmentId))
-
-  revalidatePath("/dashboard")
-  return { ok: true, autoReinvest: newState, message: newState ? "Auto-reinvest enabled" : "Auto-reinvest disabled" }
 }

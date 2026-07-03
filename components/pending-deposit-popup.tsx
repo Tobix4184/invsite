@@ -77,22 +77,22 @@ export function PendingDepositPopup({ deposits }: { deposits: PendingDeposit[] }
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
       <div className="w-full max-w-md animate-in slide-in-from-bottom-4 duration-300">
-        <div className="rounded-2xl border border-border bg-card shadow-xl">
+        <div className="rounded-2xl border-2 border-ink bg-card shadow-[6px_6px_0_0_var(--ink)]">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-border p-4">
+          <div className="flex items-center justify-between border-b-2 border-ink p-4">
             <div className="flex items-center gap-2">
               {isProcessing ? (
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
               ) : (
-                <Clock className="h-5 w-5 text-amber-400" />
+                <Clock className="h-5 w-5 text-gold" />
               )}
-              <span className="font-bold">
+              <span className="font-black uppercase tracking-wide">
                 {isProcessing ? "Payment Processing" : "Pending Deposit"}
               </span>
             </div>
             <button
               onClick={handleClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:bg-secondary/80"
+              className="press flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-card text-foreground"
             >
               <X className="h-4 w-4" />
             </button>
@@ -106,8 +106,8 @@ export function PendingDepositPopup({ deposits }: { deposits: PendingDeposit[] }
                 <p className="mt-1 text-sm text-muted-foreground">
                   Your payment is being processed (0-15 min)
                 </p>
-                <div className="mt-4 rounded-xl bg-primary/10 p-3">
-                  <p className="text-sm text-primary">
+                <div className="mt-4 rounded-xl border-2 border-ink bg-surface p-3">
+                  <p className="text-sm font-bold text-foreground">
                     You will be notified once approved
                   </p>
                 </div>
@@ -123,18 +123,18 @@ export function PendingDepositPopup({ deposits }: { deposits: PendingDeposit[] }
 
                 {/* Bank details summary */}
                 {latestDeposit.assignedBankName && (
-                  <div className="mt-4 rounded-xl bg-secondary/50 p-3 text-center">
-                    <p className="text-xs text-muted-foreground">Transfer to:</p>
-                    <p className="font-bold">{latestDeposit.assignedBankName}</p>
-                    <p className="text-lg font-bold text-primary">{latestDeposit.assignedAccountNumber}</p>
+                  <div className="mt-4 rounded-xl border-2 border-ink bg-surface p-3 text-center">
+                    <p className="text-xs font-semibold text-muted-foreground">Transfer to:</p>
+                    <p className="font-black">{latestDeposit.assignedBankName}</p>
+                    <p className="text-lg font-black text-primary">{latestDeposit.assignedAccountNumber}</p>
                   </div>
                 )}
 
                 {/* Sender name warning */}
                 {showNameWarning && (
-                  <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-                    <p className="text-xs text-amber-400">
+                  <div className="mt-4 flex items-start gap-2 rounded-xl border-2 border-ink bg-gold/20 p-3">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+                    <p className="text-xs font-bold text-foreground">
                       Add your sender name to speed up verification
                     </p>
                   </div>
@@ -146,13 +146,13 @@ export function PendingDepositPopup({ deposits }: { deposits: PendingDeposit[] }
             <div className="mt-4 flex gap-2">
               <button
                 onClick={() => handleDismiss(latestDeposit.reference)}
-                className="flex-1 rounded-xl border border-border bg-secondary py-3 text-sm font-bold"
+                className="press flex-1 rounded-xl border-2 border-ink bg-card py-3 text-sm font-black text-foreground shadow-[3px_3px_0_0_var(--ink)]"
               >
                 Dismiss
               </button>
               <Link
                 href={`/deposits/${latestDeposit.reference}`}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground"
+                className="press flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 border-ink bg-primary py-3 text-sm font-black uppercase text-primary-foreground shadow-[3px_3px_0_0_var(--ink)]"
               >
                 {isProcessing ? "View Status" : "Continue"} <ArrowRight className="h-4 w-4" />
               </Link>

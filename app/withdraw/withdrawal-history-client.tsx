@@ -8,20 +8,20 @@ type Withdrawal = {
   amount: string | number
   netAmount: string | number | null
   charge: string | number | null
-  bankName: string
-  accountNumber: string
-  accountName: string
+  bankName: string | null
+  accountNumber: string | null
+  accountName: string | null
   status: string
   createdAt: Date | string
   processedAt: Date | string | null
 }
 
 const STATUS_META: Record<string, { icon: typeof Clock; tint: string; bg: string; label: string }> = {
-  pending:   { icon: Clock,        tint: "text-amber-400",   bg: "bg-amber-400/10",   label: "Pending" },
-  approved:  { icon: CheckCircle,  tint: "text-success",     bg: "bg-success/10",     label: "Approved" },
-  completed: { icon: CheckCircle,  tint: "text-success",     bg: "bg-success/10",     label: "Paid" },
-  rejected:  { icon: XCircle,      tint: "text-destructive", bg: "bg-destructive/10", label: "Rejected" },
-  failed:    { icon: XCircle,      tint: "text-destructive", bg: "bg-destructive/10", label: "Failed" },
+  pending:   { icon: Clock,        tint: "text-gold",        bg: "bg-gold/12",        label: "Pending" },
+  approved:  { icon: CheckCircle,  tint: "text-success",     bg: "bg-success/12",     label: "Approved" },
+  completed: { icon: CheckCircle,  tint: "text-success",     bg: "bg-success/12",     label: "Paid" },
+  rejected:  { icon: XCircle,      tint: "text-destructive", bg: "bg-destructive/12", label: "Rejected" },
+  failed:    { icon: XCircle,      tint: "text-destructive", bg: "bg-destructive/12", label: "Failed" },
 }
 
 export function WithdrawalHistoryClient({ withdrawals }: { withdrawals: Withdrawal[] }) {
@@ -33,10 +33,10 @@ export function WithdrawalHistoryClient({ withdrawals }: { withdrawals: Withdraw
         const net = w.netAmount ? Number(w.netAmount) : Number(w.amount)
 
         return (
-          <div key={w.id} className="rounded-2xl border border-border bg-card p-4">
+          <div key={w.id} className="card-glass rounded-3xl p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-lg font-bold">{formatNaira(Number(w.amount))}</p>
+                <p className="text-lg font-black tabular-nums">{formatNaira(Number(w.amount))}</p>
                 <p className="text-xs text-muted-foreground">
                   You receive: <span className="font-semibold text-foreground">{formatNaira(net)}</span>
                   {w.charge && Number(w.charge) > 0 && (
@@ -52,7 +52,7 @@ export function WithdrawalHistoryClient({ withdrawals }: { withdrawals: Withdraw
               </span>
             </div>
 
-            <div className="mt-3 rounded-xl bg-secondary/50 p-3">
+            <div className="mt-3 rounded-2xl bg-surface p-3">
               <p className="text-xs text-muted-foreground">To</p>
               <p className="text-sm font-semibold">{w.bankName} · {w.accountNumber}</p>
               <p className="text-xs text-muted-foreground">{w.accountName}</p>
@@ -63,7 +63,7 @@ export function WithdrawalHistoryClient({ withdrawals }: { withdrawals: Withdraw
             </p>
 
             {w.status === "pending" && (
-              <p className="mt-2 text-xs text-amber-400">
+              <p className="mt-2 text-xs text-gold">
                 Your request is being reviewed. Funds are held until processed.
               </p>
             )}

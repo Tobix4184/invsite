@@ -2,26 +2,26 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Layers, Lock, UsersRound, CircleUserRound } from 'lucide-react'
+import { LayoutGrid, Layers, Gamepad2, UsersRound, CircleUser } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
-  { href: '/dashboard', label: 'Home',    icon: LayoutDashboard },
-  { href: '/products',  label: 'Plans',   icon: Layers },
-  { href: '/games',     label: 'Vault',   icon: Lock },
-  { href: '/team',      label: 'Network', icon: UsersRound },
-  { href: '/profile',   label: 'Account', icon: CircleUserRound },
+  { href: '/dashboard', label: 'Home', icon: LayoutGrid },
+  { href: '/products', label: 'Plans', icon: Layers },
+  { href: '/games', label: 'Games', icon: Gamepad2 },
+  { href: '/team', label: 'Team', icon: UsersRound },
+  { href: '/profile', label: 'Account', icon: CircleUser },
 ]
 
 export function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    <div
+      className="fixed inset-x-0 bottom-0 z-40 px-3 pb-3"
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}
     >
-      <div className="mx-auto flex max-w-md items-stretch justify-around">
+      <nav className="mx-auto flex max-w-md items-stretch justify-around rounded-2xl border-2 border-ink bg-card px-1.5 py-1.5 shadow-[4px_4px_0_0_var(--ink)]">
         {tabs.map((tab) => {
           const active = pathname.startsWith(tab.href)
           return (
@@ -29,24 +29,22 @@ export function BottomNav() {
               key={tab.href}
               href={tab.href}
               className={cn(
-                'relative flex flex-1 flex-col items-center gap-1 pt-3 pb-2.5 text-[10px] font-bold tracking-wide transition-colors',
-                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+                'group relative flex flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] font-black uppercase tracking-wide transition-colors',
+                active ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              {/* Top underline indicator */}
-              <span className={cn(
-                "absolute top-0 left-1/2 -translate-x-1/2 h-0.5 transition-all",
-                active ? "w-6 bg-primary" : "w-0 bg-transparent"
-              )} />
+              {active && (
+                <span className="absolute inset-0 rounded-xl border-2 border-ink bg-primary" aria-hidden />
+              )}
               <tab.icon
-                className="h-5 w-5"
-                strokeWidth={active ? 2.4 : 1.6}
+                className={cn('relative h-[18px] w-[18px] transition-transform group-active:scale-90')}
+                strokeWidth={active ? 2.6 : 2}
               />
-              <span className="leading-none">{tab.label}</span>
+              <span className="relative leading-none">{tab.label}</span>
             </Link>
           )
         })}
-      </div>
-    </nav>
+      </nav>
+    </div>
   )
 }

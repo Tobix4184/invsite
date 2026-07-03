@@ -2,8 +2,9 @@
 
 import { db } from "@/lib/db"
 import { wallet, withdrawal, transaction, giftCode, giftCodeRedemption, profile } from "@/lib/db/schema"
-import { SITE } from "@/lib/plans"
+import { SITE, WITHDRAWAL_TIERS, canWithdrawToday } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
+import { getUserTier } from "@/lib/user-tier"
 import { getBoolSetting, getLiveDepositLimits, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
@@ -30,6 +31,18 @@ export async function requestWithdrawal(data: {
     return { ok: false, message: "Please fill in your bank details" }
   }
 
+  // Enforce withdrawal-day tiers based on the user's active packages
+  const tier = await getUserTier(userId)
+  if (!tier) {
+    return { ok: false, message: "You need an active package before you can withdraw." }
+  }
+  if (!canWithdrawToday(tier)) {
+    return {
+      ok: false,
+      message: `Your ${WITHDRAWAL_TIERS[tier].label} withdrawal day is ${WITHDRAWAL_TIERS[tier].dayLabel}. Please come back then.`,
+    }
+  }
+
   const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
   const balance = Number(w?.balance ?? 0)
   if (balance < amount) {
@@ -54,6 +67,7 @@ export async function requestWithdrawal(data: {
     bankName: data.bankName,
     accountNumber: data.accountNumber,
     accountName: data.accountName,
+    withdrawalTier: tier,
     status: "pending",
   })
 

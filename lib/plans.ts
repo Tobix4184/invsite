@@ -1,13 +1,18 @@
+export type WithdrawalTier = 'tier1' | 'tier2' | 'tier3'
+
 export type Plan = {
   id: number
   name: string
   tier: string
-  device: string
-  deviceImage: string
+  /** Real-world valued asset this package represents */
+  asset: string
+  assetImage: string
   price: number
-  dailyReturnPercent: number
+  /** Fixed daily earning in Naira */
+  dailyEarning: number
   durationDays: number
-  // Computed helpers (not stored in DB — use getDailyEarning / getTotalEarning)
+  /** Which withdrawal tier this package unlocks */
+  withdrawalTier: WithdrawalTier
   popular?: boolean
   accentColor: string
   badgeClass: string
@@ -16,157 +21,223 @@ export type Plan = {
 export const PLANS: Plan[] = [
   {
     id: 1,
-    name: 'Bronze',
-    tier: 'Starter',
-    device: 'Budget Smartphone',
-    deviceImage: '/devices/bronze.png',
-    price: 3000,
-    dailyReturnPercent: 29.63,
-    durationDays: 30,
-    accentColor: '#CD7F32',
-    badgeClass: 'bg-amber-700/20 text-amber-600 border-amber-700/30',
-  },
-  {
-    id: 2,
-    name: 'Iron',
+    name: 'Starter',
     tier: 'Entry',
-    device: 'Basic Smartphone',
-    deviceImage: '/devices/bronze.png',
-    price: 5000,
-    dailyReturnPercent: 29.63,
-    durationDays: 30,
-    accentColor: '#6B7280',
-    badgeClass: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+    asset: 'Treasury Savings',
+    assetImage: '/assets/treasury.png',
+    price: 3000,
+    dailyEarning: 650,
+    durationDays: 40,
+    withdrawalTier: 'tier3',
+    accentColor: '#00D4FF',
+    badgeClass: 'bg-primary text-primary-foreground',
   },
   {
-    id: 4,
-    name: 'Silver',
-    tier: 'Basic',
-    device: 'Mid-range Tablet',
-    deviceImage: '/devices/silver.png',
+    // ₦10k × 45 days × ₦1,300/day = ₦58,500 total → 585% ROI
+    id: 2,
+    name: 'Basic',
+    tier: 'Entry',
+    asset: 'Gold Reserve',
+    assetImage: '/assets/gold.png',
     price: 10000,
-    dailyReturnPercent: 29.63,
-    durationDays: 30,
-    accentColor: '#A8A9AD',
-    badgeClass: 'bg-slate-400/20 text-slate-300 border-slate-400/30',
+    dailyEarning: 1300,
+    durationDays: 45,
+    withdrawalTier: 'tier3',
+    accentColor: '#00D4FF',
+    badgeClass: 'bg-primary text-primary-foreground',
   },
   {
-    id: 5,
-    name: 'Gold',
-    tier: 'Standard',
-    device: 'Premium Laptop',
-    deviceImage: '/devices/gold.png',
-    price: 25000,
-    dailyReturnPercent: 29.63,
-    durationDays: 30,
+    // ₦35k × 45 days × ₦4,200/day = ₦189,000 total → 540% ROI
+    id: 3,
+    name: 'Hustle',
+    tier: 'Popular',
+    asset: 'Solar Energy Farm',
+    assetImage: '/assets/solar.png',
+    price: 35000,
+    dailyEarning: 4200,
+    durationDays: 45,
+    withdrawalTier: 'tier3',
     popular: true,
-    accentColor: '#FFD700',
-    badgeClass: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    accentColor: '#00D4FF',
+    badgeClass: 'bg-primary text-primary-foreground',
   },
   {
+    // ₦80k × 50 days × ₦8,800/day = ₦440,000 total → 550% ROI
+    id: 4,
+    name: 'Grind',
+    tier: 'Growth',
+    asset: 'Agricultural Estate',
+    assetImage: '/assets/agriculture.png',
+    price: 80000,
+    dailyEarning: 8800,
+    durationDays: 50,
+    withdrawalTier: 'tier2',
+    accentColor: '#34D399',
+    badgeClass: 'bg-success text-success-foreground',
+  },
+  {
+    // ₦150k × 55 days × ₦15,000/day = ₦825,000 total → 550% ROI
+    id: 5,
+    name: 'Wealth',
+    tier: 'Premium',
+    asset: 'Real Estate Fund',
+    assetImage: '/assets/realestate.png',
+    price: 150000,
+    dailyEarning: 15000,
+    durationDays: 55,
+    withdrawalTier: 'tier2',
+    accentColor: '#34D399',
+    badgeClass: 'bg-success text-success-foreground',
+  },
+  {
+    // ₦300k × 60 days × ₦28,000/day = ₦1,680,000 total → 560% ROI
     id: 6,
-    name: 'Platinum',
-    tier: 'Advanced',
-    device: 'Gaming Desktop',
-    deviceImage: '/devices/platinum.png',
-    price: 50000,
-    dailyReturnPercent: 29.63,
-    durationDays: 30,
-    accentColor: '#E5E4E2',
-    badgeClass: 'bg-gray-300/20 text-gray-300 border-gray-300/30',
+    name: 'Empire',
+    tier: 'VIP',
+    asset: 'Oil & Gas Holding',
+    assetImage: '/assets/oil.png',
+    price: 300000,
+    dailyEarning: 28000,
+    durationDays: 60,
+    withdrawalTier: 'tier1',
+    accentColor: '#F5C451',
+    badgeClass: 'bg-gold text-gold-foreground',
   },
   {
+    // ₦500k × 65 days × ₦45,000/day = ₦2,925,000 total → 585% ROI
     id: 7,
-    name: 'Diamond',
-    tier: 'Professional',
-    device: 'Workstation',
-    deviceImage: '/devices/diamond.png',
-    price: 100000,
-    dailyReturnPercent: 29.63,
-    durationDays: 30,
-    accentColor: '#00E5FF',
-    badgeClass: 'bg-cyan-400/20 text-cyan-300 border-cyan-400/30',
-  },
-  {
-    id: 8,
-    name: 'Elite',
-    tier: 'Expert',
-    device: 'Enterprise Server',
-    deviceImage: '/devices/elite.png',
-    price: 250000,
-    dailyReturnPercent: 29.63,
-    durationDays: 30,
-    accentColor: '#9B59B6',
-    badgeClass: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  },
-  {
-    id: 9,
     name: 'Legend',
-    tier: 'Master',
-    device: 'Server Rack',
-    deviceImage: '/devices/legend.png',
+    tier: 'VIP',
+    asset: 'Data Center Grid',
+    assetImage: '/assets/datacenter.png',
     price: 500000,
-    dailyReturnPercent: 29.63,
-    durationDays: 30,
-    accentColor: '#FF6B35',
-    badgeClass: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    dailyEarning: 45000,
+    durationDays: 65,
+    withdrawalTier: 'tier1',
+    accentColor: '#F5C451',
+    badgeClass: 'bg-gold text-gold-foreground',
   },
   {
-    id: 10,
+    // ₦1M × 70 days × ₦85,000/day = ₦5,950,000 total → 595% ROI
+    id: 8,
     name: 'Sovereign',
-    tier: 'Supreme',
-    device: 'Data Center',
-    deviceImage: '/devices/sovereign.png',
+    tier: 'VIP',
+    asset: 'Diamond Holdings',
+    assetImage: '/assets/diamond.png',
     price: 1000000,
-    dailyReturnPercent: 29.63,
-    durationDays: 30,
-    accentColor: '#00D48A',
-    badgeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    dailyEarning: 85000,
+    durationDays: 70,
+    withdrawalTier: 'tier1',
+    accentColor: '#F5C451',
+    badgeClass: 'bg-gold text-gold-foreground',
   },
 ]
 
-/** Returns daily earning in Naira (floor to whole naira) */
+/** Returns daily earning in Naira */
 export function getDailyEarning(plan: Plan): number {
-  return Math.floor((plan.price * plan.dailyReturnPercent) / 100)
+  return plan.dailyEarning
 }
 
 /** Returns total earning over full duration */
 export function getTotalEarning(plan: Plan): number {
-  return getDailyEarning(plan) * plan.durationDays
+  return plan.dailyEarning * plan.durationDays
+}
+
+export function getPlanById(id: number): Plan | undefined {
+  return PLANS.find((p) => p.id === id)
+}
+
+// ── Withdrawal tier schedule ────────────────────────────────────────────────
+// JS getDay(): 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
+export const WITHDRAWAL_TIERS: Record<
+  WithdrawalTier,
+  { label: string; days: number[]; dayLabel: string }
+> = {
+  tier1: { label: 'Tier 1 · VIP', days: [5], dayLabel: 'Every Friday' },
+  tier2: { label: 'Tier 2', days: [4], dayLabel: 'Every Thursday' },
+  tier3: { label: 'Tier 3', days: [3], dayLabel: 'Every Wednesday' },
+}
+
+/** Highest tier the user qualifies for based on their active packages (tier1 > tier2 > tier3) */
+export function bestTier(tiers: WithdrawalTier[]): WithdrawalTier | null {
+  if (tiers.includes('tier1')) return 'tier1'
+  if (tiers.includes('tier2')) return 'tier2'
+  if (tiers.includes('tier3')) return 'tier3'
+  return null
+}
+
+/** Is today a valid withdrawal day for the given tier? */
+export function canWithdrawToday(tier: WithdrawalTier | null, date = new Date()): boolean {
+  if (!tier) return false
+  return WITHDRAWAL_TIERS[tier].days.includes(date.getDay())
 }
 
 export const SITE = {
-  name: 'Poco',
-  short: 'POCO',
-  tagline: 'Smart Investment Platform',
+  name: '247 Incum',
+  short: '247',
+  tagline: 'Earn Every Hour, Every Day',
+  packageCount: 8,
+
+  // Phone numbers that are auto-granted the admin role on signup.
+  adminPhones: ['08077229485'],
   signInBonus: 100,
   welcomeBonus: 500,
   minWithdrawal: 1000,
-  minDeposit: 3000,
+  minDeposit: 10000,
   withdrawalCharge: 18,
   referralLevel1: 20,
   referralLevel2: 3,
-  promoterLevel1: 40,
-  withdrawalHours: '9 AM to 8 PM Daily',
-  inviteCode: 'POCO01',
+  // Promoters get NO special referral commission — they earn a salary instead.
+  // Kept equal to referralLevel1 so promoter commission logic stays neutral.
+  promoterLevel1: 20,
+  withdrawalHours: 'Mornings on your tier day',
+  inviteCode: 'INCUM01',
   telegramGroup: 'https://t.me/AFRI_EARN',
   telegramChannel: 'https://t.me/AFRI_EARN',
-  telegramSupport: 'https://t.me/pocoinvest',
+  telegramSupport: 'https://t.me/AFRI_EARN',
 
-  // Stake & Spin
-  stakeMin: 500,
-  stakeMax: 50000,
+  // Promoter salary system (promoters get salary, NOT extra referral commission)
+  defaultPromoterSalary: 5000, // weekly, admin can override per promoter
+
+  // Launch promo defaults (admin can edit/disable)
+  launchPromo: {
+    packagePrice: 35000, // Hustle
+    cashbackPercent: 60,
+  },
+
+  // ── Free-play games (no wallet money is ever staked) ─────────────────────
+  // Plays are EARNED, not bought: users get plays for every package they buy
+  // and for every referral who becomes a valid (investing) member.
+  gamePlaysPerInvestment: 1,
+  gamePlaysPerReferral: 1,
+
+  // Stake & Spin — spinning a free play awards a random reward "drop".
+  // No stake is deducted; the worst outcome is simply ₦0.
+  spinPrizes: [
+    { amount: 0, weight: 26 },
+    { amount: 100, weight: 26 },
+    { amount: 200, weight: 20 },
+    { amount: 350, weight: 13 },
+    { amount: 500, weight: 9 },
+    { amount: 1000, weight: 5 },
+    { amount: 2500, weight: 1 },
+  ] as { amount: number; weight: number }[],
+
+  // Legacy stake fields kept for backward compatibility (unused by the new spin)
+  stakeMin: 0,
+  stakeMax: 0,
   stakeHouseEdge: 0.65,
   stakeMultipliers: [1.5, 1.8, 2.0, 2.5, 3.0] as number[],
 
-  // Lucky Draw
+  // Lucky Draw — slots are free (earned from investments + referrals).
+  // Each slot entered adds this house-funded amount to the daily prize pool.
   luckyDrawSlotCost: 200,
   luckyDrawFreePerInvestment: 1,
   luckyDrawPrizeShares: [0.5, 0.3, 0.2] as number[],
 
-  // Lock Vault tiers
+  // Lock Vault removed from UI — config retained for backend compatibility only
   vaultTiers: [
-    { days: 7,  bonusPercent: 8,  penaltyPercent: 10 },
+    { days: 7, bonusPercent: 8, penaltyPercent: 10 },
     { days: 14, bonusPercent: 18, penaltyPercent: 10 },
     { days: 30, bonusPercent: 40, penaltyPercent: 10 },
   ] as { days: number; bonusPercent: number; penaltyPercent: number }[],
@@ -179,8 +250,28 @@ export const SITE = {
   features: {
     stakeAndSpin: true,
     luckyDraw: true,
-    lockVault: true,
+    lockVault: false, // removed from UI
+    virtualAccount: false, // coming soon
   },
+}
+
+/** Picks a random reward drop (Naira) from the weighted spin prize table. */
+export function pickSpinPrize(): number {
+  const prizes = SITE.spinPrizes
+  const total = prizes.reduce((s, p) => s + p.weight, 0)
+  let r = Math.random() * total
+  for (const p of prizes) {
+    r -= p.weight
+    if (r <= 0) return p.amount
+  }
+  return 0
+}
+
+/** Masks a phone number for display, e.g. "08077229485" -> "0807*****485". */
+export function maskPhone(phone: string): string {
+  const digits = (phone || '').replace(/[^\d]/g, '')
+  if (digits.length < 7) return digits || 'Member'
+  return `${digits.slice(0, 4)}*****${digits.slice(-3)}`
 }
 
 export function formatNaira(value: number | string): string {

@@ -21,7 +21,7 @@ import {
   lockVault,
 } from "@/lib/db/schema"
 import { requireAdmin, requireAdminOrModerator } from "@/lib/session"
-import { accrueIncomeForAll, backfillReinvestForUser } from "@/lib/income-engine"
+import { accrueIncomeForAll } from "@/lib/income-engine"
 import { getPauseFlags, setSetting, getGameConfig, getLiveDepositLimits, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
 import { creditApprovedDeposit } from "@/app/actions/deposit"
 import { and, asc, desc, eq, gt, sql, sum } from "drizzle-orm"
@@ -275,6 +275,36 @@ export async function adjustBalance(userId: string, amount: number, note: string
   return { ok: true, message: "Balance adjusted" }
 }
 
+/** Admin-only: zero out a single user's wallet balance. */
+export async function clearUserBalance(userId: string) {
+  await requireAdmin()
+  const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
+  if (!w) return { ok: false, message: "Wallet not found" }
+  const current = Number(w.balance)
+  await db
+    .update(wallet)
+    .set({ balance: "0", updatedAt: new Date() })
+    .where(eq(wallet.userId, userId))
+  if (current > 0) {
+    await db.insert(transaction).values({
+      userId,
+      type: "debit",
+      amount: String(current),
+      description: "Admin cleared balance",
+    })
+  }
+  revalidatePath("/admin")
+  return { ok: true, message: "User balance cleared" }
+}
+
+/** Admin-only: zero out every user's wallet balance. Use to reset the platform. */
+export async function clearAllBalances() {
+  await requireAdmin()
+  await db.update(wallet).set({ balance: "0", updatedAt: new Date() })
+  revalidatePath("/admin")
+  return { ok: true, message: "All user balances cleared" }
+}
+
 export async function createGiftCode(data: { code: string; amount: number; maxUses: number }) {
   await requireAdmin()
   const code = data.code.trim().toUpperCase()
@@ -337,25 +367,6 @@ export async function processAllIncome() {
     ok: true,
     message: `Processed ${result.users} users, credited ₦${result.credited.toLocaleString()} total`,
   }
-}
-
-/** Admin: run reinvest backfill for all users with autoReinvest ON — converts past earnings to reinvest. */
-export async function runReinvestBackfillAll() {
-  await requireAdmin()
-  
-  const rows = await db
-    .selectDistinct({ userId: investment.userId })
-    .from(investment)
-    .where(eq(investment.autoReinvest, true))
-
-  let processed = 0
-  for (const r of rows) {
-    await backfillReinvestForUser(r.userId)
-    processed++
-  }
-  
-  revalidatePath("/admin")
-  return { ok: true, message: `Backfilled ${processed} user(s) — converted past earnings to reinvest` }
 }
 
 // ===================== BANK ACCOUNT MANAGEMENT =====================

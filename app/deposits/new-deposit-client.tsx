@@ -33,21 +33,21 @@ export function NewDepositClient({ balance, minDeposit }: { balance: number; min
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 animate-fade-up">
       {/* Balance card */}
-      <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-          <Wallet className="h-5 w-5 text-primary" />
+      <div className="card-glass flex items-center gap-3 rounded-2xl p-4">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border-2 border-ink bg-primary">
+          <Wallet className="h-5 w-5 text-primary-foreground" />
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Wallet Balance</p>
-          <p className="text-lg font-black">{formatNaira(balance)}</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Wallet Balance</p>
+          <p className="text-xl font-black tabular-nums">{formatNaira(balance)}</p>
         </div>
       </div>
 
-      {/* Deposit form — always visible */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <p className="mb-4 text-sm font-bold">How much do you want to deposit?</p>
+      {/* Deposit form */}
+      <div className="card-glass rounded-3xl p-5">
+        <p className="mb-4 text-sm font-black">How much do you want to deposit?</p>
 
         {/* Quick amounts */}
         <div className="mb-4 grid grid-cols-3 gap-2">
@@ -56,10 +56,10 @@ export function NewDepositClient({ balance, minDeposit }: { balance: number; min
               key={q}
               type="button"
               onClick={() => setAmount(String(q))}
-              className={`rounded-xl border py-2.5 text-xs font-bold transition-colors ${
+              className={`rounded-xl border-2 border-ink py-2.5 text-xs font-black transition-all active:scale-95 ${
                 amountNum === q
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-secondary text-muted-foreground"
+                  ? "bg-primary text-primary-foreground shadow-[2px_2px_0_0_var(--ink)]"
+                  : "bg-surface text-muted-foreground"
               }`}
             >
               {formatNaira(q)}
@@ -68,19 +68,19 @@ export function NewDepositClient({ balance, minDeposit }: { balance: number; min
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <div className="rounded-xl border border-border bg-secondary/50 px-4 focus-within:border-primary">
+          <div className="rounded-2xl border-2 border-ink bg-surface px-4 transition-all focus-within:ring-2 focus-within:ring-primary">
             <input
               type="number"
               inputMode="numeric"
               placeholder={`Or enter amount (min ${formatNaira(minDeposit)})`}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full bg-transparent py-3.5 text-sm outline-none placeholder:text-muted-foreground"
+              className="w-full bg-transparent py-3.5 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground/50"
             />
           </div>
 
           {amountNum > 0 && amountNum < minDeposit && (
-            <p className="text-xs text-destructive">
+            <p className="text-xs font-bold text-destructive">
               Minimum deposit is {formatNaira(minDeposit)}
             </p>
           )}
@@ -88,7 +88,7 @@ export function NewDepositClient({ balance, minDeposit }: { balance: number; min
           <button
             type="submit"
             disabled={pending || !isValid}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-4 text-base font-black uppercase tracking-wide text-primary-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-60"
           >
             {pending && <Loader2 className="h-5 w-5 animate-spin" />}
             {pending ? "Getting account details..." : `Continue${isValid ? ` — ${formatNaira(amountNum)}` : ""}`}

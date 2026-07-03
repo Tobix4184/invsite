@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session"
 import { getDashboardData } from "@/app/actions/account"
 import { getInvestments } from "@/app/actions/investments"
 import { getPendingDeposits } from "@/app/actions/deposit"
+import { getActivePromos } from "@/app/actions/promos"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { BalanceCard } from "@/components/balance-card"
@@ -12,7 +13,8 @@ import { PlanCard } from "@/components/plan-card"
 import { ActiveInvestments } from "@/components/active-investments"
 import { WelcomePopup } from "@/components/welcome-popup"
 import { PendingDepositPopup } from "@/components/pending-deposit-popup"
-import { PLANS } from "@/lib/plans"
+import { PromoPopup } from "@/components/promo-popup"
+import { PLANS, maskPhone } from "@/lib/plans"
 
 export const dynamic = "force-dynamic"
 
@@ -21,10 +23,11 @@ export default async function DashboardPage() {
   if (!session?.user) redirect("/")
 
   const userId = session.user.id
-  const [data, investments, pendingDeposits] = await Promise.all([
+  const [data, investments, pendingDeposits, activePromos] = await Promise.all([
     getDashboardData(),
     getInvestments(),
     getPendingDeposits(),
+    getActivePromos(),
   ])
 
   const todayIncome = investments
@@ -32,19 +35,20 @@ export default async function DashboardPage() {
     .reduce((s, i) => s + Number(i.dailyEarning), 0)
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-28">
       <WelcomePopup isNewUser={data.isNewUser} />
       <PendingDepositPopup deposits={pendingDeposits} />
+      {!data.isNewUser && <PromoPopup promos={activePromos} />}
       <AppHeader isPromoter={data.isPromoter} />
 
-      <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
+      <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5 animate-fade-up">
         {/* Greeting */}
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Welcome back</p>
-          <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-black tracking-tight">
-            {data.name.split(" ")[0]}
+          <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Welcome</p>
+          <h1 className="mt-1 flex items-center gap-2 text-2xl font-black tracking-tight tabular-nums">
+            {data.phone ? maskPhone(data.phone) : data.name.split(" ")[0]}
             {data.isPromoter && (
-              <span className="rounded-sm bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+              <span className="rounded-full border-2 border-ink bg-gold px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-gold-foreground">
                 Partner
               </span>
             )}
@@ -58,8 +62,8 @@ export default async function DashboardPage() {
 
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-black tracking-tight">Poco Plans</h2>
-            <Link href="/products" className="text-sm font-semibold text-primary">
+            <h2 className="text-lg font-black tracking-tight">Investment Packages</h2>
+            <Link href="/products" className="text-sm font-bold text-primary underline-offset-4 hover:underline">
               View all
             </Link>
           </div>

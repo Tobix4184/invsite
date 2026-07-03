@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useTransition, useEffect } from "react"
-import { Ticket, Plus, Minus, Gift, Loader2, Trophy, Zap, Users, Clock, Star } from "lucide-react"
+import { Ticket, Gift, Loader2, Trophy, Zap, Users, Clock, Star } from "lucide-react"
 import { toast } from "sonner"
-import { claimFreeDrawSlot, buyDrawSlots, claimReferralDrawSlot } from "@/app/actions/games"
+import { claimFreeDrawSlot, claimReferralDrawSlot } from "@/app/actions/games"
 
 type Round = {
   drawDate: string
@@ -24,7 +24,7 @@ type Props = {
   today: string
   round: Round
   todaySlotsCount: number
-  freeSlotAvailable: boolean
+  freeSlotsRemaining: number
   hasActiveInvestment: boolean
   referralSlotsAvailable: number
   slotCost: number
@@ -52,27 +52,22 @@ function useCountdownToMidnight() {
 }
 
 export function LuckyDrawGame({
-  balance,
   today,
   round,
   todaySlotsCount,
-  freeSlotAvailable,
+  freeSlotsRemaining,
   hasActiveInvestment,
   referralSlotsAvailable,
-  slotCost,
   recentWinners,
 }: Props) {
   const [slots, setSlots] = useState(todaySlotsCount)
-  const [localBalance, setLocalBalance] = useState(balance)
   const [prizePool, setPrizePool] = useState(Number(round?.prizePool ?? 0))
-  const [buyCount, setBuyCount] = useState(1)
-  const [freeUsed, setFreeUsed] = useState(!freeSlotAvailable)
+  const [freeLeft, setFreeLeft] = useState(freeSlotsRemaining)
   const [referralLeft, setReferralLeft] = useState(referralSlotsAvailable)
   const [pending, startTransition] = useTransition()
   const countdown = useCountdownToMidnight()
 
   const drawClosed = round?.status === "drawn"
-  const totalCost = buyCount * slotCost
 
   const handleEnterFree = () => {
     startTransition(async () => {
@@ -80,7 +75,7 @@ export function LuckyDrawGame({
       if (!res.ok) { toast.error(res.message); return }
       toast.success("Free slot entered!")
       setSlots((s) => s + 1)
-      setFreeUsed(true)
+      setFreeLeft((f) => f - 1)
     })
   }
 
@@ -94,24 +89,14 @@ export function LuckyDrawGame({
     })
   }
 
-  const handleBuy = () => {
-    if (totalCost > localBalance) { toast.error("Insufficient balance"); return }
-    startTransition(async () => {
-      const res = await buyDrawSlots(buyCount)
-      if (!res.ok) { toast.error(res.message); return }
-      toast.success(res.message)
-      setSlots((s) => s + buyCount)
-      setLocalBalance((b) => b - totalCost)
-      setPrizePool((p) => p + totalCost)
-    })
-  }
+  const noSlotsToClaim = freeLeft <= 0 && referralLeft <= 0
 
   return (
     <div className="flex flex-col gap-4">
 
       {/* Recent winners feed — FOMO driver */}
       {recentWinners.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="card-glass rounded-2xl p-4">
           <div className="mb-3 flex items-center gap-2">
             <Trophy className="h-4 w-4 text-primary" />
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Recent Winners</p>
@@ -121,9 +106,9 @@ export function LuckyDrawGame({
               <div key={i} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black ${
-                    w.place === 1 ? "bg-yellow-400/20 text-yellow-500" :
-                    w.place === 2 ? "bg-zinc-400/20 text-zinc-400" :
-                    "bg-amber-700/20 text-amber-700"
+                    w.place === 1 ? "border-2 border-ink bg-gold text-gold-foreground" :
+                    w.place === 2 ? "border-2 border-ink bg-surface text-foreground" :
+                    "border-2 border-ink bg-gold/60 text-gold-foreground"
                   }`}>
                     {w.place}
                   </span>
@@ -140,22 +125,22 @@ export function LuckyDrawGame({
       )}
 
       {/* Prize pool + stats */}
-      <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-primary/10 p-5 text-center">
+      <div className="relative overflow-hidden rounded-3xl border-2 border-ink bg-primary p-5 text-center text-primary-foreground shadow-[5px_5px_0_0_var(--ink)]">
         <div className="mb-1 flex items-center justify-center gap-2">
-          <Gift className="h-5 w-5 text-primary" />
-          <p className="text-xs font-bold uppercase tracking-widest text-primary">Prize Pool</p>
+          <Gift className="h-5 w-5 text-primary-foreground" />
+          <p className="text-xs font-black uppercase tracking-widest text-primary-foreground">Prize Pool</p>
         </div>
-        <p className="mb-1 font-mono text-4xl font-black text-foreground">
+        <p className="mb-1 font-mono text-4xl font-black text-primary-foreground">
           ₦{prizePool.toLocaleString()}
         </p>
-        <p className="text-xs text-muted-foreground">1st 35% · 2nd 20% · 3rd 15%</p>
+        <p className="text-xs font-semibold text-primary-foreground/80">1st 50% · 2nd 30% · 3rd 20%</p>
 
         <div className="mt-4 grid grid-cols-3 gap-2">
-          <div className="rounded-xl border border-border bg-background/60 px-3 py-2 text-center">
+          <div className="rounded-xl border-2 border-ink bg-surface px-3 py-2 text-center">
             <p className="font-mono text-lg font-bold text-foreground">{slots}</p>
             <p className="text-[10px] text-muted-foreground">Your Slots</p>
           </div>
-          <div className="rounded-xl border border-border bg-background/60 px-3 py-2 text-center">
+          <div className="rounded-xl border-2 border-ink bg-surface px-3 py-2 text-center">
             {drawClosed ? (
               <>
                 <p className="text-xs font-bold text-destructive">Drawn</p>
@@ -168,7 +153,7 @@ export function LuckyDrawGame({
               </>
             )}
           </div>
-          <div className="rounded-xl border border-border bg-background/60 px-3 py-2 text-center">
+          <div className="rounded-xl border-2 border-ink bg-surface px-3 py-2 text-center">
             <p className="text-xs font-bold text-foreground">{today}</p>
             <p className="text-[10px] text-muted-foreground">Date</p>
           </div>
@@ -178,89 +163,46 @@ export function LuckyDrawGame({
       {/* Action buttons — only when draw is open */}
       {!drawClosed && (
         <>
-          {/* Free slot (investment benefit — one time) */}
-          {hasActiveInvestment && !freeUsed && (
+          {/* Free slots earned from investments */}
+          {hasActiveInvestment && freeLeft > 0 && (
             <button
               onClick={handleEnterFree}
               disabled={pending}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-success py-4 text-sm font-bold text-success-foreground disabled:opacity-60"
+              className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-success py-4 text-sm font-black uppercase text-success-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-60"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}
-              Enter Free Slot
+              Enter Free Slot ({freeLeft} left)
             </button>
           )}
 
-          {/* Referral bonus slot */}
+          {/* Referral bonus slots */}
           {referralLeft > 0 && (
             <button
               onClick={handleReferralSlot}
               disabled={pending}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary bg-primary/10 py-3.5 text-sm font-bold text-primary disabled:opacity-60"
+              className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-card py-3.5 text-sm font-black uppercase text-foreground shadow-[3px_3px_0_0_var(--ink)] disabled:opacity-60"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
               Referral Bonus Slot ({referralLeft} left)
             </button>
           )}
 
-          {/* Buy slots */}
-          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-primary" />
-                <p className="text-sm font-bold">Enter Slot</p>
+          {noSlotsToClaim && (
+            <div className="flex items-start gap-3 card-glass rounded-2xl p-4">
+              <Gift className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <p className="text-sm font-bold">No slots to enter yet</p>
+                <p className="text-xs text-muted-foreground">
+                  Invest in a package or refer a friend who invests to earn free draw slots.
+                </p>
               </div>
-              <p className="font-mono text-sm font-bold text-primary">₦{slotCost.toLocaleString()} each</p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setBuyCount((c) => Math.max(1, c - 1))}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-secondary"
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-              <div className="flex-1 text-center">
-                <p className="font-mono text-xl font-bold">{buyCount}</p>
-                <p className="text-xs text-muted-foreground">₦{(buyCount * slotCost).toLocaleString()}</p>
-              </div>
-              <button
-                onClick={() => setBuyCount((c) => Math.min(50, c + 1))}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-secondary"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5">
-              {[1, 3, 5, 10, 20].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setBuyCount(n)}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
-                    buyCount === n
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-secondary text-muted-foreground"
-                  }`}
-                >
-                  {n}×
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={handleBuy}
-              disabled={pending || totalCost > localBalance}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-60"
-            >
-              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}
-              Enter Slot{buyCount > 1 ? `s (${buyCount})` : ""}
-            </button>
-          </div>
+          )}
         </>
       )}
 
       {drawClosed && (
-        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center gap-3 card-glass rounded-2xl p-4">
           <Clock className="h-5 w-5 text-muted-foreground" />
           <div>
             <p className="text-sm font-bold">Draw Complete</p>
@@ -276,7 +218,7 @@ export function LuckyDrawGame({
           { icon: Trophy, label: "Top 3 win", sub: "cash prizes" },
           { icon: Zap, label: "Instant", sub: "wallet credit" },
         ].map(({ icon: Icon, label, sub }) => (
-          <div key={label} className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-card p-3 text-center">
+          <div key={label} className="flex flex-col items-center gap-1 card-glass rounded-2xl p-3 text-center">
             <Icon className="h-4 w-4 text-primary" />
             <p className="text-xs font-bold text-foreground">{label}</p>
             <p className="text-[10px] text-muted-foreground">{sub}</p>

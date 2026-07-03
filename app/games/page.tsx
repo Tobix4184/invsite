@@ -1,36 +1,65 @@
-"use server"
-
 import { getSession } from "@/lib/session"
 import { redirect } from "next/navigation"
 import { db } from "@/lib/db"
-import { wallet, lockVault } from "@/lib/db/schema"
-import { eq, desc } from "drizzle-orm"
+import { wallet, investment, luckyDrawSlot, referral } from "@/lib/db/schema"
+import { eq, and, sql } from "drizzle-orm"
 import { getGameConfig } from "@/app/actions/settings"
-import { LockVaultPage } from "@/components/games/lock-vault-page"
+import { getLuckyDrawState, getRecentDrawWinners, getSpinState } from "@/app/actions/games"
+import { GamesHub } from "@/components/games/games-hub"
 import { BottomNav } from "@/components/bottom-nav"
+
+export const dynamic = "force-dynamic"
 
 export default async function GamesPage() {
   const session = await getSession()
   if (!session?.user) redirect("/")
   const userId = session.user.id
 
-  const [w, vaults, cfg] = await Promise.all([
+  const [w, cfg, drawState, recentWinners, spinState] = await Promise.all([
     db.select().from(wallet).where(eq(wallet.userId, userId)).then((r) => r[0]),
-    db.select().from(lockVault).where(eq(lockVault.userId, userId)).orderBy(desc(lockVault.createdAt)),
     getGameConfig(),
+    getLuckyDrawState(),
+    getRecentDrawWinners(),
+    getSpinState(),
   ])
 
   const balance = Number(w?.balance ?? 0)
   const hasDeposited = Number(w?.totalDeposited ?? 0) > 0
 
+  // Count active investments (for gating)
+  const activeInv = await db
+    .select({ id: investment.id })
+    .from(investment)
+    .where(and(eq(investment.userId, userId), eq(investment.status, "active")))
+
+  // Referral bonus slots available = qualifying referrals - claimed referral slots
+  const qualifying = await db
+    .select({ id: referral.id })
+    .from(referral)
+    .where(and(eq(referral.referrerId, userId), sql`${referral.totalCommission} > 0`))
+
+  const claimedReferral = await db
+    .select({ id: luckyDrawSlot.id })
+    .from(luckyDrawSlot)
+    .where(and(eq(luckyDrawSlot.userId, userId), eq(luckyDrawSlot.source, "referral")))
+
+  const referralSlotsAvailable = Math.max(0, qualifying.length - claimedReferral.length)
+
   return (
     <>
-      <LockVaultPage
+      <GamesHub
         balance={balance}
         hasDeposited={hasDeposited}
-        vaults={vaults}
-        tiers={cfg.vaultTiers}
-        vaultMin={cfg.vaultMin}
+        activeInvestments={activeInv.length}
+        today={drawState.today}
+        round={drawState.round}
+        todaySlotsCount={drawState.slotsEntered}
+        freeSlotsRemaining={drawState.freeSlotsRemaining}
+        hasActiveInvestment={drawState.hasActiveInvestment}
+        referralSlotsAvailable={referralSlotsAvailable}
+        recentWinners={recentWinners}
+        spinsAvailable={spinState.spinsAvailable}
+        slotCost={cfg.luckyDrawSlotCost}
       />
       <BottomNav />
     </>

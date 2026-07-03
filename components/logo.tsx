@@ -8,11 +8,11 @@ export function Logo({ className }: { className?: string }) {
         'relative flex items-center justify-center rounded-xl overflow-hidden shrink-0',
         className,
       )}
-      aria-label="Poco logo"
+      aria-label="247 Incum logo"
     >
       <Image
         src="/logo.png"
-        alt="Poco"
+        alt="247 Incum"
         fill
         className="object-cover"
         priority

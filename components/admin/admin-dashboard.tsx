@@ -46,12 +46,20 @@ import {
 import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
 import {
+  listPromoterSalaries,
+  setPromoterSalary,
+  togglePromoterSalary,
+  payPromoterSalary,
+  payAllSalaries,
+} from "@/app/actions/salary"
+import { listPromos, createPromo, togglePromo, deletePromo } from "@/app/actions/promos"
+import {
   approveWithdrawal,
   rejectWithdrawal,
   adjustBalance,
+  clearUserBalance,
   createGiftCode,
   processAllIncome,
-  runReinvestBackfillAll,
   addBankAccount,
   updateBankAccount,
   deleteBankAccount,
@@ -80,6 +88,7 @@ import {
   adminCheckDeposit,
   adminDeleteTransaction,
   saveDepositWithdrawalLimits,
+  saveGameConfig,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
 
@@ -222,6 +231,8 @@ const TABS = [
   "Transactions",
   "Withdrawals",
   "Users",
+  "Salary",
+  "Promotions",
   "Gift Codes",
   "Promoter Codes",
   "Deposits",
@@ -340,6 +351,11 @@ type AdminData = {
   investments: InvestmentRow[]
   financials: Financials
   drawRounds: DrawRound[]
+  spins: SpinRow[]
+  vaults: VaultRow[]
+  drawSlots: DrawSlotRow[]
+  gameStats: GameStats
+  gameConfig: GameConfig
 }
 
 export function AdminDashboard(initial: AdminData) {
@@ -378,7 +394,7 @@ export function AdminDashboard(initial: AdminData) {
 
   return (
     <div className="min-h-screen pb-10">
-      <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b-2 border-ink bg-background/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-2xl items-center justify-between px-4">
           <div>
             <h1 className="text-lg font-bold tracking-tight">Admin Console</h1>
@@ -390,14 +406,14 @@ export function AdminDashboard(initial: AdminData) {
             <button
               onClick={() => refresh(true)}
               disabled={refreshing}
-              className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-secondary px-3 text-xs font-semibold text-muted-foreground disabled:opacity-60"
+              className="flex h-9 items-center gap-1.5 rounded-full border-2 border-ink bg-secondary px-3 text-xs font-semibold text-muted-foreground disabled:opacity-60"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
               {refreshing ? "Loading..." : "Refresh"}
             </button>
             <Link
               href="/dashboard"
-              className="flex h-9 items-center gap-1.5 rounded-full border border-border bg-secondary px-3 text-xs font-semibold text-muted-foreground"
+              className="flex h-9 items-center gap-1.5 rounded-full border-2 border-ink bg-secondary px-3 text-xs font-semibold text-muted-foreground"
             >
               <Home className="h-4 w-4" /> App
             </Link>
@@ -421,7 +437,7 @@ export function AdminDashboard(initial: AdminData) {
               key={t}
               onClick={() => setTab(t)}
               className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-colors ${
-                tab === t ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground"
+                tab === t ? "bg-primary text-primary-foreground" : "border-2 border-ink bg-card text-muted-foreground"
               }`}
             >
               {t}
@@ -435,6 +451,8 @@ export function AdminDashboard(initial: AdminData) {
         {tab === "Transactions" && <TransactionsTab items={transactions} isModerator={isModerator} onAction={() => refresh()} />}
         {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
         {tab === "Users" && <UsersTab items={users} isModerator={isModerator} />}
+        {tab === "Salary" && <SalariesTab />}
+        {tab === "Promotions" && <PromotionsTab />}
         {tab === "Gift Codes" && <GiftCodesTab items={giftCodes} isModerator={isModerator} />}
         {tab === "Promoter Codes" && <PromoterCodesTab items={promoterCodes} onAction={() => refresh()} />}
         {tab === "Deposits" && <DepositsTab items={deposits} onAction={() => refresh()} />}
@@ -462,7 +480,7 @@ function TransactionsTab({ items, onAction, isModerator = false }: { items: Txn[
 
   const tint = (type: string) => {
     if (type === "deposit" || type === "earning" || type === "bonus" || type === "referral") return "text-success"
-    if (type === "withdrawal") return "text-amber-400"
+    if (type === "withdrawal") return "text-gold"
     if (type === "adjustment") return "text-sky-400"
     return "text-muted-foreground"
   }
@@ -480,7 +498,7 @@ function TransactionsTab({ items, onAction, isModerator = false }: { items: Txn[
             key={t}
             onClick={() => setFilter(t)}
             className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
-              filter === t ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground"
+              filter === t ? "bg-primary text-primary-foreground" : "border-2 border-ink bg-card text-muted-foreground"
             }`}
           >
             {t}
@@ -492,7 +510,7 @@ function TransactionsTab({ items, onAction, isModerator = false }: { items: Txn[
       ) : (
         <div className="flex flex-col gap-2">
           {filtered.map((t) => (
-            <div key={t.id} className="rounded-2xl border border-border bg-card p-3">
+            <div key={t.id} className="rounded-2xl border-2 border-ink bg-card p-3">
               <div className="flex items-center justify-between gap-2">
                 <span className={`text-xs font-bold uppercase ${tint(t.type)}`}>{t.type}</span>
                 <span className={`text-sm font-bold tabular-nums ${tint(t.type)}`}>
@@ -554,15 +572,6 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
     })
   }
 
-  const [backfillPending, startBackfillTransition] = useTransition()
-  function handleBackfillReinvest() {
-    startBackfillTransition(async () => {
-      const res = await runReinvestBackfillAll()
-      toast[res.ok ? "success" : "error"](res.message)
-      onAction()
-    })
-  }
-
   function toggleFreeze() {
     const next = !siteFrozen
     setSiteFrozenState(next)
@@ -617,7 +626,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
   const cards = [
     { label: "Total Users", value: String(stats.users), icon: Users, tint: "text-primary" },
     { label: "Total Deposited", value: formatNaira(stats.totalDeposited), icon: Wallet, tint: "text-success" },
-    { label: "Total Withdrawn", value: formatNaira(stats.totalWithdrawn), icon: ArrowUpFromLine, tint: "text-amber-400" },
+    { label: "Total Withdrawn", value: formatNaira(stats.totalWithdrawn), icon: ArrowUpFromLine, tint: "text-gold" },
     { label: "User Balances", value: formatNaira(stats.totalBalance), icon: Wallet, tint: "text-sky-400" },
     { label: "Active Investments", value: String(stats.activeInvestments), icon: TrendingUp, tint: "text-success" },
     { label: "Pending Withdrawals", value: String(stats.pendingWithdrawals), icon: ArrowUpFromLine, tint: "text-destructive" },
@@ -634,18 +643,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
         Process All Income
       </button>
 
-      {!isModerator && (
-        <button
-          onClick={handleBackfillReinvest}
-          disabled={backfillPending}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-success/30 bg-success/10 py-3 text-sm font-bold text-success transition-opacity hover:opacity-90 disabled:opacity-60"
-        >
-          {backfillPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Backfill Reinvest Earnings
-        </button>
-      )}
-
-      {!isModerator && <div className="rounded-2xl border border-border bg-card p-4">
+      {!isModerator && <div className="rounded-2xl border-2 border-ink bg-card p-4">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-bold">Site Controls</h3>
@@ -661,7 +659,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
           className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-sm font-semibold transition-colors disabled:opacity-60 ${
             siteFrozen
               ? "border-red-500/60 bg-red-500/15 text-red-400"
-              : "border-border bg-card text-muted-foreground"
+              : "border-ink bg-card text-muted-foreground"
           }`}
         >
           <span>Freeze Entire Site</span>
@@ -731,7 +729,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
         </div>
 
         {/* Deposit / Withdrawal Limits */}
-        <div className="mt-4 border-t border-border pt-4">
+        <div className="mt-4 border-t-2 border-ink pt-4">
           <p className="mb-3 text-xs font-bold text-muted-foreground uppercase tracking-wide">Deposit &amp; Withdrawal Limits</p>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
@@ -741,7 +739,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
                 min="0"
                 value={minDepositVal}
                 onChange={(e) => setMinDepositVal(e.target.value)}
-                className="rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
+                className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -751,7 +749,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
                 min="0"
                 value={minWithdrawalVal}
                 onChange={(e) => setMinWithdrawalVal(e.target.value)}
-                className="rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
+                className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -763,7 +761,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
                 step="0.1"
                 value={withdrawalChargeVal}
                 onChange={(e) => setWithdrawalChargeVal(e.target.value)}
-                className="rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
+                className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </div>
             <button
@@ -779,7 +777,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
       </div>}
       <div className="grid grid-cols-2 gap-3">
         {cards.map((c) => (
-          <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
+          <div key={c.label} className="rounded-2xl border-2 border-ink bg-card p-4">
             <c.icon className={`h-5 w-5 ${c.tint}`} />
             <p className="mt-2 text-xl font-bold tabular-nums">{c.value}</p>
             <p className="text-xs text-muted-foreground">{c.label}</p>
@@ -812,7 +810,7 @@ function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () =>
   return (
     <div className="flex flex-col gap-3">
       {items.map((w) => (
-        <div key={w.id} className="rounded-2xl border border-border bg-card p-4">
+        <div key={w.id} className="rounded-2xl border-2 border-ink bg-card p-4">
           <div className="flex items-start justify-between">
             <div>
               <p className="font-bold">{formatNaira(Number(w.amount))}</p>
@@ -831,7 +829,7 @@ function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () =>
               {w.accountNumber && (
                 <button
                   onClick={() => copyAcct(w.accountNumber!)}
-                  className="shrink-0 rounded-lg border border-border bg-background p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                  className="shrink-0 rounded-lg border-2 border-ink bg-background p-1.5 text-muted-foreground transition-colors hover:text-foreground"
                   title="Copy account number"
                 >
                   <Copy className="h-3.5 w-3.5" />
@@ -921,12 +919,22 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
     })
   }
 
+  function handleClearBalance(userId: string, name: string) {
+    if (!confirm(`Clear ${name}'s wallet balance to ₦0? This cannot be undone.`)) return
+    startTransition(async () => {
+      const res = await clearUserBalance(userId)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      router.refresh()
+    })
+  }
+
   if (items.length === 0) return <Empty label="No users" />
 
   return (
     <div className="flex flex-col gap-3">
       {items.map((u) => (
-        <div key={u.id} className="rounded-2xl border border-border bg-card p-4">
+        <div key={u.id} className="rounded-2xl border-2 border-ink bg-card p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <p className="flex items-center gap-2 truncate font-semibold">
@@ -937,7 +945,7 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
                   </span>
                 )}
                 {u.isPromoter && (
-                  <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-400">
+                  <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold uppercase text-gold">
                     <Star className="mr-0.5 inline h-2.5 w-2.5" />promoter
                   </span>
                 )}
@@ -949,7 +957,7 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
                   className={`flex items-center gap-1 rounded-full border px-2 py-0.5 transition-colors ${
                     expandedReferrals.has(u.id)
                       ? "border-primary/40 bg-primary/10 text-primary"
-                      : "border-border bg-secondary/60 text-muted-foreground hover:text-foreground"
+                      : "border-ink bg-secondary text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <Users className="h-3 w-3" />
@@ -982,18 +990,18 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
                 placeholder="Amount (+ credit / - debit)"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
               />
               <input
                 placeholder="Note (optional)"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
               />
               <div className="flex gap-2">
                 <button
                   onClick={() => setEditing(null)}
-                  className="flex-1 rounded-xl border border-border bg-secondary py-2.5 text-sm font-bold"
+                  className="flex-1 rounded-xl border-2 border-ink bg-secondary py-2.5 text-sm font-bold"
                 >
                   Cancel
                 </button>
@@ -1010,17 +1018,24 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => setEditing(u.id)}
-                className="flex-1 rounded-xl border border-border bg-secondary py-2 text-xs font-bold text-muted-foreground"
+                className="flex-1 rounded-xl border-2 border-ink bg-secondary py-2 text-xs font-bold text-muted-foreground"
               >
                 Adjust Balance
+              </button>
+              <button
+                onClick={() => handleClearBalance(u.id, u.name ?? u.email ?? "this user")}
+                disabled={pending}
+                className="flex items-center justify-center gap-1 rounded-xl border-2 border-ink bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive disabled:opacity-60"
+              >
+                Clear
               </button>
               <button
                 onClick={() => handleTogglePromoter(u.id)}
                 disabled={pending}
                 className={`flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-bold ${
                   u.isPromoter
-                    ? "border border-amber-400/40 bg-amber-400/10 text-amber-400"
-                    : "border border-border bg-secondary text-muted-foreground"
+                    ? "border border-gold/40 bg-gold/10 text-gold"
+                    : "border-2 border-ink bg-secondary text-muted-foreground"
                 }`}
               >
                 <Star className="h-3 w-3" />
@@ -1029,7 +1044,7 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
               {u.isPromoter && (
                 <button
                   onClick={() => { setCommissionEditing(u.id); setCommissionVal(u.promoterCommission != null ? String(u.promoterCommission) : "") }}
-                  className="flex items-center justify-center gap-1 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-muted-foreground"
+                  className="flex items-center justify-center gap-1 rounded-xl border-2 border-ink bg-secondary px-3 py-2 text-xs font-bold text-muted-foreground"
                 >
                   <Percent className="h-3 w-3" /> {u.promoterCommission != null ? `${u.promoterCommission}%` : "Rate"}
                 </button>
@@ -1045,9 +1060,9 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
                 placeholder={`Commission % (default ${SITE.promoterLevel1}%)`}
                 value={commissionVal}
                 onChange={(e) => setCommissionVal(e.target.value)}
-                className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
+                className="flex-1 rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary"
               />
-              <button onClick={() => setCommissionEditing(null)} className="rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold">
+              <button onClick={() => setCommissionEditing(null)} className="rounded-xl border-2 border-ink bg-secondary px-3 py-2 text-xs font-bold">
                 Cancel
               </button>
               <button onClick={() => handleSetCommission(u.id)} disabled={pending} className="flex items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-60">
@@ -1058,7 +1073,7 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
 
           {/* Referral drill-down panel */}
           {expandedReferrals.has(u.id) && (
-            <div className="mt-3 rounded-xl border border-border bg-secondary/40 p-3">
+            <div className="mt-3 rounded-xl border-2 border-ink bg-secondary/40 p-3">
               <p className="mb-2 text-xs font-bold text-muted-foreground uppercase tracking-wide">
                 Referred Users ({u.referralCount})
               </p>
@@ -1073,7 +1088,7 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
               {!loadingReferrals.has(u.id) && referralDetails[u.id]?.map((r) => (
                 <div
                   key={r.referralId}
-                  className="mb-2 last:mb-0 rounded-lg border border-border bg-card px-3 py-2.5"
+                  className="mb-2 last:mb-0 rounded-lg border-2 border-ink bg-card px-3 py-2.5"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -1133,7 +1148,7 @@ function GiftCodesTab({ items, isModerator = false }: { items: GiftCode[]; isMod
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border-2 border-ink bg-card p-4">
         <p className="mb-3 flex items-center gap-2 text-sm font-bold">
           <Plus className="h-4 w-4 text-primary" /> Create Gift Code
         </p>
@@ -1142,7 +1157,7 @@ function GiftCodesTab({ items, isModerator = false }: { items: GiftCode[]; isMod
             placeholder="CODE (e.g. POCO500)"
             value={form.code}
             onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
-            className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm font-mono outline-none focus:border-primary"
+            className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm font-mono outline-none focus:border-primary"
           />
           <div className="flex gap-2">
             <input
@@ -1150,14 +1165,14 @@ function GiftCodesTab({ items, isModerator = false }: { items: GiftCode[]; isMod
               placeholder="Amount ₦"
               value={form.amount}
               onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-              className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+              className="flex-1 rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
             <input
               type="number"
               placeholder="Max uses"
               value={form.maxUses}
               onChange={(e) => setForm((f) => ({ ...f, maxUses: e.target.value }))}
-              className="w-28 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+              className="w-28 rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
           </div>
           <button
@@ -1173,11 +1188,11 @@ function GiftCodesTab({ items, isModerator = false }: { items: GiftCode[]; isMod
       {items.length === 0 ? (
         <Empty label="No gift codes yet" />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="overflow-hidden rounded-2xl border-2 border-ink bg-card">
           {items.map((g, i) => (
             <div
               key={g.id}
-              className={`flex items-center justify-between p-4 ${i !== items.length - 1 ? "border-b border-border" : ""}`}
+              className={`flex items-center justify-between p-4 ${i !== items.length - 1 ? "border-b-2 border-ink" : ""}`}
             >
               <div className="flex items-center gap-3">
                 <Gift className="h-4 w-4 text-pink-400" />
@@ -1258,12 +1273,12 @@ function PromoterCodesTab({ items, onAction }: { items: PromoterCode[]; onAction
     }
   }
 
-  const inputCls = "rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+  const inputCls = "rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
 
   return (
     <div className="flex flex-col gap-4">
       {/* Create form */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border-2 border-ink bg-card p-4">
         <p className="mb-1 flex items-center gap-2 text-sm font-bold">
           <Megaphone className="h-4 w-4 text-primary" /> Create Promoter Code
         </p>
@@ -1313,13 +1328,13 @@ function PromoterCodesTab({ items, onAction }: { items: PromoterCode[]; onAction
       </div>
 
       {items.length === 0 ? (
-        <p className="rounded-2xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-2xl border-2 border-ink bg-card px-4 py-8 text-center text-sm text-muted-foreground">
           No promoter codes yet
         </p>
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((c) => (
-            <div key={c.id} className="rounded-2xl border border-border bg-card p-4">
+            <div key={c.id} className="rounded-2xl border-2 border-ink bg-card p-4">
               {/* Header row */}
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -1384,7 +1399,7 @@ function PromoterCodesTab({ items, onAction }: { items: PromoterCode[]; onAction
                     />
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setEditingId(null)} className="flex-1 rounded-xl border border-border bg-secondary py-2 text-xs font-bold">
+                    <button onClick={() => setEditingId(null)} className="flex-1 rounded-xl border-2 border-ink bg-secondary py-2 text-xs font-bold">
                       Cancel
                     </button>
                     <button onClick={() => saveEdit(c.id)} disabled={pending} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-primary py-2 text-xs font-bold text-primary-foreground disabled:opacity-60">
@@ -1394,16 +1409,16 @@ function PromoterCodesTab({ items, onAction }: { items: PromoterCode[]; onAction
                 </div>
               ) : (
                 <div className="mt-3 flex gap-2">
-                  <button onClick={() => copyLink(c.code)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary py-2 text-xs font-bold text-muted-foreground">
+                  <button onClick={() => copyLink(c.code)} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 border-ink bg-secondary py-2 text-xs font-bold text-muted-foreground">
                     <Copy className="h-3.5 w-3.5" /> Copy Link
                   </button>
                   <button
                     onClick={() => { setEditingId(c.id); setEditVals({ maxSignups: c.maxSignups != null ? String(c.maxSignups) : "", commissionRate: c.commissionRate != null ? String(c.commissionRate) : "" }) }}
-                    className="flex items-center justify-center gap-1 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-muted-foreground"
+                    className="flex items-center justify-center gap-1 rounded-xl border-2 border-ink bg-secondary px-3 py-2 text-xs font-bold text-muted-foreground"
                   >
                     Edit
                   </button>
-                  <button onClick={() => toggle(c.id)} disabled={pending} className={`flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-bold disabled:opacity-60 ${c.isActive ? "border border-amber-400/40 bg-amber-400/10 text-amber-400" : "border border-success/40 bg-success/10 text-success"}`}>
+                  <button onClick={() => toggle(c.id)} disabled={pending} className={`flex items-center justify-center gap-1 rounded-xl px-3 py-2 text-xs font-bold disabled:opacity-60 ${c.isActive ? "border border-gold/40 bg-gold/10 text-gold" : "border border-success/40 bg-success/10 text-success"}`}>
                     {c.isActive ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                     {c.isActive ? "Off" : "On"}
                   </button>
@@ -1453,7 +1468,7 @@ function DepositCard({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div className="rounded-2xl border-2 border-ink bg-card p-4">
       <div className="flex items-start justify-between">
         <div>
           <p className="font-bold">{formatNaira(Number(dep.amount))}</p>
@@ -1521,7 +1536,7 @@ function DepositCard({
         <button
           onClick={handleCheck}
           disabled={checking}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary py-2 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-ink bg-secondary py-2 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-60"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} />
           {checking ? "Checking Sabuss..." : isCompleted ? "Verify in Sabuss" : "Check Sabuss Now"}
@@ -1546,15 +1561,15 @@ function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => vo
       {/* ── Sabuss Live Feed ── */}
       <div>
         <div className="mb-3 flex items-center gap-2">
-          <Zap className="h-4 w-4 text-amber-400" />
+          <Zap className="h-4 w-4 text-gold" />
           <h3 className="text-sm font-black">Sabuss Live Feed</h3>
-          <span className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+          <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold text-gold">
             {sabussFeed.length} entries
           </span>
         </div>
 
         {sabussFeed.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card/50 py-6 text-center text-xs text-muted-foreground">
+          <div className="rounded-2xl border-2 border-dashed border-ink bg-card py-6 text-center text-xs text-muted-foreground">
             No Sabuss webhook drops yet — they will appear here when Sabuss sends a notification.
           </div>
         ) : (
@@ -1567,7 +1582,7 @@ function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => vo
       </div>
 
       {/* Divider */}
-      <div className="border-t border-border" />
+      <div className="border-t-2 border-ink" />
 
       {/* ── All Deposits ── */}
       <div>
@@ -1611,7 +1626,7 @@ function SabussFeedRow({ dep, onAction }: { dep: Deposit; onAction: () => void }
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-3">
+    <div className="rounded-2xl border-2 border-ink bg-card p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5 min-w-0">
           {/* Amount + sender */}
@@ -1793,7 +1808,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
       </div>
 
       {/* Add New Account Form */}
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border-2 border-ink bg-card p-4">
         <p className="mb-3 flex items-center gap-2 text-sm font-bold">
           <Plus className="h-4 w-4 text-primary" /> Add Bank Account
         </p>
@@ -1802,25 +1817,25 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
             placeholder="Account Number"
             value={form.accountNumber}
             onChange={(e) => setForm((f) => ({ ...f, accountNumber: e.target.value }))}
-            className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+            className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
           />
           <input
             placeholder="Bank Name (e.g. Providus, VFD)"
             value={form.bankName}
             onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
-            className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+            className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
           />
           <input
             placeholder="Account Name"
             value={form.accountName}
             onChange={(e) => setForm((f) => ({ ...f, accountName: e.target.value }))}
-            className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+            className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
           />
           <input
             placeholder="Label (optional, e.g. Hussein, Praise)"
             value={form.label}
             onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-            className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+            className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
           />
           <div>
             <label className="mb-1 block text-xs font-semibold text-muted-foreground">
@@ -1832,7 +1847,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
               placeholder="1"
               value={form.weight}
               onChange={(e) => setForm((f) => ({ ...f, weight: e.target.value }))}
-              className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+              className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
           </div>
           <div>
@@ -1843,7 +1858,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
               placeholder="Sabuss API key (optional)"
               value={form.sabussApiKey}
               onChange={(e) => setForm((f) => ({ ...f, sabussApiKey: e.target.value }))}
-              className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
+              className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
             />
           </div>
           <div>
@@ -1858,7 +1873,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
   placeholder="e.g. 0000"
   value={form.sabussPin}
   onChange={(e) => setForm((f) => ({ ...f, sabussPin: e.target.value }))}
-  className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
+  className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
   />
           </div>
           <button
@@ -1877,7 +1892,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((acc) => (
-            <div key={acc.id} className="rounded-2xl border border-border bg-card p-4">
+            <div key={acc.id} className="rounded-2xl border-2 border-ink bg-card p-4">
               {editingId === acc.id ? (
                 /* Edit Mode */
                 <div className="flex flex-col gap-2">
@@ -1885,25 +1900,25 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                     placeholder="Account Number"
                     value={editForm.accountNumber}
                     onChange={(e) => setEditForm((f) => ({ ...f, accountNumber: e.target.value }))}
-                    className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
                   />
                   <input
                     placeholder="Bank Name"
                     value={editForm.bankName}
                     onChange={(e) => setEditForm((f) => ({ ...f, bankName: e.target.value }))}
-                    className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
                   />
                   <input
                     placeholder="Account Name"
                     value={editForm.accountName}
                     onChange={(e) => setEditForm((f) => ({ ...f, accountName: e.target.value }))}
-                    className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
                   />
                   <input
                     placeholder="Label (optional)"
                     value={editForm.label}
                     onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))}
-                    className="rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    className="rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
                   />
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-muted-foreground">
@@ -1915,7 +1930,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                       placeholder="1"
                       value={editForm.weight}
                       onChange={(e) => setEditForm((f) => ({ ...f, weight: e.target.value }))}
-                      className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                      className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
                     />
                   </div>
                   <div>
@@ -1926,7 +1941,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                       placeholder="Paste Sabuss API key to enable auto-detection"
                       value={editForm.sabussApiKey}
                       onChange={(e) => setEditForm((f) => ({ ...f, sabussApiKey: e.target.value }))}
-                      className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
+                      className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
                     />
                   </div>
                   <div>
@@ -1939,13 +1954,13 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
   placeholder="e.g. 0000"
   value={editForm.sabussPin}
                       onChange={(e) => setEditForm((f) => ({ ...f, sabussPin: e.target.value }))}
-                      className="w-full rounded-xl border border-border bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
+                      className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
                     />
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setEditingId(null)}
-                      className="flex-1 rounded-xl border border-border bg-secondary py-2.5 text-sm font-bold"
+                      className="flex-1 rounded-xl border-2 border-ink bg-secondary py-2.5 text-sm font-bold"
                     >
                       Cancel
                     </button>
@@ -2013,7 +2028,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                     </button>
                   </div>
                   {!acc.sabussApiKey && (
-                    <p className="mt-1 rounded-lg bg-amber-500/10 px-3 py-1.5 text-[11px] text-amber-500">
+                    <p className="mt-1 rounded-lg bg-gold/10 px-3 py-1.5 text-[11px] text-gold">
                       No API key — webhook will still auto-approve by account number. Add an API key for extra security.
                     </p>
                   )}
@@ -2030,7 +2045,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                       disabled={pending}
                       className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold disabled:opacity-60 ${
                         acc.isActive
-                          ? "border border-amber-400/40 bg-amber-400/10 text-amber-400"
+                          ? "border border-gold/40 bg-gold/10 text-gold"
                           : "bg-success text-success-foreground"
                       }`}
                     >
@@ -2047,7 +2062,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                     <button
                       onClick={() => startEdit(acc)}
                       disabled={pending}
-                      className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary px-4 py-2.5 text-sm font-bold disabled:opacity-60"
+                      className="flex items-center justify-center gap-1.5 rounded-xl border-2 border-ink bg-secondary px-4 py-2.5 text-sm font-bold disabled:opacity-60"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
@@ -2134,8 +2149,8 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-2xl border border-amber-400/30 bg-amber-400/5 p-4">
-        <p className="flex items-center gap-2 text-sm font-bold text-amber-400">
+      <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4">
+        <p className="flex items-center gap-2 text-sm font-bold text-gold">
           <Trophy className="h-4 w-4" /> Referral Milestones
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -2143,7 +2158,7 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
         </p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="rounded-2xl border-2 border-ink bg-card p-4">
         <p className="mb-3 flex items-center gap-2 text-sm font-bold">
           <Plus className="h-4 w-4 text-primary" /> Create Milestone
         </p>
@@ -2154,14 +2169,14 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
               placeholder="Referrals (e.g. 10)"
               value={form.referralCount}
               onChange={(e) => setForm((f) => ({ ...f, referralCount: e.target.value }))}
-              className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+              className="flex-1 rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
             <input
               type="number"
               placeholder="Reward ₦ (e.g. 5000)"
               value={form.rewardAmount}
               onChange={(e) => setForm((f) => ({ ...f, rewardAmount: e.target.value }))}
-              className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+              className="flex-1 rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
           </div>
           <button
@@ -2179,7 +2194,7 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
       ) : (
         <div className="flex flex-col gap-3">
           {items.map((m) => (
-            <div key={m.id} className="rounded-2xl border border-border bg-card p-4">
+            <div key={m.id} className="rounded-2xl border-2 border-ink bg-card p-4">
               {editingId === m.id ? (
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
@@ -2188,20 +2203,20 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
                       placeholder="Referral count"
                       value={editForm.referralCount}
                       onChange={(e) => setEditForm((f) => ({ ...f, referralCount: e.target.value }))}
-                      className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                      className="flex-1 rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
                     />
                     <input
                       type="number"
                       placeholder="Reward amount"
                       value={editForm.rewardAmount}
                       onChange={(e) => setEditForm((f) => ({ ...f, rewardAmount: e.target.value }))}
-                      className="flex-1 rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
+                      className="flex-1 rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
                     />
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setEditingId(null)}
-                      className="flex-1 rounded-xl border border-border bg-secondary py-2.5 text-sm font-bold"
+                      className="flex-1 rounded-xl border-2 border-ink bg-secondary py-2.5 text-sm font-bold"
                     >
                       Cancel
                     </button>
@@ -2218,8 +2233,8 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
                 <>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/15">
-                        <Trophy className="h-5 w-5 text-amber-400" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold/15">
+                        <Trophy className="h-5 w-5 text-gold" />
                       </div>
                       <div>
                         <p className="font-bold">{m.referralCount} Referrals</p>
@@ -2234,11 +2249,11 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
                     <button
                       onClick={() => handleToggle(m.id)}
                       disabled={pending}
-                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold disabled:opacity-60 ${m.isActive ? "border border-amber-400/40 bg-amber-400/10 text-amber-400" : "bg-success text-success-foreground"}`}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold disabled:opacity-60 ${m.isActive ? "border border-gold/40 bg-gold/10 text-gold" : "bg-success text-success-foreground"}`}
                     >
                       {m.isActive ? <><ToggleLeft className="h-4 w-4" /> Deactivate</> : <><ToggleRight className="h-4 w-4" /> Activate</>}
                     </button>
-                    <button onClick={() => startEdit(m)} disabled={pending} className="flex items-center justify-center rounded-xl border border-border bg-secondary px-4 py-2.5 text-sm font-bold disabled:opacity-60">
+                    <button onClick={() => startEdit(m)} disabled={pending} className="flex items-center justify-center rounded-xl border-2 border-ink bg-secondary px-4 py-2.5 text-sm font-bold disabled:opacity-60">
                       <Pencil className="h-4 w-4" />
                     </button>
                     {!isModerator && (
@@ -2259,7 +2274,7 @@ function MilestonesTab({ items, isModerator = false }: { items: Milestone[]; isM
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    pending: "bg-amber-400/15 text-amber-400",
+    pending: "bg-gold/15 text-gold",
     processing: "bg-primary/15 text-primary",
     success: "bg-success/15 text-success",
     approved: "bg-success/15 text-success",
@@ -2278,7 +2293,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function Empty({ label }: { label: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
+    <div className="rounded-2xl border-2 border-ink bg-card px-4 py-12 text-center text-sm text-muted-foreground">
       {label}
     </div>
   )
@@ -2395,8 +2410,8 @@ function GamesAdminTab({
             onClick={() => setSub(t.id)}
             className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
               sub === t.id
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-muted-foreground"
+                ? "border-ink bg-primary text-primary-foreground shadow-[2px_2px_0_0_var(--ink)]"
+                : "border-ink bg-card text-muted-foreground"
             }`}
           >
             <t.icon className="h-3.5 w-3.5" />
@@ -2409,7 +2424,7 @@ function GamesAdminTab({
       {sub === "overview" && (
         <div className="flex flex-col gap-4">
           {/* Stake & Spin stats */}
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl border-2 border-ink bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <Dices className="h-4 w-4 text-primary" />
               <p className="font-bold">Stake &amp; Spin</p>
@@ -2432,7 +2447,7 @@ function GamesAdminTab({
           </div>
 
           {/* Lock Vault stats */}
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl border-2 border-ink bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <Lock className="h-4 w-4 text-primary" />
               <p className="font-bold">Lock Vault</p>
@@ -2452,7 +2467,7 @@ function GamesAdminTab({
           </div>
 
           {/* Lucky Draw stats */}
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl border-2 border-ink bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <Ticket className="h-4 w-4 text-primary" />
               <p className="font-bold">Lucky Draw</p>
@@ -2472,10 +2487,10 @@ function GamesAdminTab({
           </div>
 
           {/* Withdrawal charge editor — changes apply instantly to pending withdrawals */}
-          <div className="rounded-2xl border border-amber-400/30 bg-card p-4">
+          <div className="rounded-2xl border border-gold/30 bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
               <p className="font-bold text-sm">Withdrawal Charge</p>
-              <span className="rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold text-amber-400">LIVE</span>
+              <span className="rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-bold text-gold">LIVE</span>
             </div>
             <p className="mb-3 text-[11px] text-muted-foreground">
               Changes apply immediately — even to withdrawals already pending approval.
@@ -2486,7 +2501,7 @@ function GamesAdminTab({
                   type="number" min="0" max="100" step="0.5"
                   value={wChargePct}
                   onChange={(e) => setWChargePct(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm pr-8"
+                  className="w-full rounded-xl border-2 border-ink bg-secondary px-3 py-2 font-mono text-sm pr-8"
                   placeholder={String(gameConfig.withdrawalCharge)}
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
@@ -2494,7 +2509,7 @@ function GamesAdminTab({
               <button
                 onClick={saveWithdrawalCharge}
                 disabled={pending}
-                className="flex items-center gap-1.5 rounded-xl bg-amber-400 px-4 py-2 text-sm font-bold text-black disabled:opacity-60"
+                className="flex items-center gap-1.5 rounded-xl bg-gold px-4 py-2 text-sm font-bold text-gold-foreground disabled:opacity-60"
               >
                 {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                 Save
@@ -2518,9 +2533,9 @@ function GamesAdminTab({
                 { label: "Vault Tiers", value: gameConfig.vaultTiers.map((t) => `${t.days}d/+${t.bonusPercent}%`).join(", ") },
                 { label: "Early Penalty", value: `${gameConfig.vaultTiers[0].penaltyPercent}%` },
               ].map((r) => (
-                <div key={r.label} className="flex justify-between border-b border-border/50 pb-2 last:border-0 last:pb-0">
+                <div key={r.label} className="flex justify-between border-b-2 border-ink/50 pb-2 last:border-0 last:pb-0">
                   <span className="text-muted-foreground">{r.label}</span>
-                  <span className={`font-mono font-bold ${"highlight" in r && r.highlight ? "text-amber-400" : ""}`}>{r.value}</span>
+                  <span className={`font-mono font-bold ${"highlight" in r && r.highlight ? "text-gold" : ""}`}>{r.value}</span>
                 </div>
               ))}
             </div>
@@ -2534,7 +2549,7 @@ function GamesAdminTab({
         <div className="flex flex-col gap-3">
 
           {/* Config editor */}
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl border-2 border-ink bg-card p-4">
             <p className="mb-3 font-bold text-sm">Spin Config</p>
             <div className="flex flex-col gap-3">
               <div>
@@ -2546,7 +2561,7 @@ function GamesAdminTab({
                     type="number" min="10" max="99" step="1"
                     value={houseEdgePct}
                     onChange={(e) => setHouseEdgePct(e.target.value)}
-                    className="flex-1 rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm"
+                    className="flex-1 rounded-xl border-2 border-ink bg-secondary px-3 py-2 font-mono text-sm"
                     placeholder="e.g. 70"
                   />
                   <span className="flex items-center text-sm text-muted-foreground">%</span>
@@ -2557,18 +2572,18 @@ function GamesAdminTab({
                 <div>
                   <label className="mb-1 block text-xs text-muted-foreground">Min Stake (₦)</label>
                   <input type="number" value={stakeMin} onChange={(e) => setStakeMin(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                    className="w-full rounded-xl border-2 border-ink bg-secondary px-3 py-2 font-mono text-sm" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-muted-foreground">Max Stake (₦)</label>
                   <input type="number" value={stakeMax} onChange={(e) => setStakeMax(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                    className="w-full rounded-xl border-2 border-ink bg-secondary px-3 py-2 font-mono text-sm" />
                 </div>
               </div>
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Win Multipliers (comma-separated, e.g. 1.5, 2, 3)</label>
                 <input type="text" value={multipliersRaw} onChange={(e) => setMultipliersRaw(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                  className="w-full rounded-xl border-2 border-ink bg-secondary px-3 py-2 font-mono text-sm" />
               </div>
               <button
                 onClick={saveSpinConfig}
@@ -2588,7 +2603,7 @@ function GamesAdminTab({
                   key={f}
                   onClick={() => setSpinFilter(f)}
                   className={`rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${
-                    spinFilter === f ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground"
+                    spinFilter === f ? "border-ink bg-primary text-primary-foreground shadow-[2px_2px_0_0_var(--ink)]" : "border-ink bg-card text-muted-foreground"
                   }`}
                 >
                   {f === "all" ? `All (${spins.length})` : f === "win" ? `Win (${spins.filter((s) => s.outcome === "win").length})` : `Lose (${spins.filter((s) => s.outcome === "lose").length})`}
@@ -2599,7 +2614,7 @@ function GamesAdminTab({
 
           {filteredSpins.length === 0 && <Empty label="No spin records" />}
           {filteredSpins.map((s) => (
-            <div key={s.id} className="rounded-xl border border-border bg-card px-4 py-3">
+            <div key={s.id} className="rounded-xl border-2 border-ink bg-card px-4 py-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold">{s.userEmail ?? s.userId}</p>
@@ -2625,36 +2640,36 @@ function GamesAdminTab({
         <div className="flex flex-col gap-3">
 
           {/* Config editor */}
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl border-2 border-ink bg-card p-4">
             <p className="mb-3 text-sm font-bold">Vault Config</p>
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="mb-1 block text-xs text-muted-foreground">7-day Bonus %</label>
                   <input type="number" value={bonus7} onChange={(e) => setBonus7(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                    className="w-full rounded-xl border-2 border-ink bg-secondary px-3 py-2 font-mono text-sm" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-muted-foreground">14-day Bonus %</label>
                   <input type="number" value={bonus14} onChange={(e) => setBonus14(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                    className="w-full rounded-xl border-2 border-ink bg-secondary px-3 py-2 font-mono text-sm" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-muted-foreground">30-day Bonus %</label>
                   <input type="number" value={bonus30} onChange={(e) => setBonus30(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                    className="w-full rounded-xl border-2 border-ink bg-secondary px-3 py-2 font-mono text-sm" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="mb-1 block text-xs text-muted-foreground">Early Break Penalty %</label>
                   <input type="number" value={penalty} onChange={(e) => setPenalty(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                    className="w-full rounded-xl border-2 border-ink bg-secondary px-3 py-2 font-mono text-sm" />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-muted-foreground">Min Vault Amount (₦)</label>
                   <input type="number" value={vaultMin} onChange={(e) => setVaultMin(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                    className="w-full rounded-xl border-2 border-ink bg-secondary px-3 py-2 font-mono text-sm" />
                 </div>
               </div>
               <button
@@ -2673,7 +2688,7 @@ function GamesAdminTab({
                 key={f}
                 onClick={() => setVaultFilter(f)}
                 className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${
-                  vaultFilter === f ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground"
+                  vaultFilter === f ? "border-ink bg-primary text-primary-foreground shadow-[2px_2px_0_0_var(--ink)]" : "border-ink bg-card text-muted-foreground"
                 }`}
               >
                 {f} ({f === "all" ? vaults.length : vaults.filter((v) => v.status === f).length})
@@ -2686,7 +2701,7 @@ function GamesAdminTab({
             const unlockDate = new Date(v.unlocksAt)
             const matured = new Date() >= unlockDate
             return (
-              <div key={v.id} className="rounded-xl border border-border bg-card p-4">
+              <div key={v.id} className="rounded-xl border-2 border-ink bg-card p-4">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold">{v.userEmail ?? v.userId}</p>
@@ -2726,13 +2741,13 @@ function GamesAdminTab({
         <div className="flex flex-col gap-4">
 
           {/* Config editor */}
-          <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="rounded-2xl border-2 border-ink bg-card p-4">
             <p className="mb-3 text-sm font-bold">Draw Config</p>
             <div className="flex flex-col gap-3">
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Slot Purchase Price (₦)</label>
                 <input type="number" value={slotCost} onChange={(e) => setSlotCost(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm" />
+                  className="w-full rounded-xl border-2 border-ink bg-secondary px-3 py-2 font-mono text-sm" />
                 <p className="mt-1 text-[11px] text-muted-foreground">This is how much users pay for each extra slot. Revenue goes into the prize pool.</p>
               </div>
               <button
@@ -2749,7 +2764,7 @@ function GamesAdminTab({
           <p className="text-sm font-bold">Draw Rounds</p>
           {drawRounds.length === 0 && <Empty label="No draw rounds yet" />}
           {drawRounds.map((r) => (
-            <div key={r.id} className="rounded-xl border border-border bg-card p-4">
+            <div key={r.id} className="rounded-xl border-2 border-ink bg-card p-4">
               <div className="mb-2 flex items-center justify-between">
                 <p className="font-bold">{r.drawDate}</p>
                 <StatusBadge status={r.status === "drawn" ? "completed" : "pending"} />
@@ -2783,7 +2798,7 @@ function GamesAdminTab({
           <p className="text-sm font-bold">All Slot Entries ({drawSlots.length})</p>
           {drawSlots.length === 0 && <Empty label="No slots purchased yet" />}
           {drawSlots.slice(0, 100).map((s) => (
-            <div key={s.id} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+            <div key={s.id} className="flex items-center justify-between rounded-xl border-2 border-ink bg-card px-4 py-3">
               <div className="min-w-0">
                 <p className="truncate text-xs font-semibold">{s.userEmail ?? s.userId}</p>
                 <p className="text-[11px] text-muted-foreground">{s.drawDate} · {s.source}</p>
@@ -2806,7 +2821,7 @@ function FinancialsTab({ data }: { data: Financials }) {
   const cards = [
     { label: "Withdrawal Charges (Revenue)", value: data.withdrawalCharges, color: "text-success" },
     { label: "Total Approved Payouts", value: data.totalPayouts, color: "text-destructive" },
-    { label: "Pending Payouts", value: data.pendingPayouts, color: "text-amber-400" },
+    { label: "Pending Payouts", value: data.pendingPayouts, color: "text-gold" },
     { label: "Total Deposits Received", value: data.totalDeposits, color: "text-primary" },
     { label: "Active Investment Volume", value: data.activeInvestmentVolume, color: "text-primary" },
     { label: "Platform Total Earned (all wallets)", value: data.platformTotalEarned, color: "text-muted-foreground" },
@@ -2827,14 +2842,14 @@ function FinancialsTab({ data }: { data: Financials }) {
 
       <div className="grid grid-cols-2 gap-3">
         {cards.map((c) => (
-          <div key={c.label} className="rounded-2xl border border-border bg-card p-4">
+          <div key={c.label} className="rounded-2xl border-2 border-ink bg-card p-4">
             <p className="mb-1 text-[11px] text-muted-foreground leading-tight">{c.label}</p>
             <p className={`font-mono text-lg font-bold ${c.color}`}>
               ₦{c.value.toLocaleString()}
             </p>
           </div>
         ))}
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div className="rounded-2xl border-2 border-ink bg-card p-4">
           <p className="mb-1 text-[11px] text-muted-foreground">Active Investments</p>
           <p className="font-mono text-lg font-bold text-primary">{data.activeInvestments}</p>
         </div>
@@ -2889,8 +2904,8 @@ function InvestmentsTab({ items, onAction, isModerator = false }: { items: Inves
             onClick={() => setFilterStatus(s)}
             className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold capitalize transition-all ${
               filterStatus === s
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-muted-foreground"
+                ? "border-ink bg-primary text-primary-foreground shadow-[2px_2px_0_0_var(--ink)]"
+                : "border-ink bg-card text-muted-foreground"
             }`}
           >
             {s} ({s === "all" ? items.length : items.filter((i) => i.status === s).length})
@@ -2903,7 +2918,7 @@ function InvestmentsTab({ items, onAction, isModerator = false }: { items: Inves
       {filtered.map((inv) => {
         const progress = inv.durationDays > 0 ? Math.min(100, (inv.daysPaid / inv.durationDays) * 100) : 0
         return (
-          <div key={inv.id} className="rounded-2xl border border-border bg-card p-4">
+          <div key={inv.id} className="rounded-2xl border-2 border-ink bg-card p-4">
             <div className="mb-2 flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-sm font-bold">{inv.planName}</p>
@@ -2944,7 +2959,7 @@ function InvestmentsTab({ items, onAction, isModerator = false }: { items: Inves
                 <button
                   onClick={() => handleCancel(inv.id)}
                   disabled={pending}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-400/30 bg-amber-400/10 py-2 text-xs font-bold text-amber-400 disabled:opacity-60"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gold/30 bg-gold/10 py-2 text-xs font-bold text-gold disabled:opacity-60"
                 >
                   <Ban className="h-3.5 w-3.5" /> Cancel
                 </button>
@@ -2981,7 +2996,7 @@ function InvestmentsTab({ items, onAction, isModerator = false }: { items: Inves
                 <select
                   value={extendDays}
                   onChange={(e) => setExtendDays(Number(e.target.value))}
-                  className="flex-1 rounded-xl border border-border bg-secondary px-3 py-2 text-sm"
+                  className="flex-1 rounded-xl border-2 border-ink bg-secondary px-3 py-2 text-sm"
                 >
                   {[3, 7, 14, 30].map((d) => (
                     <option key={d} value={d}>{d} days</option>
@@ -3064,7 +3079,7 @@ function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () 
                 <p className="text-[10px] text-muted-foreground">Prize Pool</p>
               </div>
               <div className="flex-1 rounded-xl bg-background/60 p-3 text-center">
-                <p className={`font-bold ${todayRound.status === "drawn" ? "text-success" : "text-amber-400"}`}>
+                <p className={`font-bold ${todayRound.status === "drawn" ? "text-success" : "text-gold"}`}>
                   {todayRound.status === "drawn" ? "Drawn" : "Open"}
                 </p>
                 <p className="text-[10px] text-muted-foreground">Status</p>
@@ -3074,7 +3089,7 @@ function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () 
             {todayRound.status !== "drawn" && (
               <>
                 {/* Winner picker */}
-                <div className="rounded-xl border border-border bg-background/60 p-3">
+                <div className="rounded-xl border-2 border-ink bg-background/60 p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-xs font-bold">Pick Winners (optional — up to 3)</p>
                     <button
@@ -3106,7 +3121,7 @@ function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () 
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search by name or email..."
-                        className="mb-2 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-xs outline-none"
+                        className="mb-2 w-full rounded-lg border-2 border-ink bg-secondary px-3 py-2 text-xs outline-none"
                       />
                       <div className="max-h-48 overflow-y-auto flex flex-col gap-1">
                         {filtered.map((u) => {
@@ -3175,7 +3190,7 @@ function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () 
       <p className="text-sm font-bold">Draw History</p>
       {rounds.length === 0 && <Empty label="No draws yet" />}
       {rounds.map((r) => (
-        <div key={r.id} className="rounded-xl border border-border bg-card px-4 py-3">
+        <div key={r.id} className="rounded-xl border-2 border-ink bg-card px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold">{r.drawDate}</p>
@@ -3194,6 +3209,397 @@ function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () 
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+// ── Salaries Tab ──────────────────────────────────────────────────────────────
+type SalaryRow = {
+  id: number
+  userId: string
+  weeklyAmount: string
+  isActive: boolean
+  note: string | null
+  lastPaidAt: Date | string | null
+  userName: string | null
+  userEmail: string | null
+  userPhone: string | null
+  isPromoter: boolean | null
+}
+
+function SalariesTab() {
+  const [rows, setRows] = useState<SalaryRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [pending, startTransition] = useTransition()
+  const [identifier, setIdentifier] = useState("")
+  const [amount, setAmount] = useState(String(SITE.defaultPromoterSalary))
+  const [note, setNote] = useState("")
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setRows((await listPromoterSalaries()) as SalaryRow[])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  function assign() {
+    startTransition(async () => {
+      const res = await setPromoterSalary({ identifier, weeklyAmount: Number(amount), note })
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      if (res.ok) {
+        setIdentifier("")
+        setNote("")
+        load()
+      }
+    })
+  }
+
+  function toggle(userId: string, isActive: boolean) {
+    startTransition(async () => {
+      await togglePromoterSalary(userId, isActive)
+      load()
+    })
+  }
+
+  function payOne(userId: string) {
+    startTransition(async () => {
+      const res = await payPromoterSalary(userId)
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      load()
+    })
+  }
+
+  function payAll() {
+    startTransition(async () => {
+      const res = await payAllSalaries()
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      load()
+    })
+  }
+
+  const totalWeekly = rows.filter((r) => r.isActive).reduce((s, r) => s + Number(r.weeklyAmount), 0)
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Assign salary */}
+      <div className="rounded-2xl border-2 border-ink bg-card p-4">
+        <p className="mb-3 text-sm font-bold">Assign / Update Salary</p>
+        <div className="flex flex-col gap-2">
+          <input
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="Promoter phone or email"
+            className="rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <div className="flex gap-2">
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              inputMode="numeric"
+              placeholder="Weekly ₦"
+              className="w-32 rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Note (optional)"
+              className="flex-1 rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <button
+            onClick={assign}
+            disabled={pending}
+            className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} Set Salary
+          </button>
+        </div>
+      </div>
+
+      {/* Summary + pay all */}
+      <div className="flex items-center justify-between rounded-2xl border-2 border-ink bg-card px-4 py-3">
+        <div>
+          <p className="text-xs text-muted-foreground">Total weekly payroll</p>
+          <p className="text-lg font-black tabular-nums">{formatNaira(totalWeekly)}</p>
+        </div>
+        <button
+          onClick={payAll}
+          disabled={pending || totalWeekly === 0}
+          className="rounded-xl bg-success px-4 py-2.5 text-sm font-bold text-success-foreground disabled:opacity-50"
+        >
+          Pay All
+        </button>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : rows.length === 0 ? (
+        <Empty label="No promoter salaries yet" />
+      ) : (
+        rows.map((r) => (
+          <div key={r.id} className="rounded-2xl border-2 border-ink bg-card p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold">{r.userName ?? "Unknown"}</p>
+                <p className="truncate text-xs text-muted-foreground">{r.userPhone ?? r.userEmail ?? r.userId}</p>
+                {r.note && <p className="mt-1 text-[11px] text-muted-foreground">{r.note}</p>}
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-black tabular-nums">{formatNaira(Number(r.weeklyAmount))}</p>
+                <p className="text-[10px] text-muted-foreground">/week</p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                onClick={() => toggle(r.userId, !r.isActive)}
+                disabled={pending}
+                className="flex items-center gap-1 rounded-lg border-2 border-ink bg-surface px-2.5 py-1.5 text-xs font-semibold text-muted-foreground disabled:opacity-60"
+              >
+                {r.isActive ? <ToggleRight className="h-4 w-4 text-success" /> : <ToggleLeft className="h-4 w-4" />}
+                {r.isActive ? "Active" : "Paused"}
+              </button>
+              <button
+                onClick={() => payOne(r.userId)}
+                disabled={pending || !r.isActive}
+                className="ml-auto rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-50"
+              >
+                Pay ₦{Number(r.weeklyAmount).toLocaleString()}
+              </button>
+            </div>
+            {r.lastPaidAt && (
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Last paid {new Date(r.lastPaidAt).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  )
+}
+
+// ── Promotions Tab ────────────────────────────────────────────────────────────
+type PromoRow = {
+  id: number
+  name: string
+  description: string | null
+  conditionValue: string
+  bonusType: string
+  bonusValue: string
+  firstPurchaseOnly: boolean
+  maxRedemptions: number | null
+  redemptions: number
+  isActive: boolean
+}
+
+function PromotionsTab() {
+  const [rows, setRows] = useState<PromoRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [pending, startTransition] = useTransition()
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    conditionValue: String(SITE.launchPromo.packagePrice),
+    bonusType: "percent" as "percent" | "fixed",
+    bonusValue: String(SITE.launchPromo.cashbackPercent),
+    firstPurchaseOnly: true,
+    maxRedemptions: "",
+  })
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setRows((await listPromos()) as PromoRow[])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  function create() {
+    startTransition(async () => {
+      const res = await createPromo({
+        name: form.name,
+        description: form.description,
+        conditionValue: Number(form.conditionValue),
+        bonusType: form.bonusType,
+        bonusValue: Number(form.bonusValue),
+        firstPurchaseOnly: form.firstPurchaseOnly,
+        maxRedemptions: form.maxRedemptions ? Number(form.maxRedemptions) : null,
+      })
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      if (res.ok) {
+        setForm((f) => ({ ...f, name: "", description: "" }))
+        load()
+      }
+    })
+  }
+
+  function toggle(id: number, isActive: boolean) {
+    startTransition(async () => {
+      await togglePromo(id, isActive)
+      load()
+    })
+  }
+
+  function remove(id: number) {
+    startTransition(async () => {
+      const res = await deletePromo(id)
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      load()
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Create promo */}
+      <div className="rounded-2xl border-2 border-ink bg-card p-4">
+        <p className="mb-3 flex items-center gap-2 text-sm font-bold">
+          <Megaphone className="h-4 w-4 text-primary" /> Create Promotion
+        </p>
+        <div className="flex flex-col gap-2">
+          <input
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            placeholder="Promo name (e.g. Launch Cashback)"
+            className="rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <input
+            value={form.description}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Description (optional)"
+            className="rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+            Min package price (₦)
+          </label>
+          <input
+            value={form.conditionValue}
+            onChange={(e) => setForm((f) => ({ ...f, conditionValue: e.target.value }))}
+            inputMode="numeric"
+            placeholder="Min package price"
+            className="rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+          <div className="flex gap-2">
+            <select
+              value={form.bonusType}
+              onChange={(e) => setForm((f) => ({ ...f, bonusType: e.target.value as "percent" | "fixed" }))}
+              className="rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            >
+              <option value="percent">Percent %</option>
+              <option value="fixed">Fixed ₦</option>
+            </select>
+            <input
+              value={form.bonusValue}
+              onChange={(e) => setForm((f) => ({ ...f, bonusValue: e.target.value }))}
+              inputMode="numeric"
+              placeholder={form.bonusType === "percent" ? "Cashback %" : "Cashback ₦"}
+              className="flex-1 rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={form.maxRedemptions}
+              onChange={(e) => setForm((f) => ({ ...f, maxRedemptions: e.target.value }))}
+              inputMode="numeric"
+              placeholder="Max redemptions (blank = unlimited)"
+              className="flex-1 rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, firstPurchaseOnly: !f.firstPurchaseOnly }))}
+              className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-xs font-semibold text-muted-foreground"
+            >
+              {form.firstPurchaseOnly ? (
+                <ToggleRight className="h-4 w-4 text-success" />
+              ) : (
+                <ToggleLeft className="h-4 w-4" />
+              )}
+              First buy only
+            </button>
+          </div>
+          <button
+            onClick={create}
+            disabled={pending}
+            className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} Create Promo
+          </button>
+        </div>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : rows.length === 0 ? (
+        <Empty label="No promotions yet" />
+      ) : (
+        rows.map((p) => (
+          <div key={p.id} className="rounded-2xl border-2 border-ink bg-card p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold">{p.name}</p>
+                {p.description && <p className="text-xs text-muted-foreground">{p.description}</p>}
+              </div>
+              <StatusBadge status={p.isActive ? "completed" : "failed"} />
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg bg-surface px-2.5 py-1.5">
+                <p className="text-muted-foreground">Min buy</p>
+                <p className="font-bold tabular-nums">{formatNaira(Number(p.conditionValue))}</p>
+              </div>
+              <div className="rounded-lg bg-surface px-2.5 py-1.5">
+                <p className="text-muted-foreground">Cashback</p>
+                <p className="font-bold tabular-nums">
+                  {p.bonusType === "percent" ? `${Number(p.bonusValue)}%` : formatNaira(Number(p.bonusValue))}
+                </p>
+              </div>
+              <div className="rounded-lg bg-surface px-2.5 py-1.5">
+                <p className="text-muted-foreground">Redeemed</p>
+                <p className="font-bold tabular-nums">
+                  {p.redemptions}
+                  {p.maxRedemptions ? ` / ${p.maxRedemptions}` : ""}
+                </p>
+              </div>
+              <div className="rounded-lg bg-surface px-2.5 py-1.5">
+                <p className="text-muted-foreground">Scope</p>
+                <p className="font-bold">{p.firstPurchaseOnly ? "First buy" : "Any buy"}</p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                onClick={() => toggle(p.id, !p.isActive)}
+                disabled={pending}
+                className="flex items-center gap-1 rounded-lg border-2 border-ink bg-surface px-2.5 py-1.5 text-xs font-semibold text-muted-foreground disabled:opacity-60"
+              >
+                {p.isActive ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                {p.isActive ? "Pause" : "Activate"}
+              </button>
+              <button
+                onClick={() => remove(p.id)}
+                disabled={pending}
+                className="ml-auto flex items-center gap-1 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs font-semibold text-destructive disabled:opacity-60"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Remove
+              </button>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   )
 }

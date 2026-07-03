@@ -28,8 +28,10 @@ export default async function MyInvestmentsPage() {
 
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
         {investments.length === 0 ? (
-          <div className="border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
-            <TrendingUp className="mx-auto mb-3 h-8 w-8 opacity-30" />
+          <div className="card-glass rounded-3xl px-4 py-12 text-center text-sm font-semibold text-muted-foreground">
+            <span className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-ink bg-surface">
+              <TrendingUp className="h-6 w-6 text-foreground" />
+            </span>
             <p>No investments yet. Start investing to grow your income!</p>
           </div>
         ) : (
@@ -84,55 +86,55 @@ function InvestmentCard({
   const progressPercent = Math.min(100, Math.round((inv.daysPaid / inv.durationDays) * 100))
 
   return (
-    <article className={`relative overflow-hidden rounded-xl border pl-4 pr-4 py-4 ${
-      completed ? "border-border/40 bg-card/60" : "border-border bg-card"
+    <article className={`relative overflow-hidden rounded-2xl border-2 border-ink bg-card pl-5 pr-4 py-4 shadow-[3px_3px_0_0_var(--ink)] ${
+      completed ? "opacity-80" : ""
     }`}>
       {/* Left accent stripe */}
-      <span className={`absolute left-0 top-0 h-full w-[3px] ${completed ? "bg-muted" : "bg-success"}`} />
+      <span className={`absolute left-0 top-0 h-full w-2 border-r-2 border-ink ${completed ? "bg-surface" : "bg-success"}`} />
 
       {/* Plan name + status */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-black tracking-tight">{inv.planName}</h3>
-          <p className="text-[11px] text-muted-foreground">{formatNaira(Number(inv.price))} invested</p>
+          <h3 className="text-base font-black uppercase tracking-tight">{inv.planName}</h3>
+          <p className="text-[11px] font-semibold text-muted-foreground">{formatNaira(Number(inv.price))} invested</p>
         </div>
-        <span className={`text-[10px] font-bold uppercase tracking-wide ${
-          completed ? "text-muted-foreground" : "text-success"
+        <span className={`rounded-full border-2 border-ink px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${
+          completed ? "bg-surface text-muted-foreground" : "bg-success text-success-foreground"
         }`}>
           {completed ? "Completed" : "Active"}
         </span>
       </div>
 
       {/* Stats row */}
-      <div className="mt-3 flex items-start gap-5">
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Daily</p>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="rounded-xl border-2 border-ink bg-surface px-2.5 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Daily</p>
           <p className="text-sm font-black text-success">{formatNaira(dailyEarning)}</p>
         </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Earned</p>
+        <div className="rounded-xl border-2 border-ink bg-surface px-2.5 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Earned</p>
           <p className="text-sm font-black">{formatNaira(amountEarned)}</p>
         </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total</p>
+        <div className="rounded-xl border-2 border-ink bg-surface px-2.5 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Total</p>
           <p className="text-sm font-black">{formatNaira(totalEarning)}</p>
         </div>
       </div>
 
       {/* Progress bar */}
       <div className="mt-3">
-        <div className="h-1 overflow-hidden rounded-none bg-surface">
+        <div className="h-2.5 overflow-hidden rounded-full border-2 border-ink bg-surface">
           <div className="h-full bg-primary transition-all" style={{ width: `${progressPercent}%` }} />
         </div>
-        <div className="mt-1 flex items-center justify-between">
-          <p className="text-[10px] tabular-nums text-muted-foreground">
+        <div className="mt-1.5 flex items-center justify-between">
+          <p className="text-[10px] font-bold tabular-nums text-muted-foreground">
             {inv.daysPaid}/{inv.durationDays}d
           </p>
           {!completed && daysLeft > 0 && (
-            <p className="text-[10px] text-muted-foreground">{daysLeft}d left</p>
+            <p className="text-[10px] font-bold text-muted-foreground">{daysLeft}d left</p>
           )}
           {completed && (
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] font-bold text-muted-foreground">
               {new Date(inv.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
             </p>
           )}
