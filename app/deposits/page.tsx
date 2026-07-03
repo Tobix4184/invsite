@@ -25,7 +25,7 @@ export default async function DepositsPage() {
   const balance = Number(w?.balance ?? 0)
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-28">
       <AppHeader title="Deposits" />
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
         <NewDepositClient balance={balance} minDeposit={limits.minDeposit} />

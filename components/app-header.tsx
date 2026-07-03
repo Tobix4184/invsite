@@ -13,10 +13,16 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-border bg-background">
-        <div className="mx-auto flex h-14 max-w-md items-center justify-between px-4">
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-md items-center justify-between px-4 py-2">
           {isHome ? (
-            <span className="text-lg font-black tracking-tight">{SITE.name}</span>
+            <div className="flex items-center gap-2.5">
+              <Logo className="h-9 w-9 ring-1 ring-primary/30" />
+              <div className="leading-none">
+                <span className="block text-base font-black tracking-tight">{SITE.name}</span>
+                <span className="block text-[10px] font-medium text-muted-foreground">{SITE.tagline}</span>
+              </div>
+            </div>
           ) : (
             <h1 className="text-base font-black tracking-tight">{title}</h1>
           )}
@@ -24,9 +30,10 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
           <button
             onClick={() => setOpen(true)}
             aria-label="Platform info"
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
+            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground active:scale-95"
           >
             <BellDot className="h-4 w-4" />
+            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
           </button>
         </div>
       </header>

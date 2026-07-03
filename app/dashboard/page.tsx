@@ -32,19 +32,19 @@ export default async function DashboardPage() {
     .reduce((s, i) => s + Number(i.dailyEarning), 0)
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-28">
       <WelcomePopup isNewUser={data.isNewUser} />
       <PendingDepositPopup deposits={pendingDeposits} />
       <AppHeader isPromoter={data.isPromoter} />
 
-      <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
+      <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5 animate-fade-up">
         {/* Greeting */}
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Welcome back</p>
-          <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-black tracking-tight">
+          <h1 className="mt-1 flex items-center gap-2 text-2xl font-black tracking-tight">
             {data.name.split(" ")[0]}
             {data.isPromoter && (
-              <span className="rounded-sm bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+              <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gold">
                 Partner
               </span>
             )}
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-black tracking-tight">Investment Packages</h2>
-            <Link href="/products" className="text-sm font-semibold text-primary">
+            <Link href="/products" className="text-sm font-bold text-primary underline-offset-4 hover:underline">
               View all
             </Link>
           </div>

@@ -88,7 +88,7 @@ function BankPicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between rounded-2xl border border-border bg-secondary/50 px-4 py-3.5 text-sm transition-colors focus-within:border-primary hover:border-border/80"
+        className="flex w-full items-center justify-between rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm transition-colors focus-within:border-primary hover:border-border/80"
       >
         <span className={value ? "text-foreground font-medium" : "text-muted-foreground"}>
           {value || "Select bank"}
@@ -205,14 +205,14 @@ export function WithdrawForm({ balance }: { balance: number }) {
     <main className="mx-auto flex max-w-md flex-col gap-4 px-4 py-5">
 
       {/* Balance hero */}
-      <div className="rounded-3xl border border-border bg-card p-5">
+      <div className="card-glass rounded-3xl p-5 glow-primary">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15">
             <Wallet className="h-5 w-5 text-primary" />
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Available Balance</p>
-            <p className="text-2xl font-black tracking-tight">{formatNaira(balance)}</p>
+            <p className="text-2xl font-black tracking-tight tabular-nums">{formatNaira(balance)}</p>
           </div>
         </div>
 
@@ -246,8 +246,8 @@ export function WithdrawForm({ balance }: { balance: number }) {
 
       {/* Step: Amount */}
       {step === "amount" && (
-        <div className="rounded-3xl border border-border bg-card p-5">
-          <p className="mb-4 text-sm font-bold">How much to withdraw?</p>
+        <div className="card-glass rounded-3xl p-5">
+          <p className="mb-4 text-sm font-black">How much to withdraw?</p>
 
           {/* Quick amounts */}
           <div className="mb-4 grid grid-cols-3 gap-2">
@@ -269,7 +269,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
               ))}
           </div>
 
-          <div className="mb-3 rounded-2xl border border-border bg-secondary/50 px-4 focus-within:border-primary">
+          <div className="mb-3 rounded-2xl border border-border bg-surface px-4 transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
             <input
               type="number"
               inputMode="numeric"
@@ -307,8 +307,8 @@ export function WithdrawForm({ balance }: { balance: number }) {
 
       {/* Step: Bank details */}
       {step === "bank" && (
-        <div className="rounded-3xl border border-border bg-card p-5">
-          <p className="mb-4 text-sm font-bold">Bank details</p>
+        <div className="card-glass rounded-3xl p-5">
+          <p className="mb-4 text-sm font-black">Bank details</p>
 
           <div className="flex flex-col gap-3">
             <div>
@@ -328,7 +328,7 @@ export function WithdrawForm({ balance }: { balance: number }) {
                 placeholder="0123456789"
                 value={form.accountNumber}
                 onChange={(e) => set("accountNumber")(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                className="w-full rounded-2xl border border-border bg-secondary/50 px-4 py-3.5 text-sm outline-none focus:border-primary"
+                className="w-full rounded-2xl border border-border bg-surface px-4 py-3.5 text-sm outline-none focus:border-primary"
               />
             </div>
 
@@ -366,8 +366,8 @@ export function WithdrawForm({ balance }: { balance: number }) {
 
       {/* Step: Confirm */}
       {step === "confirm" && (
-        <form onSubmit={handleSubmit} className="rounded-3xl border border-border bg-card p-5">
-          <p className="mb-4 text-sm font-bold">Confirm withdrawal</p>
+        <form onSubmit={handleSubmit} className="card-glass rounded-3xl p-5">
+          <p className="mb-4 text-sm font-black">Confirm withdrawal</p>
 
           <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-border bg-secondary/30 p-4 text-sm">
             <Row label="Amount" value={formatNaira(amount)} />

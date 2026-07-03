@@ -2,11 +2,11 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Phone, Lock, ShieldCheck, Tag, Loader2 } from "lucide-react"
+import { Phone, Lock, ShieldCheck, Tag, Loader2, ArrowRight, TrendingUp, Clock, Gift } from "lucide-react"
 import { toast } from "sonner"
 import { Logo } from "@/components/logo"
 import { Captcha } from "@/components/captcha"
-import { SITE } from "@/lib/plans"
+import { SITE, formatNaira } from "@/lib/plans"
 import { authClient } from "@/lib/auth-client"
 import { initAccount, resolveLoginEmail } from "@/app/actions/account"
 
@@ -79,6 +79,11 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
   })
   const set = (key: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [key]: v }))
 
+  function switchMode(next: Mode) {
+    if (next === mode) return
+    setMode(next)
+  }
+
   async function handleSignIn() {
     if (!form.phone || !form.password) {
       toast.error("Enter your phone number and password")
@@ -144,145 +149,143 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
     }
   }
 
+  const isSignIn = mode === "sign-in"
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      {/* Top brand strip */}
-      <div className="px-5 pt-12 pb-8">
-        <div className="mx-auto max-w-md">
-          {/* Logo + wordmark */}
-          <div className="flex items-center gap-3 mb-8">
-            <Logo className="h-10 w-10 rounded-xl" />
-            <span className="text-lg font-black tracking-tight">{SITE.name}</span>
+    <div className="relative flex min-h-screen flex-col overflow-hidden">
+      {/* Decorative aurora orbs */}
+      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
+      <div className="pointer-events-none absolute -left-20 top-1/3 h-64 w-64 rounded-full bg-success/10 blur-3xl" />
+
+      {/* Brand */}
+      <header className="relative px-5 pt-10 pb-5">
+        <div className="mx-auto flex max-w-md items-center gap-3">
+          <Logo className="h-11 w-11 rounded-2xl ring-1 ring-primary/30" />
+          <div className="leading-none">
+            <span className="block text-lg font-black tracking-tight">{SITE.name}</span>
+            <span className="mt-1 block text-[11px] font-medium text-muted-foreground">{SITE.tagline}</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Sliding panel */}
+      <main className="relative mx-auto w-full max-w-md flex-1 px-5 pb-12">
+        <div
+          key={mode}
+          className={isSignIn ? "animate-slide-in-left" : "animate-slide-in-right"}
+        >
+          {/* Heading */}
+          <div className="mb-6">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-primary">
+              {isSignIn ? "Welcome back" : "Get started"}
+            </span>
+            <h1 className="mt-3 text-[2rem] font-black leading-[1.1] tracking-tight text-balance text-gradient">
+              {isSignIn ? "Sign in to keep earning" : "Start earning every day"}
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {isSignIn
+                ? "Access your investments and daily returns."
+                : `Join ${SITE.name} — invest in valued assets and earn fixed daily returns.`}
+            </p>
           </div>
 
-          {mode === "sign-in" ? (
-            <>
-              <p className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Welcome back</p>
-              <h1 className="text-[2rem] font-black leading-tight tracking-tight text-balance">
-                Sign in to your account
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                Access your investments and daily earnings.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Get started</p>
-              <h1 className="text-[2rem] font-black leading-tight tracking-tight text-balance">
-                Start earning every day
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                Join {SITE.name} — invest in valued assets and earn fixed daily returns.
-              </p>
-
-              {/* Perks row */}
-              <div className="mt-4 flex gap-3">
-                {[
-                  { val: SITE.packageCount + "", sub: "packages" },
-                  { val: "45d+", sub: "earning cycle" },
-                  { val: "₦" + SITE.welcomeBonus.toLocaleString(), sub: "sign-up bonus" },
-                ].map(({ val, sub }) => (
-                  <div key={sub} className="flex-1 rounded-2xl border border-border bg-card px-3 py-2.5 text-center">
-                    <p className="text-sm font-black text-primary">{val}</p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">{sub}</p>
-                  </div>
-                ))}
-              </div>
-            </>
+          {/* Sign-up perks */}
+          {!isSignIn && (
+            <div className="mb-6 grid grid-cols-3 gap-2.5">
+              {[
+                { icon: TrendingUp, val: `${SITE.packageCount}`, sub: "packages" },
+                { icon: Clock, val: "45d+", sub: "earn cycle" },
+                { icon: Gift, val: formatNaira(SITE.welcomeBonus), sub: "sign-up bonus" },
+              ].map(({ icon: Icon, val, sub }) => (
+                <div key={sub} className="card-glass flex flex-col items-center gap-1 rounded-2xl px-2 py-3 text-center">
+                  <Icon className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-black tabular-nums">{val}</p>
+                  <p className="text-[10px] text-muted-foreground">{sub}</p>
+                </div>
+              ))}
+            </div>
           )}
-        </div>
-      </div>
 
-      {/* Form card */}
-      <main className="flex-1 px-5 pb-10 mx-auto w-full max-w-md">
-        {/* Mode toggle */}
-        <div className="flex gap-1 rounded-2xl border border-border bg-card p-1 mb-6">
-          {(["sign-in", "sign-up"] as Mode[]).map((m) => (
+          {/* Form */}
+          <form
+            className="card-glass flex flex-col gap-4 rounded-3xl p-5"
+            onSubmit={(e) => {
+              e.preventDefault()
+              isSignIn ? handleSignIn() : handleSignUp()
+            }}
+          >
+            <Field
+              id="phone"
+              label="Phone Number"
+              icon={Phone}
+              type="tel"
+              inputMode="tel"
+              placeholder="080XXXXXXXX"
+              value={form.phone}
+              onChange={set("phone")}
+            />
+
+            <Field
+              id="password"
+              label="Password"
+              icon={Lock}
+              type="password"
+              placeholder="••••••••"
+              value={form.password}
+              onChange={set("password")}
+            />
+
+            {!isSignIn && (
+              <>
+                <Field
+                  id="confirm"
+                  label="Confirm Password"
+                  icon={ShieldCheck}
+                  type="password"
+                  placeholder="••••••••"
+                  value={form.confirm}
+                  onChange={set("confirm")}
+                />
+                <Field
+                  id="invite"
+                  label="Invite Code"
+                  hint="optional"
+                  icon={Tag}
+                  placeholder="Enter invite code"
+                  value={form.invite}
+                  onChange={set("invite")}
+                />
+                <Captcha value={captcha} onChange={setCaptcha} onValidChange={setCaptchaValid} />
+              </>
+            )}
+
             <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`flex-1 rounded-xl py-2.5 text-sm font-bold transition-all ${
-                mode === m
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              type="submit"
+              disabled={loading}
+              className="group mt-1 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60 glow-primary"
             >
-              {m === "sign-in" ? "Sign In" : "Register"}
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  {isSignIn ? "Sign In" : "Create Account"}
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </>
+              )}
             </button>
-          ))}
+          </form>
+
+          {/* Switch link */}
+          <p className="mt-5 text-center text-sm text-muted-foreground">
+            {isSignIn ? "No account yet? " : "Already registered? "}
+            <button
+              onClick={() => switchMode(isSignIn ? "sign-up" : "sign-in")}
+              className="font-black text-primary underline-offset-4 hover:underline"
+            >
+              {isSignIn ? "Register free" : "Sign in"}
+            </button>
+          </p>
         </div>
-
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            mode === "sign-in" ? handleSignIn() : handleSignUp()
-          }}
-        >
-          <Field
-            id="phone"
-            label="Phone Number"
-            icon={Phone}
-            type="tel"
-            inputMode="tel"
-            placeholder="080XXXXXXXX"
-            value={form.phone}
-            onChange={set("phone")}
-          />
-
-          <Field
-            id="password"
-            label="Password"
-            icon={Lock}
-            type="password"
-            placeholder="••••••••"
-            value={form.password}
-            onChange={set("password")}
-          />
-
-          {mode === "sign-up" && (
-            <>
-              <Field
-                id="confirm"
-                label="Confirm Password"
-                icon={ShieldCheck}
-                type="password"
-                placeholder="••••••••"
-                value={form.confirm}
-                onChange={set("confirm")}
-              />
-              <Field
-                id="invite"
-                label="Invite Code"
-                hint="optional"
-                icon={Tag}
-                placeholder="Enter invite code"
-                value={form.invite}
-                onChange={set("invite")}
-              />
-              <Captcha value={captcha} onChange={setCaptcha} onValidChange={setCaptchaValid} />
-            </>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-black text-primary-foreground transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {mode === "sign-in" ? "Sign In" : "Create Account"}
-          </button>
-        </form>
-
-        <p className="mt-5 text-center text-sm text-muted-foreground">
-          {mode === "sign-in" ? "No account yet? " : "Already registered? "}
-          <button
-            onClick={() => setMode(mode === "sign-in" ? "sign-up" : "sign-in")}
-            className="font-black text-primary"
-          >
-            {mode === "sign-in" ? "Register free" : "Sign in"}
-          </button>
-        </p>
       </main>
     </div>
   )

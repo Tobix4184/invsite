@@ -44,53 +44,62 @@
   --radius-3xl: calc(var(--radius) * 2.4);
 }
 
-/* 247 Incum — Midnight blue fintech with electric cyan accent. */
+/* ─────────────────────────────────────────────────────────────
+   247 Incum — refreshed midnight fintech.
+   Deeper indigo base, luminous cyan primary, emerald earnings,
+   gold VIP. Glassy surfaces, soft glows, crisp mono numerics.
+   ───────────────────────────────────────────────────────────── */
 :root {
-  /* Deep midnight navy base */
-  --background: oklch(0.16 0.03 255);
-  --foreground: oklch(0.97 0.01 255);
+  /* Deep midnight indigo base */
+  --background: oklch(0.145 0.035 265);
+  --foreground: oklch(0.98 0.008 250);
 
-  /* Card — lifted navy */
-  --card: oklch(0.21 0.035 255);
-  --card-foreground: oklch(0.97 0.01 255);
+  /* Card — lifted glassy navy */
+  --card: oklch(0.205 0.04 262);
+  --card-foreground: oklch(0.98 0.008 250);
 
   /* Surface — inner wells */
-  --surface: oklch(0.26 0.04 255);
+  --surface: oklch(0.26 0.045 262);
 
-  --popover: oklch(0.19 0.035 255);
-  --popover-foreground: oklch(0.97 0.01 255);
+  --popover: oklch(0.19 0.04 262);
+  --popover-foreground: oklch(0.98 0.008 250);
 
-  /* Electric cyan — primary accent */
-  --primary: oklch(0.78 0.15 210);
-  --primary-foreground: oklch(0.16 0.05 255);
+  /* Luminous cyan — primary accent */
+  --primary: oklch(0.8 0.155 208);
+  --primary-foreground: oklch(0.15 0.05 260);
 
-  --secondary: oklch(0.26 0.04 255);
-  --secondary-foreground: oklch(0.97 0.01 255);
+  --secondary: oklch(0.26 0.045 262);
+  --secondary-foreground: oklch(0.98 0.008 250);
 
-  --muted: oklch(0.26 0.035 255);
-  --muted-foreground: oklch(0.68 0.03 255);
+  --muted: oklch(0.26 0.04 262);
+  --muted-foreground: oklch(0.7 0.03 258);
 
-  --accent: oklch(0.30 0.045 255);
-  --accent-foreground: oklch(0.97 0.01 255);
+  --accent: oklch(0.31 0.05 262);
+  --accent-foreground: oklch(0.98 0.008 250);
 
-  --brand: oklch(0.78 0.15 210);
-  --brand-foreground: oklch(0.16 0.05 255);
+  --brand: oklch(0.8 0.155 208);
+  --brand-foreground: oklch(0.15 0.05 260);
 
-  /* Warm gold — VIP highlights only */
-  --gold: oklch(0.82 0.13 85);
-  --gold-foreground: oklch(0.16 0.05 255);
+  /* Warm gold — VIP highlights */
+  --gold: oklch(0.83 0.13 85);
+  --gold-foreground: oklch(0.15 0.05 260);
 
-  /* Bright green — earnings / positive */
-  --success: oklch(0.75 0.18 160);
-  --success-foreground: oklch(0.16 0.05 160);
+  /* Emerald — earnings / positive */
+  --success: oklch(0.76 0.17 162);
+  --success-foreground: oklch(0.15 0.05 160);
 
-  --destructive: oklch(0.62 0.22 25);
+  --destructive: oklch(0.63 0.22 25);
 
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.78 0.15 210);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.8 0.155 208);
 
-  --radius: 0.9rem;
+  --radius: 1rem;
+
+  /* Glow color stops for utilities */
+  --glow-primary: oklch(0.8 0.155 208 / 35%);
+  --glow-success: oklch(0.76 0.17 162 / 30%);
+  --glow-gold: oklch(0.83 0.13 85 / 30%);
 }
 
 @layer base {
@@ -99,10 +108,58 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Ambient aurora glow anchored top of viewport */
+    background-image:
+      radial-gradient(120% 60% at 50% -10%, oklch(0.8 0.155 208 / 10%) 0%, transparent 55%),
+      radial-gradient(90% 50% at 100% 0%, oklch(0.76 0.17 162 / 7%) 0%, transparent 50%);
+    background-attachment: fixed;
   }
   html {
     @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
   }
+}
+
+/* ── Reusable surface + button language ─────────────────────── */
+
+/* Glassy elevated card */
+@utility card-glass {
+  background: linear-gradient(
+    180deg,
+    oklch(0.24 0.045 262 / 0.9) 0%,
+    oklch(0.2 0.04 262 / 0.9) 100%
+  );
+  border: 1px solid oklch(1 0 0 / 0.08);
+  backdrop-filter: blur(12px);
+}
+
+/* Subtle inner-well surface */
+@utility well {
+  background: oklch(0.17 0.035 262 / 0.7);
+  border: 1px solid oklch(1 0 0 / 0.06);
+}
+
+/* Primary glow (for CTAs / hero balance) */
+@utility glow-primary {
+  box-shadow: 0 8px 30px -6px var(--glow-primary);
+}
+@utility glow-success {
+  box-shadow: 0 8px 30px -6px var(--glow-success);
+}
+@utility glow-gold {
+  box-shadow: 0 8px 30px -6px var(--glow-gold);
+}
+
+/* Gradient headline text */
+@utility text-gradient {
+  background: linear-gradient(
+    100deg,
+    oklch(0.98 0.008 250) 0%,
+    oklch(0.8 0.155 208) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 @utility no-scrollbar {
@@ -113,6 +170,8 @@
   scrollbar-width: none;
 }
 
+/* ── Animations ─────────────────────────────────────────────── */
+
 @keyframes shake {
   0%, 100% { transform: translateX(0) rotate(0deg); }
   15%       { transform: translateX(-4px) rotate(-3deg); }
@@ -122,8 +181,48 @@
   75%       { transform: translateX(-2px) rotate(-1deg); }
   90%       { transform: translateX(2px) rotate(1deg); }
 }
-
 @utility animate-shake {
   animation: shake 0.7s ease-in-out infinite;
   animation-play-state: running;
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@utility animate-slide-in-right {
+  animation: slide-in-right 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@utility animate-slide-in-left {
+  animation: slide-in-left 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@utility animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--glow-primary); }
+  50%      { box-shadow: 0 0 22px 2px var(--glow-primary); }
+}
+@utility animate-pulse-glow {
+  animation: pulse-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@utility animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
 }
