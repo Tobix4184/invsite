@@ -33,28 +33,28 @@ export const PLANS: Plan[] = [
     badgeClass: 'bg-primary text-primary-foreground',
   },
   {
-    // ₦10k × 45 days × ₦2,000/day = ₦90,000 total → 900% ROI
+    // ₦10k × 45 days × ₦1,300/day = ₦58,500 total → 585% ROI
     id: 2,
     name: 'Basic',
     tier: 'Entry',
     asset: 'Gold Reserve',
     assetImage: '/assets/gold.png',
     price: 10000,
-    dailyEarning: 2000,
+    dailyEarning: 1300,
     durationDays: 45,
     withdrawalTier: 'tier3',
     accentColor: '#00D4FF',
     badgeClass: 'bg-primary text-primary-foreground',
   },
   {
-    // ₦35k × 45 days × ₦7,000/day = ₦315,000 total → 900% ROI
+    // ₦35k × 45 days × ₦4,200/day = ₦189,000 total → 540% ROI
     id: 3,
     name: 'Hustle',
     tier: 'Popular',
     asset: 'Solar Energy Farm',
     assetImage: '/assets/solar.png',
     price: 35000,
-    dailyEarning: 7000,
+    dailyEarning: 4200,
     durationDays: 45,
     withdrawalTier: 'tier3',
     popular: true,
@@ -62,70 +62,70 @@ export const PLANS: Plan[] = [
     badgeClass: 'bg-primary text-primary-foreground',
   },
   {
-    // ₦80k × 50 days × ₦14,400/day = ₦720,000 total → 900% ROI
+    // ₦80k × 50 days × ₦8,800/day = ₦440,000 total → 550% ROI
     id: 4,
     name: 'Grind',
     tier: 'Growth',
     asset: 'Agricultural Estate',
     assetImage: '/assets/agriculture.png',
     price: 80000,
-    dailyEarning: 14400,
+    dailyEarning: 8800,
     durationDays: 50,
     withdrawalTier: 'tier2',
     accentColor: '#34D399',
     badgeClass: 'bg-success text-success-foreground',
   },
   {
-    // ₦150k × 55 days × ₦25,500/day = ₦1,402,500 total → 935% ROI
+    // ₦150k × 55 days × ₦15,000/day = ₦825,000 total → 550% ROI
     id: 5,
     name: 'Wealth',
     tier: 'Premium',
     asset: 'Real Estate Fund',
     assetImage: '/assets/realestate.png',
     price: 150000,
-    dailyEarning: 25500,
+    dailyEarning: 15000,
     durationDays: 55,
     withdrawalTier: 'tier2',
     accentColor: '#34D399',
     badgeClass: 'bg-success text-success-foreground',
   },
   {
-    // ₦300k × 60 days × ₦48,000/day = ₦2,880,000 total → 960% ROI
+    // ₦300k × 60 days × ₦28,000/day = ₦1,680,000 total → 560% ROI
     id: 6,
     name: 'Empire',
     tier: 'VIP',
     asset: 'Oil & Gas Holding',
     assetImage: '/assets/oil.png',
     price: 300000,
-    dailyEarning: 48000,
+    dailyEarning: 28000,
     durationDays: 60,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
     badgeClass: 'bg-gold text-gold-foreground',
   },
   {
-    // ₦500k × 65 days × ₦77,000/day = ₦5,005,000 total → 1001% ROI
+    // ₦500k × 65 days × ₦45,000/day = ₦2,925,000 total → 585% ROI
     id: 7,
     name: 'Legend',
     tier: 'VIP',
     asset: 'Data Center Grid',
     assetImage: '/assets/datacenter.png',
     price: 500000,
-    dailyEarning: 77000,
+    dailyEarning: 45000,
     durationDays: 65,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
     badgeClass: 'bg-gold text-gold-foreground',
   },
   {
-    // ₦1M × 70 days × ₦150,000/day = ₦10,500,000 total → 1050% ROI
+    // ₦1M × 70 days × ₦85,000/day = ₦5,950,000 total → 595% ROI
     id: 8,
     name: 'Sovereign',
     tier: 'VIP',
     asset: 'Diamond Holdings',
     assetImage: '/assets/diamond.png',
     price: 1000000,
-    dailyEarning: 150000,
+    dailyEarning: 85000,
     durationDays: 70,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
