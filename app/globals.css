@@ -6,8 +6,8 @@
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist', 'Geist Fallback';
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --font-sans: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: var(--font-jakarta-mono), 'Space Mono', monospace;
 
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
@@ -44,54 +44,53 @@
   --radius-3xl: calc(var(--radius) * 2.4);
 }
 
-/* Poco — Pure black fintech. Sharp, bold, premium. */
+/* 247 Incum — Midnight blue fintech with electric cyan accent. */
 :root {
-  /* True black base — no warm tint */
-  --background: oklch(0.08 0.004 50);
-  --foreground: oklch(0.97 0.004 50);
+  /* Deep midnight navy base */
+  --background: oklch(0.16 0.03 255);
+  --foreground: oklch(0.97 0.01 255);
 
-  /* Card — barely lifted from background */
-  --card: oklch(0.12 0.005 50);
-  --card-foreground: oklch(0.97 0.004 50);
+  /* Card — lifted navy */
+  --card: oklch(0.21 0.035 255);
+  --card-foreground: oklch(0.97 0.01 255);
 
   /* Surface — inner wells */
-  --surface: oklch(0.16 0.006 50);
+  --surface: oklch(0.26 0.04 255);
 
-  --popover: oklch(0.11 0.005 50);
-  --popover-foreground: oklch(0.97 0.004 50);
+  --popover: oklch(0.19 0.035 255);
+  --popover-foreground: oklch(0.97 0.01 255);
 
-  /* Amber — used sparingly as the sole accent */
-  --primary: oklch(0.78 0.17 72);
-  --primary-foreground: oklch(0.08 0.005 50);
+  /* Electric cyan — primary accent */
+  --primary: oklch(0.78 0.15 210);
+  --primary-foreground: oklch(0.16 0.05 255);
 
-  --secondary: oklch(0.16 0.006 50);
-  --secondary-foreground: oklch(0.97 0.004 50);
+  --secondary: oklch(0.26 0.04 255);
+  --secondary-foreground: oklch(0.97 0.01 255);
 
-  --muted: oklch(0.16 0.005 50);
-  --muted-foreground: oklch(0.52 0.008 50);
+  --muted: oklch(0.26 0.035 255);
+  --muted-foreground: oklch(0.68 0.03 255);
 
-  --accent: oklch(0.19 0.007 50);
-  --accent-foreground: oklch(0.97 0.004 50);
+  --accent: oklch(0.30 0.045 255);
+  --accent-foreground: oklch(0.97 0.01 255);
 
-  --brand: oklch(0.78 0.17 72);
-  --brand-foreground: oklch(0.08 0.005 50);
+  --brand: oklch(0.78 0.15 210);
+  --brand-foreground: oklch(0.16 0.05 255);
 
-  --gold: oklch(0.78 0.17 72);
-  --gold-foreground: oklch(0.08 0.005 50);
+  /* Warm gold — VIP highlights only */
+  --gold: oklch(0.82 0.13 85);
+  --gold-foreground: oklch(0.16 0.05 255);
 
   /* Bright green — earnings / positive */
-  --success: oklch(0.72 0.19 155);
-  --success-foreground: oklch(0.08 0.03 155);
+  --success: oklch(0.75 0.18 160);
+  --success-foreground: oklch(0.16 0.05 160);
 
   --destructive: oklch(0.62 0.22 25);
 
-  /* Hard white border — editorial feel */
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.78 0.17 72);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.78 0.15 210);
 
-  /* Sharp corners — nothing rounded like the competitor */
-  --radius: 0.5rem;
+  --radius: 0.9rem;
 }
 
 @layer base {

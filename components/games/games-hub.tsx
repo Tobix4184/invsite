@@ -102,7 +102,7 @@ export function GamesHub(props: Props) {
             <div>
               <p className="font-bold">Deposit Required</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Make your first deposit to unlock all game features — Stake &amp; Spin, Lucky Draw, and Lock Vault.
+                Make your first deposit to unlock all game features — Stake &amp; Spin and Lucky Draw.
               </p>
             </div>
             <Link

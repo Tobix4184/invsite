@@ -5,7 +5,13 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { type Plan, formatNaira, getDailyEarning, getTotalEarning } from "@/lib/plans"
+import {
+  type Plan,
+  formatNaira,
+  getDailyEarning,
+  getTotalEarning,
+  WITHDRAWAL_TIERS,
+} from "@/lib/plans"
 import { buyPlan } from "@/app/actions/investments"
 
 export function PlanCard({ plan }: { plan: Plan }) {
@@ -16,6 +22,7 @@ export function PlanCard({ plan }: { plan: Plan }) {
 
   const daily = getDailyEarning(plan)
   const total = getTotalEarning(plan)
+  const tier = WITHDRAWAL_TIERS[plan.withdrawalTier]
 
   function handleBuy() {
     startTransition(async () => {
@@ -34,61 +41,69 @@ export function PlanCard({ plan }: { plan: Plan }) {
   }
 
   return (
-    <article className="relative overflow-hidden rounded-3xl border border-border bg-card">
-      {/* Device image */}
-      <div className="relative h-36 w-full overflow-hidden bg-surface">
-        <Image
-          src={plan.deviceImage}
-          alt={plan.device}
-          fill
-          className="object-contain p-4 transition-transform duration-500"
-          sizes="(max-width: 768px) 100vw, 448px"
-        />
-        <span className={`absolute left-3 top-3 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${plan.badgeClass}`}>
-          {plan.tier}
-        </span>
-        {plan.popular && (
-          <span className="absolute right-3 top-3 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary-foreground">
-            Popular
-          </span>
-        )}
+    <article className="relative overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="flex gap-3 p-3">
+        {/* Asset image */}
+        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-surface">
+          <Image
+            src={plan.assetImage || "/placeholder.svg"}
+            alt={plan.asset}
+            fill
+            className="object-cover"
+            sizes="96px"
+          />
+          {plan.popular && (
+            <span className="absolute left-1 top-1 rounded-md bg-primary px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-primary-foreground">
+              Popular
+            </span>
+          )}
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-black leading-none">{plan.name}</h3>
+              <p className="mt-1 truncate text-[11px] text-muted-foreground">{plan.asset}</p>
+            </div>
+            <span
+              className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${plan.badgeClass}`}
+            >
+              {plan.tier}
+            </span>
+          </div>
+
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            <StatTile label="Per Day" value={formatNaira(daily)} accent="text-success" />
+            <StatTile label="Total" value={formatNaira(total)} accent="text-primary" />
+            <StatTile label="Days" value={`${plan.durationDays}`} accent="text-foreground" />
+          </div>
+
+          <p className="mt-2 text-[10px] font-semibold text-muted-foreground">
+            Withdraw: <span className="text-foreground">{tier.dayLabel}</span>
+          </p>
+        </div>
       </div>
 
-      <div className="p-4">
-        {/* Name + price row */}
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-base font-black leading-none">{plan.name}</h3>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">{plan.device}</p>
-          </div>
-          <p className="text-base font-black tabular-nums">{formatNaira(plan.price)}</p>
-        </div>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-1.5 mb-4">
-          <StatTile label="Daily %" value={`${plan.dailyReturnPercent}%`} accent="text-primary" />
-          <StatTile label="Per Day" value={formatNaira(daily)} accent="text-success" />
-          <StatTile label="30d Total" value={formatNaira(total)} accent="text-amber-400" />
-        </div>
-
+      <div className="border-t border-border p-3">
         {confirm ? (
           <div className="flex flex-col gap-2">
-            {/* Auto-reinvest — bare muted row, easy to ignore */}
             <div className="flex items-center gap-2 px-0.5">
               <button
                 type="button"
-                onClick={() => setAutoReinvest(v => !v)}
+                onClick={() => setAutoReinvest((v) => !v)}
                 disabled={pending}
                 className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${autoReinvest ? "bg-success/70" : "bg-muted"}`}
                 aria-checked={autoReinvest}
                 role="switch"
               >
-                <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all ${autoReinvest ? "left-3.5" : "left-0.5"}`} />
+                <span
+                  className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all ${autoReinvest ? "left-3.5" : "left-0.5"}`}
+                />
               </button>
-              <span className="text-[10px] text-muted-foreground/60 select-none">Auto-reinvest returns into Vault</span>
+              <span className="select-none text-[10px] text-muted-foreground/70">
+                Auto-reinvest returns
+              </span>
             </div>
-
-            {/* Confirm / Cancel */}
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirm(false)}
@@ -110,9 +125,10 @@ export function PlanCard({ plan }: { plan: Plan }) {
         ) : (
           <button
             onClick={() => setConfirm(true)}
-            className="flex w-full items-center justify-center rounded-2xl bg-primary py-3 text-sm font-black text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98]"
+            className="flex w-full items-center justify-between rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground transition-all hover:opacity-90 active:scale-[0.98]"
           >
-            Invest {formatNaira(plan.price)}
+            <span>Invest Now</span>
+            <span className="tabular-nums">{formatNaira(plan.price)}</span>
           </button>
         )}
       </div>
@@ -122,9 +138,9 @@ export function PlanCard({ plan }: { plan: Plan }) {
 
 function StatTile({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 rounded-xl bg-surface px-2 py-2 text-center">
-      <p className={`text-xs font-black tabular-nums leading-tight ${accent}`}>{value}</p>
-      <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+    <div className="flex flex-col items-center gap-0.5 rounded-lg bg-surface px-1.5 py-1.5 text-center">
+      <p className={`text-[11px] font-black tabular-nums leading-tight ${accent}`}>{value}</p>
+      <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
     </div>
   )
 }

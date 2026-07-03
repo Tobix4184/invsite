@@ -72,11 +72,65 @@ export const profile = pgTable("profile", {
   role: text("role").notNull().default("user"),
   isPromoter: boolean("isPromoter").notNull().default(false),
   promoterCommission: integer("promoterCommission"), // nullable – override for this user's L1 promoter rate
+  // Admin override for withdrawal tier ("tier1" | "tier2" | "tier3"); null = derive from active packages
+  withdrawalTierOverride: text("withdrawalTierOverride"),
   signinBonusGiven: boolean("signinBonusGiven").notNull().default(false),
+  // Launch/first-purchase cashback promo already claimed?
+  promoClaimed: boolean("promoClaimed").notNull().default(false),
   savedBankName: text("savedBankName"),
   savedAccountName: text("savedAccountName"),
   savedAccountNumber: text("savedAccountNumber"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
+// ── Promoter salary system ───────────────────────────────────────────────────
+// Promoters earn a fixed weekly salary instead of extra referral commission.
+export const promoterSalary = pgTable("promoter_salary", {
+  id: serial("id").primaryKey(),
+  userId: text("userId").notNull().unique(),
+  weeklyAmount: numeric("weeklyAmount", { precision: 14, scale: 2 }).notNull().default("0"),
+  isActive: boolean("isActive").notNull().default(true),
+  note: text("note"),
+  lastPaidAt: timestamp("lastPaidAt"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
+export const salaryPayment = pgTable("salary_payment", {
+  id: serial("id").primaryKey(),
+  userId: text("userId").notNull(),
+  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  note: text("note"),
+  paidAt: timestamp("paidAt").notNull().defaultNow(),
+})
+
+// ── Promotions ───────────────────────────────────────────────────────────────
+// Admin-controlled promos: buy a package meeting a condition, get cashback bonus.
+export const promo = pgTable("promo", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  // "min_package_price" — user must buy a package with price >= conditionValue
+  conditionType: text("conditionType").notNull().default("min_package_price"),
+  conditionValue: numeric("conditionValue", { precision: 14, scale: 2 }).notNull().default("0"),
+  // "percent" | "fixed"
+  bonusType: text("bonusType").notNull().default("percent"),
+  bonusValue: numeric("bonusValue", { precision: 14, scale: 2 }).notNull().default("0"),
+  // Only first-ever package purchase qualifies?
+  firstPurchaseOnly: boolean("firstPurchaseOnly").notNull().default(true),
+  maxRedemptions: integer("maxRedemptions"), // null = unlimited
+  redemptions: integer("redemptions").notNull().default(0),
+  isActive: boolean("isActive").notNull().default(true),
+  startsAt: timestamp("startsAt"),
+  endsAt: timestamp("endsAt"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
+export const promoRedemption = pgTable("promo_redemption", {
+  id: serial("id").primaryKey(),
+  userId: text("userId").notNull(),
+  promoId: integer("promoId").notNull(),
+  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  redeemedAt: timestamp("redeemedAt").notNull().defaultNow(),
 })
 
 export const wallet = pgTable("wallet", {
@@ -147,6 +201,7 @@ export const withdrawal = pgTable("withdrawal", {
   bankName: text("bankName"),
   accountNumber: text("accountNumber"),
   accountName: text("accountName"),
+  withdrawalTier: text("withdrawalTier"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   processedAt: timestamp("processedAt"),

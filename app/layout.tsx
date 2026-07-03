@@ -1,6 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Plus_Jakarta_Sans, Space_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { getBoolSetting, SETTING_KEYS } from '@/app/actions/settings'
 import { getSession } from '@/lib/session'
@@ -10,41 +10,42 @@ import { eq, count } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import './globals.css'
 
-const geistSans = Geist({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-geist-sans',
+  variable: '--font-jakarta',
 })
 
-const geistMono = Geist_Mono({
+const jakartaMono = Space_Mono({
+  weight: ['400', '700'],
   subsets: ['latin'],
-  variable: '--font-geist-mono',
+  variable: '--font-jakarta-mono',
 })
 
 export const metadata: Metadata = {
-  title: 'Poco — Smart Investment Platform',
+  title: '247 Incum — Earn Every Hour, Every Day',
   description:
-    'Poco — device-tier investment plans with daily returns. Invest, earn daily, invite friends, and grow your wealth.',
+    '247 Incum — invest in real-world valued assets and earn fixed daily returns. Fund, invest, invite friends, and grow your income around the clock.',
   generator: 'v0.app',
   icons: {
     icon: '/favicon.png',
     apple: '/logo.png',
   },
   openGraph: {
-    title: 'Poco — Smart Investment Platform',
-    description: 'Earn daily returns on device-tier investment plans. Join Poco today.',
-    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Poco Investment Platform' }],
+    title: '247 Incum — Earn Every Hour, Every Day',
+    description: 'Invest in valued assets and earn fixed daily returns. Join 247 Incum today.',
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: '247 Incum' }],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Poco — Smart Investment Platform',
-    description: 'Earn daily returns on device-tier investment plans. Join Poco today.',
+    title: '247 Incum — Earn Every Hour, Every Day',
+    description: 'Invest in valued assets and earn fixed daily returns. Join 247 Incum today.',
     images: ['/og.png'],
   },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#1c1a17',
+  themeColor: '#0d1b3e',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -96,7 +97,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} bg-background`}>
+    <html lang="en" className={`${jakarta.variable} ${jakartaMono.variable} bg-background`}>
       <body className="font-sans antialiased">
         {children}
         <Toaster theme="dark" position="top-center" richColors />
