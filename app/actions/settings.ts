@@ -34,7 +34,82 @@ export const SETTING_KEYS = {
   scratchPrizes: "game_scratch_prizes",
   // Scratch cards earned per valid referral
   scratchCardsPerReferral: "game_scratch_cards_per_referral",
+  // ── Promoter salary algorithm ──
+  salaryEnabled: "salary_enabled",                 // "true" | "false"
+  salaryRatePerPoint: "salary_rate_per_point",     // naira per point e.g. "50"
+  salaryMaxWeekly: "salary_max_weekly",            // cap per promoter per week e.g. "5000"
+  salaryWindowDays: "salary_window_days",          // rolling activity window e.g. "30"
+  salaryAutoQualifyMin: "salary_auto_qualify_min", // min active referrals in window to auto-qualify e.g. "5"
+  // Plan-price -> points brackets, JSON array of {minPrice, points} sorted asc
+  salaryPlanTiers: "salary_plan_tiers",
 } as const
+
+/** Default salary configuration used when nothing is stored yet. */
+export const SALARY_DEFAULTS = {
+  enabled: false,
+  ratePerPoint: 50,
+  maxWeekly: 5000,
+  windowDays: 30,
+  autoQualifyMin: 5,
+  planTiers: [
+    { minPrice: 0, points: 1 },
+    { minPrice: 10000, points: 2 },
+    { minPrice: 35000, points: 4 },
+    { minPrice: 80000, points: 7 },
+    { minPrice: 150000, points: 12 },
+  ] as { minPrice: number; points: number }[],
+}
+
+export type SalaryConfig = typeof SALARY_DEFAULTS
+
+/** Reads live salary configuration, falling back to defaults. */
+export async function getSalaryConfig(): Promise<SalaryConfig> {
+  const rows = await db.select().from(siteSetting)
+  const map = new Map(rows.map((r) => [r.key, r.value]))
+  const g = SETTING_KEYS
+  const num = (k: string, def: number) => {
+    const v = parseFloat(map.get(k) ?? "")
+    return isNaN(v) ? def : v
+  }
+  let planTiers = SALARY_DEFAULTS.planTiers
+  const rawTiers = map.get(g.salaryPlanTiers)
+  if (rawTiers) {
+    try {
+      const parsed = JSON.parse(rawTiers)
+      if (Array.isArray(parsed) && parsed.length) planTiers = parsed
+    } catch {
+      /* keep default */
+    }
+  }
+  return {
+    enabled: map.get(g.salaryEnabled) === "true",
+    ratePerPoint: num(g.salaryRatePerPoint, SALARY_DEFAULTS.ratePerPoint),
+    maxWeekly: num(g.salaryMaxWeekly, SALARY_DEFAULTS.maxWeekly),
+    windowDays: Math.round(num(g.salaryWindowDays, SALARY_DEFAULTS.windowDays)),
+    autoQualifyMin: Math.round(num(g.salaryAutoQualifyMin, SALARY_DEFAULTS.autoQualifyMin)),
+    planTiers: [...planTiers].sort((a, b) => a.minPrice - b.minPrice),
+  }
+}
+
+/** Saves salary configuration (partial update). */
+export async function saveSalaryConfig(config: Partial<{
+  enabled: boolean
+  ratePerPoint: number
+  maxWeekly: number
+  windowDays: number
+  autoQualifyMin: number
+  planTiers: { minPrice: number; points: number }[]
+}>): Promise<void> {
+  const g = SETTING_KEYS
+  const jobs: Promise<void>[] = []
+  if (config.enabled !== undefined) jobs.push(setSetting(g.salaryEnabled, config.enabled ? "true" : "false"))
+  if (config.ratePerPoint !== undefined) jobs.push(setSetting(g.salaryRatePerPoint, String(config.ratePerPoint)))
+  if (config.maxWeekly !== undefined) jobs.push(setSetting(g.salaryMaxWeekly, String(config.maxWeekly)))
+  if (config.windowDays !== undefined) jobs.push(setSetting(g.salaryWindowDays, String(config.windowDays)))
+  if (config.autoQualifyMin !== undefined) jobs.push(setSetting(g.salaryAutoQualifyMin, String(config.autoQualifyMin)))
+  if (config.planTiers !== undefined) jobs.push(setSetting(g.salaryPlanTiers, JSON.stringify(config.planTiers)))
+  await Promise.all(jobs)
+}
 
 /** Reads a single setting value, returns null if missing. */
 export async function getSetting(key: string): Promise<string | null> {

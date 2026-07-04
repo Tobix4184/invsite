@@ -88,8 +88,13 @@ export const profile = pgTable("profile", {
 export const promoterSalary = pgTable("promoter_salary", {
   id: serial("id").primaryKey(),
   userId: text("userId").notNull().unique(),
+  // Manual override amount (used only when manualOverride = true)
   weeklyAmount: numeric("weeklyAmount", { precision: 14, scale: 2 }).notNull().default("0"),
   isActive: boolean("isActive").notNull().default(true),
+  // When true, weeklyAmount is used directly instead of the computed algorithm amount
+  manualOverride: boolean("manual_override").notNull().default(false),
+  // Whether this promoter was auto-qualified by activity (vs manually added by admin)
+  autoQualified: boolean("auto_qualified").notNull().default(false),
   note: text("note"),
   lastPaidAt: timestamp("lastPaidAt"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
@@ -364,10 +369,23 @@ export const task = pgTable("task", {
   description: text("description").notNull(),
   imageUrl: text("image_url"),
   reward: numeric("reward", { precision: 14, scale: 2 }).notNull().default("0"),
+  // Extra game rewards granted on approval
+  rewardSpins: integer("reward_spins").notNull().default(0),
+  rewardScratch: integer("reward_scratch").notNull().default(0),
   // "rating" | "review" | "social" | "custom"
   taskType: text("task_type").notNull().default("rating"),
   // JSON string: array of field labels for rating tasks e.g. ["Location","Service"]
   fields: text("fields"),
+  // Targeting: "all" | "tier" | "plan"
+  targetType: text("target_type").notNull().default("all"),
+  // When targeted: the tier name ("tier1"|"tier2"|"tier3") or plan id (string)
+  targetValue: text("target_value"),
+  // Require an uploaded image proof?
+  requireProof: boolean("require_proof").notNull().default(false),
+  // Custom instructions for the proof upload
+  proofLabel: text("proof_label"),
+  // Require admin approval before rewarding (proof tasks always do)
+  requireApproval: boolean("require_approval").notNull().default(true),
   // 1 = each user can do once; 0 = unlimited
   perUserLimit: integer("per_user_limit").notNull().default(1),
   // "published" | "paused" | "deleted"
@@ -381,10 +399,23 @@ export const taskSubmission = pgTable("task_submission", {
   taskId: integer("task_id").notNull(),
   // Submitted data as JSON
   data: text("data"),
+  // Uploaded proof image (Vercel Blob URL)
+  proofUrl: text("proof_url"),
   reward: numeric("reward", { precision: 14, scale: 2 }).notNull().default("0"),
   // "pending" | "approved" | "rejected"
-  status: text("status").notNull().default("approved"),
+  status: text("status").notNull().default("pending"),
+  reviewedAt: timestamp("reviewed_at"),
   submittedAt: timestamp("submitted_at").notNull().defaultNow(),
+})
+
+// Bonus game plays granted from tasks / admin (spins or scratch cards)
+export const gameGrant = pgTable("game_grant", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  kind: text("kind").notNull(), // "spin" | "scratch"
+  amount: integer("amount").notNull().default(0),
+  source: text("source"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 })
 
 export const promoterCode = pgTable("promoter_code", {

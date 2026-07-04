@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import {
   stakeSpin,
   scratchCard,
+  gameGrant,
   luckyDrawSlot,
   luckyDrawRound,
   lockVault,
@@ -39,8 +40,17 @@ import { revalidatePath } from "next/cache"
 //     i.e. the referrer has earned commission from them)
 // Each game spends from its own entitlement, tracked by counting rows.
 
+/** Sum of bonus game plays granted from tasks / admin for a given kind. */
+async function grantedPlays(userId: string, kind: "spin" | "scratch"): Promise<number> {
+  const [g] = await db
+    .select({ c: sql<number>`coalesce(sum(amount), 0)::int` })
+    .from(gameGrant)
+    .where(and(eq(gameGrant.userId, userId), eq(gameGrant.kind, kind)))
+  return Number(g?.c ?? 0)
+}
+
 /**
- * SPIN entitlement: 1 per investment + 1 per valid referral + bonus spins won.
+ * SPIN entitlement: 1 per investment + 1 per valid referral + bonus spins won + task grants.
  */
 async function earnedSpins(userId: string): Promise<number> {
   const [inv] = await db
@@ -58,11 +68,13 @@ async function earnedSpins(userId: string): Promise<number> {
     .from(stakeSpin)
     .where(eq(stakeSpin.userId, userId))
 
-  return Number(inv?.c ?? 0) + Number(ref?.c ?? 0) + Number(bonus?.c ?? 0)
+  const granted = await grantedPlays(userId, "spin")
+
+  return Number(inv?.c ?? 0) + Number(ref?.c ?? 0) + Number(bonus?.c ?? 0) + granted
 }
 
 /**
- * SCRATCH CARD entitlement: 1 per investment + 1 per valid referral.
+ * SCRATCH CARD entitlement: 1 per investment + 1 per valid referral + task grants.
  */
 async function earnedScratchCards(userId: string): Promise<number> {
   const [inv] = await db
@@ -75,7 +87,9 @@ async function earnedScratchCards(userId: string): Promise<number> {
     .from(referral)
     .where(and(eq(referral.referrerId, userId), sql`${referral.totalCommission} > 0`))
 
-  return Number(inv?.c ?? 0) + Number(ref?.c ?? 0)
+  const granted = await grantedPlays(userId, "scratch")
+
+  return Number(inv?.c ?? 0) + Number(ref?.c ?? 0) + granted
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -436,7 +450,7 @@ export async function claimReferralDrawSlot() {
 
 // ──────────────────────────────────────────────────────────────────────────────
 // LOCK VAULT
-// ──────────────────────────────────────────────────────────────────────────────
+// ────────────────────���─────────────────────────────────────────────────────────
 
 export async function createVault(amount: number, tierIndex: number) {
   const userId = await getUserId()
