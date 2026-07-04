@@ -25,13 +25,14 @@ export default async function GamesPage() {
 
   const balance = Number(w?.balance ?? 0)
   const hasDeposited = Number(w?.totalDeposited ?? 0) > 0
-  const hasActiveInvestment = activeInv.length > 0
 
   // Count active investments (for gating)
   const activeInv = await db
     .select({ id: investment.id })
     .from(investment)
     .where(and(eq(investment.userId, userId), eq(investment.status, "active")))
+
+  const hasActiveInvestment = activeInv.length > 0
 
   // Referral bonus slots available = qualifying referrals - claimed referral slots
   const qualifying = await db

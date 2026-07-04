@@ -125,12 +125,19 @@ export function StakeSpinGame({
   spinsAvailable: number
   spinPrizes: { amount: number; weight: number }[]
 }) {
-  // Build 3 independent reel strips from the prize list
-  const [strips] = useState(() => [
-    buildReelStrip(spinPrizes),
-    buildReelStrip(spinPrizes),
-    buildReelStrip(spinPrizes),
-  ])
+  // Only render reels after mount — avoids any SSR/client Math.random() mismatch
+  const [mounted, setMounted] = useState(false)
+  const [strips, setStrips] = useState<string[][]>([[], [], []])
+
+  useEffect(() => {
+    setStrips([
+      buildReelStrip(spinPrizes),
+      buildReelStrip(spinPrizes),
+      buildReelStrip(spinPrizes),
+    ])
+    setMounted(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const [spinning, setSpinning] = useState(false)
   const [targetIndexes, setTargetIndexes] = useState([0, 0, 0])
@@ -226,22 +233,34 @@ export function StakeSpinGame({
         </p>
         <p className="mb-5 text-xs text-muted-foreground">Match symbols to win rewards</p>
 
-        {/* 3 reels */}
+        {/* 3 reels — only rendered client-side to avoid SSR/Math.random hydration mismatch */}
         <div className="mb-4 flex items-center gap-2">
-          {/* Left bracket */}
           <div className="h-16 w-2 rounded-l-lg border-y-2 border-l-2 border-ink bg-surface" />
 
-          {strips.map((strip, i) => (
-            <Reel
-              key={i}
-              strip={strip}
-              targetIndex={targetIndexes[i]}
-              spinning={spinning}
-              delay={i * 0.2}
-            />
-          ))}
+          {!mounted ? (
+            // Stable SSR placeholder — three blank reel windows
+            <>
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="flex h-[56px] w-[72px] items-center justify-center rounded-xl border-2 border-ink bg-card text-2xl font-black text-muted-foreground"
+                >
+                  ?
+                </div>
+              ))}
+            </>
+          ) : (
+            strips.map((strip, i) => (
+              <Reel
+                key={i}
+                strip={strip}
+                targetIndex={targetIndexes[i]}
+                spinning={spinning}
+                delay={i * 0.2}
+              />
+            ))
+          )}
 
-          {/* Right bracket */}
           <div className="h-16 w-2 rounded-r-lg border-y-2 border-r-2 border-ink bg-surface" />
         </div>
 
