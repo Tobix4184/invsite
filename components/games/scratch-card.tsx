@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Loader2, Sparkles, RotateCcw, Star, Trophy, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { formatNaira } from "@/lib/plans"
-import { claimSpin } from "@/app/actions/games"
+import { playSpin } from "@/app/actions/games"
 
 // Each scratch card has 3 hidden slots. Reveal all 3 = win the prize.
 // We re-use the spin prize pool / claim logic since both are free plays.
@@ -160,7 +160,7 @@ function ScratchCardUnit({
   disabled,
 }: {
   prizes: Prize[]
-  onClaim: (amount: number) => void
+  onClaim: () => void
   disabled: boolean
 }) {
   const [state, setState] = useState<CardState>("idle")
@@ -238,7 +238,7 @@ function ScratchCardUnit({
               )}
             </div>
             <button
-              onClick={() => { setState("done"); onClaim(slots[0]) }}
+              onClick={() => { setState("done"); onClaim() }}
               className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-3 text-sm font-black uppercase text-primary-foreground shadow-[3px_3px_0_0_var(--ink)]"
             >
               Claim &amp; Continue
@@ -258,21 +258,21 @@ export function ScratchCardGame({ spinsAvailable, spinPrizes, balance }: Props) 
   const [lastWin, setLastWin] = useState<number | null>(null)
   const [history, setHistory] = useState<{ amount: number; label: string }[]>([])
 
-  function handleClaim(amount: number) {
+  function handleClaim() {
     startTransition(async () => {
-      const res = await claimSpin(amount)
+      const res = await playSpin()
       if (res.ok) {
-        if (amount > 0) toast.success(res.message)
+        if (res.outcome === "bonus_spin") toast.success("You won a bonus scratch card!")
+        else if (res.winAmount && res.winAmount > 0) toast.success(`You won ${formatNaira(res.winAmount)}!`)
         else toast.info("Better luck next time!")
-        setLastWin(amount)
-        setHistory((h) => [{ amount, label: prizeLabel(amount) }, ...h].slice(0, 5))
-        const newPlays = playsLeft - 1 + (amount === -1 ? 1 : 0)
-        setPlaysLeft(newPlays)
-        // Refresh next card
+        const won = res.isBonusSpin ? -1 : (res.winAmount ?? 0)
+        setLastWin(won)
+        setHistory((h) => [{ amount: won, label: prizeLabel(won) }, ...h].slice(0, 5))
+        setPlaysLeft(res.spinsLeft ?? Math.max(0, playsLeft - 1))
         setCardKey((k) => k + 1)
         router.refresh()
       } else {
-        toast.error(res.message)
+        toast.error("Could not process card. Try again.")
       }
     })
   }
