@@ -116,6 +116,17 @@ function Reel({
   )
 }
 
+// Deterministic strip for SSR (no Math.random) — all symbols in order, repeated
+function buildReelStripStatic(prizes: { amount: number; weight: number }[], length = 24): string[] {
+  const pool: string[] = []
+  for (const p of prizes) {
+    for (let i = 0; i < Math.max(1, p.weight); i++) pool.push(prizeToSymbol(p.amount))
+  }
+  const strip: string[] = []
+  while (strip.length < length) strip.push(...pool)
+  return strip.slice(0, length)
+}
+
 export function StakeSpinGame({
   balance,
   spinsAvailable,
@@ -125,12 +136,22 @@ export function StakeSpinGame({
   spinsAvailable: number
   spinPrizes: { amount: number; weight: number }[]
 }) {
-  // Build 3 independent reel strips from the prize list
-  const [strips] = useState(() => [
-    buildReelStrip(spinPrizes),
-    buildReelStrip(spinPrizes),
-    buildReelStrip(spinPrizes),
+  // Start with deterministic strips (matches SSR); shuffle them client-side after mount
+  const [strips, setStrips] = useState<string[][]>(() => [
+    buildReelStripStatic(spinPrizes),
+    buildReelStripStatic(spinPrizes),
+    buildReelStripStatic(spinPrizes),
   ])
+
+  // After hydration, replace with shuffled strips — safe because this runs only on the client
+  useEffect(() => {
+    setStrips([
+      buildReelStrip(spinPrizes),
+      buildReelStrip(spinPrizes),
+      buildReelStrip(spinPrizes),
+    ])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const [spinning, setSpinning] = useState(false)
   const [targetIndexes, setTargetIndexes] = useState([0, 0, 0])
