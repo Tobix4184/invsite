@@ -1,5 +1,3 @@
-"use server"
-
 import { db } from "@/lib/db"
 import { siteSetting, bankAccount } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
