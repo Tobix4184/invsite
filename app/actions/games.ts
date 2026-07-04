@@ -40,8 +40,7 @@ import { revalidatePath } from "next/cache"
 // Each game spends from its own entitlement, tracked by counting rows.
 
 /**
- * SPIN entitlement: 1 spin per investment purchased (any status).
- * Bonus spins won from the reel also count.
+ * SPIN entitlement: 1 per investment + 1 per valid referral + bonus spins won.
  */
 async function earnedSpins(userId: string): Promise<number> {
   const [inv] = await db
@@ -49,27 +48,34 @@ async function earnedSpins(userId: string): Promise<number> {
     .from(investment)
     .where(eq(investment.userId, userId))
 
-  const [bonus] = await db
-    .select({ c: sql<number>`coalesce(sum(spin_bonus), 0)::int` })
-    .from(stakeSpin)
-    .where(eq(stakeSpin.userId, userId))
-
-  const cfg = await getGameConfig()
-  return Number(inv?.c ?? 0) * cfg.gamePlaysPerInvestment + Number(bonus?.c ?? 0)
-}
-
-/**
- * SCRATCH CARD entitlement: scratchCardsPerReferral cards per valid referral
- * (a referral is valid when the referred user has invested, i.e. commission > 0).
- */
-async function earnedScratchCards(userId: string): Promise<number> {
   const [ref] = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(referral)
     .where(and(eq(referral.referrerId, userId), sql`${referral.totalCommission} > 0`))
 
-  const cfg = await getGameConfig()
-  return Number(ref?.c ?? 0) * cfg.scratchCardsPerReferral
+  const [bonus] = await db
+    .select({ c: sql<number>`coalesce(sum(spin_bonus), 0)::int` })
+    .from(stakeSpin)
+    .where(eq(stakeSpin.userId, userId))
+
+  return Number(inv?.c ?? 0) + Number(ref?.c ?? 0) + Number(bonus?.c ?? 0)
+}
+
+/**
+ * SCRATCH CARD entitlement: 1 per investment + 1 per valid referral.
+ */
+async function earnedScratchCards(userId: string): Promise<number> {
+  const [inv] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(investment)
+    .where(eq(investment.userId, userId))
+
+  const [ref] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(referral)
+    .where(and(eq(referral.referrerId, userId), sql`${referral.totalCommission} > 0`))
+
+  return Number(inv?.c ?? 0) + Number(ref?.c ?? 0)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

@@ -310,7 +310,7 @@ export function ScratchCardGame({ cardsAvailable, scratchPrizes, scratchCardsPer
       <div className="flex items-start gap-2.5 rounded-2xl border-2 border-ink bg-gold/15 px-3 py-2.5">
         <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-foreground" />
         <p className="text-[11px] font-semibold leading-relaxed text-foreground">
-          Scratch the card to reveal your prize. Every valid referral (a friend who invests) earns you {scratchCardsPerReferral} scratch cards — completely separate from your Lucky Roulette spins.
+          Every investment plan you buy and every friend you refer who invests earns you 1 scratch card and 1 Lucky Roulette spin — each game has its own separate pool.
         </p>
       </div>
 
@@ -330,7 +330,7 @@ export function ScratchCardGame({ cardsAvailable, scratchPrizes, scratchCardsPer
           <div>
             <p className="font-black uppercase">No cards left</p>
             <p className="mt-1 text-sm text-muted-foreground text-pretty">
-              Refer a friend who invests to earn {scratchCardsPerReferral} more scratch cards.
+              Buy a new plan or refer a friend who invests to earn more cards.
             </p>
           </div>
           <button
