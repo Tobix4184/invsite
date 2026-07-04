@@ -15,7 +15,7 @@ type Props = {
   hasDeposited: boolean
   hasInvestment?: boolean
   today: string
-  round: null
+  round: { id: number } | Record<string, unknown> | null
   todaySlotsCount: number
   freeSlotsRemaining: number
   hasActiveInvestment: boolean
