@@ -25,10 +25,11 @@ export async function uploadProofImage(formData: FormData): Promise<{ ok: boolea
 
   try {
     const blob = await put(key, file, {
-      access: "public",
+      access: "private",
       addRandomSuffix: false,
     })
-    return { ok: true, url: blob.url }
+    // Private blobs return a signed downloadUrl; fall back to url for compatibility
+    return { ok: true, url: (blob as { downloadUrl?: string }).downloadUrl ?? blob.url }
   } catch (e) {
     console.log("[v0] Blob upload error:", e instanceof Error ? e.message : String(e))
     return { ok: false, message: "Upload failed. Please try again." }
