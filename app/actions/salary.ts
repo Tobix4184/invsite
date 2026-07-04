@@ -12,7 +12,14 @@ import {
   user as userTable,
 } from "@/lib/db/schema"
 import { getUserId, requireAdmin } from "@/lib/session"
-import { getSalaryConfig, type SalaryConfig } from "@/app/actions/settings"
+import { getSalaryConfig, saveSalaryConfig as _saveSalaryConfig, type SalaryConfig } from "@/app/actions/settings"
+
+/** Re-exported so client components never import settings.ts directly (avoids pg on the client). */
+export async function saveSalaryConfig(
+  ...args: Parameters<typeof _saveSalaryConfig>
+): Promise<void> {
+  return _saveSalaryConfig(...args)
+}
 import { and, desc, eq, gt, gte, inArray, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 

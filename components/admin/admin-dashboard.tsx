@@ -54,8 +54,8 @@ import {
   payAllSalaries,
   removePromoterSalary,
   syncAutoPromoters,
+  saveSalaryConfig,
 } from "@/app/actions/salary"
-import { saveSalaryConfig } from "@/app/actions/settings"
 import { listPromos, createPromo, togglePromo, deletePromo } from "@/app/actions/promos"
 import {
   adminGetTasks,
