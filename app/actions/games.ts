@@ -38,8 +38,8 @@ import { revalidatePath } from "next/cache"
 //     i.e. the referrer has earned commission from them)
 // Each game spends from its own entitlement, tracked by counting rows.
 
-/** Total plays a user has earned from investments + valid referrals (reads live config). */
-async function earnedPlays(userId: string): Promise<{ investments: number; referrals: number; total: number }> {
+/** Total plays a user has earned from investments + valid referrals + bonus spins. */
+async function earnedPlays(userId: string): Promise<{ investments: number; referrals: number; bonusSpins: number; total: number }> {
   const [inv] = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(investment)
@@ -50,13 +50,19 @@ async function earnedPlays(userId: string): Promise<{ investments: number; refer
     .from(referral)
     .where(and(eq(referral.referrerId, userId), sql`${referral.totalCommission} > 0`))
 
+  // Sum bonus spins earned from previous lucky spins
+  const [bonus] = await db
+    .select({ c: sql<number>`coalesce(sum(spin_bonus), 0)::int` })
+    .from(stakeSpin)
+    .where(eq(stakeSpin.userId, userId))
+
   const investments = Number(inv?.c ?? 0)
   const referrals = Number(ref?.c ?? 0)
+  const bonusSpins = Number(bonus?.c ?? 0)
 
-  // Read live plays-per-investment / referral from DB so admin changes take effect immediately
   const cfg = await getGameConfig()
-  const total = investments * cfg.gamePlaysPerInvestment + referrals * cfg.gamePlaysPerReferral
-  return { investments, referrals, total }
+  const total = investments * cfg.gamePlaysPerInvestment + referrals * cfg.gamePlaysPerReferral + bonusSpins
+  return { investments, referrals, bonusSpins, total }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -96,23 +102,27 @@ export async function playSpin() {
     }
   }
 
-  // Award a random reward drop using live admin-configured prizes.
-  // Worst case is ₦0 — nothing is ever deducted from the user.
+  // Award a random reward drop.
+  // amount === -1 → bonus spin (no naira credited, user gets +1 play)
+  // amount === 0  → no win
+  // amount > 0    → naira prize
   const cfg = await getGameConfig()
   const prize = pickSpinPrizeLive(cfg.spinPrizes)
-  const outcome = prize > 0 ? "win" : "lose"
+  const isBonusSpin = prize === -1
+  const outcome = isBonusSpin ? "bonus_spin" : prize > 0 ? "win" : "lose"
 
-  // Record the spin first (this consumes exactly one play).
+  // Record the spin — spinBonus = 1 adds back into earnedPlays so user gains a free play.
   await db.insert(stakeSpin).values({
     userId,
     stakeAmount: "0",
     outcome,
     multiplier: "0",
-    winAmount: String(prize),
+    winAmount: isBonusSpin ? "0" : String(prize),
+    spinBonus: isBonusSpin ? 1 : 0,
   })
 
   let newBalance: number | undefined
-  if (prize > 0) {
+  if (!isBonusSpin && prize > 0) {
     const [w] = await db
       .update(wallet)
       .set({
@@ -128,7 +138,7 @@ export async function playSpin() {
       userId,
       type: "game_win",
       amount: String(prize),
-      description: `Stake & Spin reward drop — ₦${prize.toLocaleString()}`,
+      description: `Lucky Roulette reward — ₦${prize.toLocaleString()}`,
     })
   } else {
     const [w] = await db.select({ balance: wallet.balance }).from(wallet).where(eq(wallet.userId, userId))
@@ -139,8 +149,10 @@ export async function playSpin() {
   return {
     ok: true,
     outcome,
-    winAmount: prize,
-    spinsLeft: Math.max(0, spinsAvailable - 1),
+    winAmount: isBonusSpin ? 0 : prize,
+    isBonusSpin,
+    // bonus spin: net change is 0 (used 1, gained 1)
+    spinsLeft: Math.max(0, spinsAvailable - 1 + (isBonusSpin ? 1 : 0)),
     newBalance,
   }
 }

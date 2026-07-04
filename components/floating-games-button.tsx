@@ -12,9 +12,9 @@ const GAMES = [
     bg: "bg-gold",
   },
   {
-    href: "/games?game=draw",
-    label: "Lucky Draw",
-    emoji: "🎁",
+    href: "/games?game=scratch",
+    label: "Scratch Card",
+    emoji: "🃏",
     bg: "bg-primary",
   },
 ]
