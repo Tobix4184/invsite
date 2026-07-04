@@ -213,14 +213,17 @@ export const SITE = {
 
   // Stake & Spin — spinning a free play awards a random reward "drop".
   // No stake is deducted; the worst outcome is simply ₦0.
+  // Special amount -1 = "bonus spin" (grants 1 extra spin, no naira credited).
   spinPrizes: [
-    { amount: 0, weight: 26 },
-    { amount: 100, weight: 26 },
-    { amount: 200, weight: 20 },
-    { amount: 350, weight: 13 },
-    { amount: 500, weight: 9 },
-    { amount: 1000, weight: 5 },
-    { amount: 2500, weight: 1 },
+    { amount: 0,    weight: 30 },  // no win
+    { amount: 10,   weight: 18 },  // ₦10
+    { amount: 50,   weight: 15 },  // ₦50
+    { amount: 100,  weight: 14 },  // ₦100
+    { amount: 200,  weight: 10 },  // ₦200
+    { amount: 350,  weight: 6  },  // ₦350
+    { amount: 500,  weight: 4  },  // ₦500
+    { amount: 1000, weight: 2  },  // ₦1,000
+    { amount: -1,   weight: 1  },  // bonus spin
   ] as { amount: number; weight: number }[],
 
   // Legacy stake fields kept for backward compatibility (unused by the new spin)
