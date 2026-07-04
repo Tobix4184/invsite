@@ -2,18 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import { Dices, Ticket, ArrowLeft, ShieldAlert } from "lucide-react"
+import { Dices, Layers, ArrowLeft, ShieldAlert } from "lucide-react"
 import Link from "next/link"
 import { StakeSpinGame } from "./stake-spin"
-import { LuckyDrawGame } from "./lucky-draw"
+import { ScratchCardGame } from "./scratch-card"
 
-type Tab = "spin" | "draw"
-
-type Round = {
-  drawDate: string
-  prizePool: string | number
-  status: string
-} | null
+type Tab = "spin" | "scratch"
 
 type Props = {
   balance: number
@@ -21,13 +15,16 @@ type Props = {
   hasDeposited: boolean
   hasInvestment?: boolean
   today: string
-  round: Round
+  round: { id: number } | Record<string, unknown> | null
   todaySlotsCount: number
   freeSlotsRemaining: number
   hasActiveInvestment: boolean
   referralSlotsAvailable: number
   recentWinners: { name: string; amount: number; drawDate: string; place: number }[]
   spinsAvailable: number
+  scratchCardsAvailable: number
+  scratchPrizes: { amount: number; weight: number }[]
+  scratchCardsPerReferral: number
   slotCost: number
   spinPrizes: { amount: number; weight: number }[]
 }
@@ -40,8 +37,8 @@ const TABS: {
   inactiveColor: string
   delay: string
 }[] = [
-  { id: "spin", label: "Lucky Roulette", icon: Dices, activeColor: "text-gold", inactiveColor: "text-gold/60", delay: "0ms" },
-  { id: "draw", label: "Lucky Draw", icon: Ticket, activeColor: "text-success", inactiveColor: "text-success/60", delay: "120ms" },
+  { id: "spin",    label: "Lucky Roulette", icon: Dices,       activeColor: "text-gold",    inactiveColor: "text-gold/60",    delay: "0ms" },
+  { id: "scratch", label: "Scratch Card",   icon: Layers,      activeColor: "text-success", inactiveColor: "text-success/60", delay: "120ms" },
 ]
 
 export function GamesHub(props: Props) {
@@ -54,7 +51,7 @@ export function GamesHub(props: Props) {
   // Sync if navigated to a different game via URL
   useEffect(() => {
     const g = searchParams.get("game") as Tab | null
-    if (g === "spin" || g === "draw") setTab(g)
+    if (g === "spin" || g === "scratch") setTab(g)
   }, [searchParams])
 
   return (
@@ -125,17 +122,12 @@ export function GamesHub(props: Props) {
             </div>
 
             {tab === "spin" && <StakeSpinGame balance={balance} spinsAvailable={props.spinsAvailable} spinPrizes={props.spinPrizes} />}
-            {tab === "draw" && (
-              <LuckyDrawGame
+            {tab === "scratch" && (
+              <ScratchCardGame
+                cardsAvailable={props.scratchCardsAvailable}
+                scratchPrizes={props.scratchPrizes}
+                scratchCardsPerReferral={props.scratchCardsPerReferral}
                 balance={balance}
-                today={props.today}
-                round={props.round}
-                todaySlotsCount={props.todaySlotsCount}
-                freeSlotsRemaining={props.freeSlotsRemaining}
-                hasActiveInvestment={props.hasActiveInvestment}
-                referralSlotsAvailable={props.referralSlotsAvailable}
-                recentWinners={props.recentWinners}
-                slotCost={props.slotCost}
               />
             )}
           </>

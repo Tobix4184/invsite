@@ -3,6 +3,8 @@
 import { db } from "@/lib/db"
 import {
   stakeSpin,
+  scratchCard,
+  gameGrant,
   luckyDrawSlot,
   luckyDrawRound,
   lockVault,
@@ -38,8 +40,19 @@ import { revalidatePath } from "next/cache"
 //     i.e. the referrer has earned commission from them)
 // Each game spends from its own entitlement, tracked by counting rows.
 
-/** Total plays a user has earned from investments + valid referrals (reads live config). */
-async function earnedPlays(userId: string): Promise<{ investments: number; referrals: number; total: number }> {
+/** Sum of bonus game plays granted from tasks / admin for a given kind. */
+async function grantedPlays(userId: string, kind: "spin" | "scratch"): Promise<number> {
+  const [g] = await db
+    .select({ c: sql<number>`coalesce(sum(amount), 0)::int` })
+    .from(gameGrant)
+    .where(and(eq(gameGrant.userId, userId), eq(gameGrant.kind, kind)))
+  return Number(g?.c ?? 0)
+}
+
+/**
+ * SPIN entitlement: 1 per investment + 1 per valid referral + bonus spins won + task grants.
+ */
+async function earnedSpins(userId: string): Promise<number> {
   const [inv] = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(investment)
@@ -50,13 +63,33 @@ async function earnedPlays(userId: string): Promise<{ investments: number; refer
     .from(referral)
     .where(and(eq(referral.referrerId, userId), sql`${referral.totalCommission} > 0`))
 
-  const investments = Number(inv?.c ?? 0)
-  const referrals = Number(ref?.c ?? 0)
+  const [bonus] = await db
+    .select({ c: sql<number>`coalesce(sum(spin_bonus), 0)::int` })
+    .from(stakeSpin)
+    .where(eq(stakeSpin.userId, userId))
 
-  // Read live plays-per-investment / referral from DB so admin changes take effect immediately
-  const cfg = await getGameConfig()
-  const total = investments * cfg.gamePlaysPerInvestment + referrals * cfg.gamePlaysPerReferral
-  return { investments, referrals, total }
+  const granted = await grantedPlays(userId, "spin")
+
+  return Number(inv?.c ?? 0) + Number(ref?.c ?? 0) + Number(bonus?.c ?? 0) + granted
+}
+
+/**
+ * SCRATCH CARD entitlement: 1 per investment + 1 per valid referral + task grants.
+ */
+async function earnedScratchCards(userId: string): Promise<number> {
+  const [inv] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(investment)
+    .where(eq(investment.userId, userId))
+
+  const [ref] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(referral)
+    .where(and(eq(referral.referrerId, userId), sql`${referral.totalCommission} > 0`))
+
+  const granted = await grantedPlays(userId, "scratch")
+
+  return Number(inv?.c ?? 0) + Number(ref?.c ?? 0) + granted
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -66,7 +99,7 @@ async function earnedPlays(userId: string): Promise<{ investments: number; refer
 /** How many free spins the user has left right now. */
 export async function getSpinState() {
   const userId = await getUserId()
-  const earned = await earnedPlays(userId)
+  const earned = await earnedSpins(userId)
   const [used] = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(stakeSpin)
@@ -74,7 +107,7 @@ export async function getSpinState() {
   const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
 
   return {
-    spinsAvailable: Math.max(0, earned.total - Number(used?.c ?? 0)),
+    spinsAvailable: Math.max(0, earned - Number(used?.c ?? 0)),
     balance: Number(w?.balance ?? 0),
   }
 }
@@ -82,12 +115,12 @@ export async function getSpinState() {
 export async function playSpin() {
   const userId = await getUserId()
 
-  const earned = await earnedPlays(userId)
+  const earned = await earnedSpins(userId)
   const [used] = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(stakeSpin)
     .where(eq(stakeSpin.userId, userId))
-  const spinsAvailable = earned.total - Number(used?.c ?? 0)
+  const spinsAvailable = earned - Number(used?.c ?? 0)
 
   if (spinsAvailable <= 0) {
     return {
@@ -96,18 +129,113 @@ export async function playSpin() {
     }
   }
 
-  // Award a random reward drop using live admin-configured prizes.
-  // Worst case is ₦0 — nothing is ever deducted from the user.
+  // Award a random reward drop.
+  // amount === -1 → bonus spin (no naira credited, user gets +1 play)
+  // amount === 0  → no win
+  // amount > 0    → naira prize
   const cfg = await getGameConfig()
   const prize = pickSpinPrizeLive(cfg.spinPrizes)
-  const outcome = prize > 0 ? "win" : "lose"
+  const isBonusSpin = prize === -1
+  const outcome = isBonusSpin ? "bonus_spin" : prize > 0 ? "win" : "lose"
 
-  // Record the spin first (this consumes exactly one play).
+  // Record the spin — spinBonus = 1 adds back into earnedPlays so user gains a free play.
   await db.insert(stakeSpin).values({
     userId,
     stakeAmount: "0",
     outcome,
     multiplier: "0",
+    winAmount: isBonusSpin ? "0" : String(prize),
+    spinBonus: isBonusSpin ? 1 : 0,
+  })
+
+  let newBalance: number | undefined
+  if (!isBonusSpin && prize > 0) {
+    const [w] = await db
+      .update(wallet)
+      .set({
+        balance: sql`${wallet.balance} + ${prize}`,
+        totalEarned: sql`${wallet.totalEarned} + ${prize}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(wallet.userId, userId))
+      .returning({ balance: wallet.balance })
+    newBalance = Number(w?.balance ?? 0)
+
+    await db.insert(transaction).values({
+      userId,
+      type: "game_win",
+      amount: String(prize),
+      description: `Lucky Roulette reward — ₦${prize.toLocaleString()}`,
+    })
+  } else {
+    const [w] = await db.select({ balance: wallet.balance }).from(wallet).where(eq(wallet.userId, userId))
+    newBalance = Number(w?.balance ?? 0)
+  }
+
+  revalidatePath("/games")
+  return {
+    ok: true,
+    outcome,
+    winAmount: isBonusSpin ? 0 : prize,
+    isBonusSpin,
+    // bonus spin: net change is 0 (used 1, gained 1)
+    spinsLeft: Math.max(0, spinsAvailable - 1 + (isBonusSpin ? 1 : 0)),
+    newBalance,
+  }
+}
+
+export async function getSpinHistory() {
+  const userId = await getUserId()
+  return db
+    .select()
+    .from(stakeSpin)
+    .where(eq(stakeSpin.userId, userId))
+    .orderBy(desc(stakeSpin.createdAt))
+    .limit(20)
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// SCRATCH CARD (entitlement: 2 cards per valid referral — separate from spins)
+// ──────────────────────────────────────────────────────────────────────────────
+
+/** How many scratch cards the user has left right now. */
+export async function getScratchState() {
+  const userId = await getUserId()
+  const earned = await earnedScratchCards(userId)
+  const [used] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(scratchCard)
+    .where(eq(scratchCard.userId, userId))
+  const cfg = await getGameConfig()
+
+  return {
+    scratchCardsAvailable: Math.max(0, earned - Number(used?.c ?? 0)),
+    scratchPrizes: cfg.scratchPrizes,
+    scratchCardsPerReferral: cfg.scratchCardsPerReferral,
+  }
+}
+
+export async function playScratchCard() {
+  const userId = await getUserId()
+
+  const earned = await earnedScratchCards(userId)
+  const [used] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(scratchCard)
+    .where(eq(scratchCard.userId, userId))
+  const cardsAvailable = earned - Number(used?.c ?? 0)
+
+  if (cardsAvailable <= 0) {
+    return { ok: false, message: "No scratch cards left. Refer friends who invest to earn more cards." }
+  }
+
+  const cfg = await getGameConfig()
+  const prize = pickSpinPrizeLive(cfg.scratchPrizes) // reuse weighted random picker
+  const outcome = prize > 0 ? "win" : "lose"
+
+  await db.insert(scratchCard).values({
+    userId,
+    outcome,
     winAmount: String(prize),
   })
 
@@ -128,7 +256,7 @@ export async function playSpin() {
       userId,
       type: "game_win",
       amount: String(prize),
-      description: `Stake & Spin reward drop — ₦${prize.toLocaleString()}`,
+      description: `Scratch Card win — ₦${prize.toLocaleString()}`,
     })
   } else {
     const [w] = await db.select({ balance: wallet.balance }).from(wallet).where(eq(wallet.userId, userId))
@@ -140,19 +268,9 @@ export async function playSpin() {
     ok: true,
     outcome,
     winAmount: prize,
-    spinsLeft: Math.max(0, spinsAvailable - 1),
+    cardsLeft: Math.max(0, cardsAvailable - 1),
     newBalance,
   }
-}
-
-export async function getSpinHistory() {
-  const userId = await getUserId()
-  return db
-    .select()
-    .from(stakeSpin)
-    .where(eq(stakeSpin.userId, userId))
-    .orderBy(desc(stakeSpin.createdAt))
-    .limit(20)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -332,7 +450,7 @@ export async function claimReferralDrawSlot() {
 
 // ──────────────────────────────────────────────────────────────────────────────
 // LOCK VAULT
-// ──────────────────────────────────────────────────────────────────────────────
+// ────────────────────���─────────────────────────────────────────────────────────
 
 export async function createVault(amount: number, tierIndex: number) {
   const userId = await getUserId()

@@ -42,18 +42,30 @@ import {
   ChevronDown,
   Zap,
   Unlock,
+  Download,
 } from "lucide-react"
 import { toast } from "sonner"
-import { SITE, formatNaira } from "@/lib/plans"
+import { SITE, formatNaira, PLANS } from "@/lib/plans"
 import {
   listPromoterSalaries,
   setPromoterSalary,
   togglePromoterSalary,
   payPromoterSalary,
   payAllSalaries,
+  removePromoterSalary,
+  syncAutoPromoters,
+  saveSalaryConfig,
 } from "@/app/actions/salary"
 import { listPromos, createPromo, togglePromo, deletePromo } from "@/app/actions/promos"
-import { adminGetTasks, adminCreateTask, adminUpdateTask, adminSetTaskStatus } from "@/app/actions/tasks"
+import {
+  adminGetTasks,
+  adminCreateTask,
+  adminUpdateTask,
+  adminSetTaskStatus,
+  adminGetSubmissions,
+  adminApproveSubmission,
+  adminRejectSubmission,
+} from "@/app/actions/tasks"
 
 import {
   approveWithdrawal,
@@ -473,6 +485,8 @@ export function AdminDashboard(initial: AdminData) {
 
 type GameCfg = {
   spinPrizes: { amount: number; weight: number }[]
+  scratchPrizes: { amount: number; weight: number }[]
+  scratchCardsPerReferral: number
   luckyDrawSlotCost: number
   luckyDrawPrizeShares: number[]
   gamePlaysPerInvestment: number
@@ -486,6 +500,10 @@ function GameConfigTab() {
 
   // Spin prizes
   const [prizes, setPrizes] = useState<SpinPrize[]>([])
+
+  // Scratch card prizes
+  const [scratchPrizes, setScratchPrizes] = useState<SpinPrize[]>([])
+  const [scratchPerReferral, setScratchPerReferral] = useState("1")
 
   // Lucky Draw
   const [slotCost, setSlotCost] = useState("200")
@@ -502,6 +520,8 @@ function GameConfigTab() {
       .then((r) => r.json())
       .then((cfg: GameCfg) => {
         setPrizes(cfg.spinPrizes)
+        setScratchPrizes(cfg.scratchPrizes ?? [])
+        setScratchPerReferral(String(cfg.scratchCardsPerReferral ?? 1))
         setSlotCost(String(cfg.luckyDrawSlotCost))
         const [s1 = 0.5, s2 = 0.3] = cfg.luckyDrawPrizeShares
         setShare1(String(Math.round(s1 * 100)))
@@ -519,6 +539,13 @@ function GameConfigTab() {
 
   const totalWeight = prizes.reduce((s, p) => s + p.weight, 0)
 
+  const addScratch = () => setScratchPrizes((p) => [...p, { amount: 0, weight: 10 }])
+  const removeScratch = (i: number) => setScratchPrizes((p) => p.filter((_, idx) => idx !== i))
+  const updateScratch = (i: number, key: keyof SpinPrize, val: string) =>
+    setScratchPrizes((p) => p.map((prize, idx) => idx === i ? { ...prize, [key]: Number(val) } : prize))
+
+  const totalScratchWeight = scratchPrizes.reduce((s, p) => s + p.weight, 0)
+
   function handleSave() {
     const s1 = Number(share1) / 100
     const s2 = Number(share2) / 100
@@ -533,6 +560,8 @@ function GameConfigTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           spinPrizes: prizes,
+          scratchPrizes: scratchPrizes,
+          scratchCardsPerReferral: Number(scratchPerReferral),
           luckyDrawSlotCost: Number(slotCost),
           luckyDrawPrizeShares: [s1, s2, parseFloat(s3.toFixed(4))],
           gamePlaysPerInvestment: Number(playsPerInvest),
@@ -554,7 +583,7 @@ function GameConfigTab() {
     <div className="flex flex-col gap-6">
       <h2 className="text-base font-black">Game Config</h2>
 
-      {/* ── Slot machine prizes ────────────────────────────── */}
+      {/* ── Slot machine prizes ─────────────────────��──────── */}
       <section className="rounded-2xl border-2 border-ink bg-card p-4 shadow-[3px_3px_0_0_var(--ink)]">
         <div className="mb-3 flex items-center justify-between">
           <p className="font-black">Lucky Roulette — Spin Prizes</p>
@@ -600,6 +629,72 @@ function GameConfigTab() {
               </div>
               <button
                 onClick={() => removePrize(i)}
+                className="mt-5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-ink bg-destructive/10 text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Scratch Card prizes ────────────────────────────── */}
+      <section className="rounded-2xl border-2 border-ink bg-card p-4 shadow-[3px_3px_0_0_var(--ink)]">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="font-black">Scratch Card — Prizes</p>
+          <button
+            onClick={addScratch}
+            className="flex items-center gap-1 rounded-lg border-2 border-ink bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground"
+          >
+            <Plus className="h-3 w-3" /> Add Prize
+          </button>
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Amount = reward in naira (0 = no win). Weight = probability (higher = more likely). Total weight: <strong>{totalScratchWeight}</strong>
+        </p>
+
+        <div className="mb-4">
+          <label className={labelCls}>Scratch cards earned per referral</label>
+          <input
+            type="number"
+            value={scratchPerReferral}
+            onChange={(e) => setScratchPerReferral(e.target.value)}
+            className={fieldCls}
+            min={0}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {scratchPrizes.map((p, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="flex-1">
+                <label className={labelCls}>Amount (₦)</label>
+                <input
+                  type="number"
+                  value={p.amount}
+                  onChange={(e) => updateScratch(i, "amount", e.target.value)}
+                  className={fieldCls}
+                  min={0}
+                />
+              </div>
+              <div className="w-24">
+                <label className={labelCls}>Weight</label>
+                <input
+                  type="number"
+                  value={p.weight}
+                  onChange={(e) => updateScratch(i, "weight", e.target.value)}
+                  className={fieldCls}
+                  min={1}
+                />
+              </div>
+              <div className="w-24 text-right">
+                <label className={labelCls}>Chance</label>
+                <p className="pt-2.5 text-sm font-bold text-muted-foreground">
+                  {totalScratchWeight > 0 ? ((p.weight / totalScratchWeight) * 100).toFixed(1) : 0}%
+                </p>
+              </div>
+              <button
+                onClick={() => removeScratch(i)}
                 className="mt-5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-ink bg-destructive/10 text-destructive"
               >
                 <Trash2 className="h-4 w-4" />
@@ -678,6 +773,7 @@ function TasksTab() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<AdminTask | null>(null)
+  const [view, setView] = useState<"tasks" | "review">("tasks")
 
   // Form state
   const [form, setForm] = useState({
@@ -685,9 +781,16 @@ function TasksTab() {
     description: "",
     imageUrl: "",
     reward: "",
+    rewardSpins: "0",
+    rewardScratch: "0",
     taskType: "rating",
     fields: "Location,Service,Value",
     perUserLimit: "1",
+    targetType: "all" as "all" | "tier" | "plan",
+    targetValue: "",
+    requireProof: false,
+    proofLabel: "",
+    requireApproval: true,
   })
 
   const load = useCallback(async () => {
@@ -700,7 +803,22 @@ function TasksTab() {
   useEffect(() => { load() }, [load])
 
   function openCreate() {
-    setForm({ title: "", description: "", imageUrl: "", reward: "", taskType: "rating", fields: "Location,Service,Value", perUserLimit: "1" })
+    setForm({
+      title: "",
+      description: "",
+      imageUrl: "",
+      reward: "",
+      rewardSpins: "0",
+      rewardScratch: "0",
+      taskType: "rating",
+      fields: "Location,Service,Value",
+      perUserLimit: "1",
+      targetType: "all",
+      targetValue: "",
+      requireProof: false,
+      proofLabel: "",
+      requireApproval: true,
+    })
     setEditing(null)
     setCreating(true)
   }
@@ -711,9 +829,16 @@ function TasksTab() {
       description: t.description,
       imageUrl: t.imageUrl ?? "",
       reward: String(Number(t.reward)),
+      rewardSpins: String(t.rewardSpins ?? 0),
+      rewardScratch: String(t.rewardScratch ?? 0),
       taskType: t.taskType,
       fields: t.fields ? (JSON.parse(t.fields) as string[]).join(",") : "",
       perUserLimit: String(t.perUserLimit),
+      targetType: (t.targetType ?? "all") as "all" | "tier" | "plan",
+      targetValue: t.targetValue ?? "",
+      requireProof: t.requireProof ?? false,
+      proofLabel: t.proofLabel ?? "",
+      requireApproval: t.requireApproval ?? true,
     })
     setEditing(t)
     setCreating(true)
@@ -721,28 +846,28 @@ function TasksTab() {
 
   function handleSave() {
     const fieldsArr = form.fields.split(",").map((s) => s.trim()).filter(Boolean)
+    const common = {
+      title: form.title,
+      description: form.description,
+      imageUrl: form.imageUrl || undefined,
+      reward: Number(form.reward),
+      rewardSpins: Number(form.rewardSpins) || 0,
+      rewardScratch: Number(form.rewardScratch) || 0,
+      taskType: form.taskType,
+      fields: fieldsArr,
+      perUserLimit: Number(form.perUserLimit),
+      targetType: form.targetType,
+      targetValue: form.targetType === "all" ? null : form.targetValue || null,
+      requireProof: form.requireProof,
+      proofLabel: form.requireProof ? form.proofLabel || null : null,
+      requireApproval: form.requireApproval,
+    }
     startTransition(async () => {
       if (editing) {
-        await adminUpdateTask(editing.id, {
-          title: form.title,
-          description: form.description,
-          imageUrl: form.imageUrl || undefined,
-          reward: Number(form.reward),
-          taskType: form.taskType,
-          fields: fieldsArr,
-          perUserLimit: Number(form.perUserLimit),
-        })
+        await adminUpdateTask(editing.id, common)
         toast.success("Task updated")
       } else {
-        await adminCreateTask({
-          title: form.title,
-          description: form.description,
-          imageUrl: form.imageUrl || undefined,
-          reward: Number(form.reward),
-          taskType: form.taskType,
-          fields: fieldsArr,
-          perUserLimit: Number(form.perUserLimit),
-        })
+        await adminCreateTask(common)
         toast.success("Task created")
       }
       setCreating(false)
@@ -766,29 +891,137 @@ function TasksTab() {
           <h2 className="text-base font-black">{editing ? "Edit Task" : "New Task"}</h2>
         </div>
 
-        {[
-          { label: "Title", key: "title", type: "text", placeholder: "e.g. Rate our hotel partner" },
-          { label: "Description", key: "description", type: "text", placeholder: "Describe what users need to do" },
-          { label: "Image URL (optional)", key: "imageUrl", type: "text", placeholder: "https://..." },
-          { label: "Reward (₦)", key: "reward", type: "number", placeholder: "e.g. 200" },
-          { label: "Rating Fields (comma-separated)", key: "fields", type: "text", placeholder: "Location,Service,Value" },
-          { label: "Max completions per user (0 = unlimited)", key: "perUserLimit", type: "number", placeholder: "1" },
-        ].map(({ label, key, type, placeholder }) => (
-          <div key={key}>
-            <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</label>
-            <input
-              type={type}
-              value={form[key as keyof typeof form]}
-              onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
-              placeholder={placeholder}
-              className="w-full rounded-xl border-2 border-ink bg-card px-3 py-2.5 text-sm font-semibold focus:outline-none"
-            />
-          </div>
-        ))}
+        {(() => {
+          const fieldCls = "w-full rounded-xl border-2 border-ink bg-card px-3 py-2.5 text-sm font-semibold focus:outline-none"
+          const labelCls = "mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground"
+          return (
+            <>
+              {[
+                { label: "Title", key: "title", type: "text", placeholder: "e.g. Rate our hotel partner" },
+                { label: "Description", key: "description", type: "text", placeholder: "Describe what users need to do" },
+                { label: "Image URL (optional)", key: "imageUrl", type: "text", placeholder: "https://..." },
+                { label: "Cash reward (₦)", key: "reward", type: "number", placeholder: "e.g. 200" },
+                { label: "Rating Fields (comma-separated)", key: "fields", type: "text", placeholder: "Location,Service,Value" },
+                { label: "Max completions per user (0 = unlimited)", key: "perUserLimit", type: "number", placeholder: "1" },
+              ].map(({ label, key, type, placeholder }) => (
+                <div key={key}>
+                  <label className={labelCls}>{label}</label>
+                  <input
+                    type={type}
+                    value={form[key as keyof typeof form] as string}
+                    onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    className={fieldCls}
+                  />
+                </div>
+              ))}
+
+              {/* Bonus game rewards */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Bonus spins</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.rewardSpins}
+                    onChange={(e) => setForm((p) => ({ ...p, rewardSpins: e.target.value }))}
+                    className={fieldCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Bonus scratch cards</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.rewardScratch}
+                    onChange={(e) => setForm((p) => ({ ...p, rewardScratch: e.target.value }))}
+                    className={fieldCls}
+                  />
+                </div>
+              </div>
+
+              {/* Targeting */}
+              <div>
+                <label className={labelCls}>Who can see this task?</label>
+                <select
+                  value={form.targetType}
+                  onChange={(e) => setForm((p) => ({ ...p, targetType: e.target.value as "all" | "tier" | "plan", targetValue: "" }))}
+                  className={fieldCls}
+                >
+                  <option value="all">Everyone</option>
+                  <option value="tier">Specific withdrawal tier</option>
+                  <option value="plan">Holders of a specific package</option>
+                </select>
+              </div>
+              {form.targetType === "tier" && (
+                <div>
+                  <label className={labelCls}>Tier</label>
+                  <select
+                    value={form.targetValue}
+                    onChange={(e) => setForm((p) => ({ ...p, targetValue: e.target.value }))}
+                    className={fieldCls}
+                  >
+                    <option value="">Select tier…</option>
+                    <option value="tier1">Tier 1 · VIP</option>
+                    <option value="tier2">Tier 2</option>
+                    <option value="tier3">Tier 3</option>
+                  </select>
+                </div>
+              )}
+              {form.targetType === "plan" && (
+                <div>
+                  <label className={labelCls}>Package</label>
+                  <select
+                    value={form.targetValue}
+                    onChange={(e) => setForm((p) => ({ ...p, targetValue: e.target.value }))}
+                    className={fieldCls}
+                  >
+                    <option value="">Select package…</option>
+                    {PLANS.map((pl) => (
+                      <option key={pl.id} value={String(pl.id)}>{pl.name} — {formatNaira(pl.price)}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Proof + approval */}
+              <label className="flex items-center gap-2 rounded-xl border-2 border-ink bg-card px-3 py-2.5 text-sm font-semibold">
+                <input
+                  type="checkbox"
+                  checked={form.requireProof}
+                  onChange={(e) => setForm((p) => ({ ...p, requireProof: e.target.checked }))}
+                  className="h-4 w-4 accent-primary"
+                />
+                Require photo/screenshot proof
+              </label>
+              {form.requireProof && (
+                <div>
+                  <label className={labelCls}>Proof label (what to upload)</label>
+                  <input
+                    type="text"
+                    value={form.proofLabel}
+                    onChange={(e) => setForm((p) => ({ ...p, proofLabel: e.target.value }))}
+                    placeholder="e.g. Screenshot of your review"
+                    className={fieldCls}
+                  />
+                </div>
+              )}
+              <label className="flex items-center gap-2 rounded-xl border-2 border-ink bg-card px-3 py-2.5 text-sm font-semibold">
+                <input
+                  type="checkbox"
+                  checked={form.requireApproval}
+                  onChange={(e) => setForm((p) => ({ ...p, requireApproval: e.target.checked }))}
+                  className="h-4 w-4 accent-primary"
+                />
+                Require admin approval before rewarding
+              </label>
+            </>
+          )
+        })()}
 
         <button
           onClick={handleSave}
-          disabled={pending || !form.title || !form.reward}
+          disabled={pending || !form.title || !form.reward || (form.targetType !== "all" && !form.targetValue)}
           className="w-full rounded-xl border-2 border-ink bg-primary py-3 text-sm font-black uppercase tracking-wide text-primary-foreground shadow-[3px_3px_0_0_var(--ink)] disabled:opacity-60"
         >
           {pending ? "Saving..." : editing ? "Save Changes" : "Publish Task"}
@@ -797,30 +1030,61 @@ function TasksTab() {
     )
   }
 
+  const totalPending = tasks.reduce((s, t) => s + (t.pendingCount ?? 0), 0)
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-black">Task Center</h2>
+        {view === "tasks" && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-[3px_3px_0_0_var(--ink)]"
+          >
+            <Plus className="h-4 w-4" /> New Task
+          </button>
+        )}
+      </div>
+
+      {/* View switcher */}
+      <div className="flex gap-2">
         <button
-          onClick={openCreate}
-          className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-[3px_3px_0_0_var(--ink)]"
+          onClick={() => setView("tasks")}
+          className={`flex-1 rounded-xl border-2 border-ink px-3 py-2 text-xs font-bold uppercase tracking-wide ${
+            view === "tasks" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"
+          }`}
         >
-          <Plus className="h-4 w-4" /> New Task
+          Tasks
+        </button>
+        <button
+          onClick={() => setView("review")}
+          className={`relative flex-1 rounded-xl border-2 border-ink px-3 py-2 text-xs font-bold uppercase tracking-wide ${
+            view === "review" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"
+          }`}
+        >
+          Review Submissions
+          {totalPending > 0 && (
+            <span className="ml-1.5 rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-black text-destructive-foreground">
+              {totalPending}
+            </span>
+          )}
         </button>
       </div>
 
-      {loading && (
+      {view === "review" && <TaskReviewPanel onReviewed={load} />}
+
+      {view === "tasks" && loading && (
         <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
       )}
 
-      {!loading && tasks.length === 0 && (
+      {view === "tasks" && !loading && tasks.length === 0 && (
         <div className="rounded-2xl border-2 border-ink bg-card px-5 py-10 text-center text-muted-foreground">
           <p className="font-bold">No tasks yet</p>
           <p className="mt-1 text-sm">Create your first task to start earning add-ons.</p>
         </div>
       )}
 
-      {tasks.map((t) => (
+      {view === "tasks" && tasks.map((t) => (
         <div
           key={t.id}
           className="rounded-2xl border-2 border-ink bg-card p-4 shadow-[3px_3px_0_0_var(--ink)]"
@@ -880,6 +1144,178 @@ function TasksTab() {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── Task Submissions Review ───────────────────────────────────────────────────
+
+type AdminSubmission = Awaited<ReturnType<typeof adminGetSubmissions>>[number]
+
+function TaskReviewPanel({ onReviewed }: { onReviewed: () => void }) {
+  const [pending, startTransition] = useTransition()
+  const [subs, setSubs] = useState<AdminSubmission[]>([])
+  const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState<"pending" | "approved" | "rejected">("pending")
+  const [preview, setPreview] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      setSubs(await adminGetSubmissions(statusFilter))
+    } finally {
+      setLoading(false)
+    }
+  }, [statusFilter])
+
+  useEffect(() => { load() }, [load])
+
+  function approve(id: number) {
+    startTransition(async () => {
+      const res = await adminApproveSubmission(id)
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      load()
+      onReviewed()
+    })
+  }
+
+  function reject(id: number) {
+    if (!confirm("Reject this submission? The user will not be rewarded.")) return
+    startTransition(async () => {
+      const res = await adminRejectSubmission(id)
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      load()
+      onReviewed()
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Status filter */}
+      <div className="flex gap-2">
+        {(["pending", "approved", "rejected"] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className={`flex-1 rounded-lg border-2 border-ink px-3 py-1.5 text-xs font-bold capitalize ${
+              statusFilter === s ? "bg-ink text-card" : "bg-card text-muted-foreground"
+            }`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {loading && (
+        <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+      )}
+
+      {!loading && subs.length === 0 && (
+        <div className="rounded-2xl border-2 border-ink bg-card px-5 py-10 text-center text-muted-foreground">
+          <p className="font-bold">No {statusFilter} submissions</p>
+        </div>
+      )}
+
+      {subs.map((s) => {
+        let ratings: Record<string, unknown> = {}
+        try { ratings = s.data ? JSON.parse(s.data) : {} } catch {}
+        return (
+          <div key={s.id} className="rounded-2xl border-2 border-ink bg-card p-4 shadow-[3px_3px_0_0_var(--ink)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-black">{s.taskTitle ?? "Task"}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {s.userName ?? "Unknown"} · {s.userPhone ?? s.userEmail ?? s.userId}
+                </p>
+                <p className="mt-1 text-sm font-black text-primary">
+                  {formatNaira(Number(s.reward))}
+                  {(s.rewardSpins ?? 0) > 0 && <span className="text-foreground"> · {s.rewardSpins} spins</span>}
+                  {(s.rewardScratch ?? 0) > 0 && <span className="text-foreground"> · {s.rewardScratch} cards</span>}
+                </p>
+                {s.submittedAt && (
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    {new Date(s.submittedAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+              {s.proofUrl && (
+                <button onClick={() => setPreview(s.proofUrl)} className="shrink-0">
+                  <img src={s.proofUrl} alt="Proof" className="h-16 w-16 rounded-xl border-2 border-ink object-cover" />
+                </button>
+              )}
+            </div>
+
+            {Object.keys(ratings).length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {Object.entries(ratings).map(([k, v]) => (
+                  <span key={k} className="rounded-full border border-ink bg-surface px-2 py-0.5 text-[10px] font-semibold">
+                    {k}: {String(v)}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {statusFilter === "pending" && (
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => approve(s.id)}
+                  disabled={pending}
+                  className="flex flex-1 items-center justify-center gap-1 rounded-lg border-2 border-ink bg-success py-2 text-xs font-bold text-success-foreground disabled:opacity-60"
+                >
+                  <Check className="h-3.5 w-3.5" /> Approve
+                </button>
+                <button
+                  onClick={() => reject(s.id)}
+                  disabled={pending}
+                  className="flex flex-1 items-center justify-center gap-1 rounded-lg border-2 border-ink bg-destructive/10 py-2 text-xs font-bold text-destructive disabled:opacity-60"
+                >
+                  <X className="h-3.5 w-3.5" /> Reject
+                </button>
+                {s.proofUrl && (
+                  <a
+                    href={s.proofUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="flex items-center justify-center gap-1 rounded-lg border-2 border-ink bg-secondary px-3 py-2 text-xs font-bold"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* Proof preview modal */}
+      {preview && (
+        <div
+          onClick={() => setPreview(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 p-4"
+        >
+          <div className="relative max-h-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <img src={preview} alt="Proof full size" className="max-h-[80vh] rounded-2xl border-2 border-card object-contain" />
+            <div className="mt-3 flex justify-center gap-2">
+              <a
+                href={preview}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+                className="flex items-center gap-1.5 rounded-xl border-2 border-card bg-card px-4 py-2 text-sm font-bold text-foreground"
+              >
+                <Download className="h-4 w-4" /> Download
+              </a>
+              <button
+                onClick={() => setPreview(null)}
+                className="rounded-xl border-2 border-card bg-transparent px-4 py-2 text-sm font-bold text-card"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -3635,31 +4071,31 @@ function LuckyDrawTab({ rounds, onAction }: { rounds: DrawRound[]; onAction: () 
 }
 
 // ── Salaries Tab ──────────────────────────────────────────────────────────────
-type SalaryRow = {
-  id: number
-  userId: string
-  weeklyAmount: string
-  isActive: boolean
-  note: string | null
-  lastPaidAt: Date | string | null
-  userName: string | null
-  userEmail: string | null
-  userPhone: string | null
-  isPromoter: boolean | null
-}
+type SalaryData = Awaited<ReturnType<typeof listPromoterSalaries>>
+type SalaryRow = SalaryData["promoters"][number]
+type SalaryCfg = SalaryData["config"]
 
 function SalariesTab() {
   const [rows, setRows] = useState<SalaryRow[]>([])
+  const [cfg, setCfg] = useState<SalaryCfg | null>(null)
   const [loading, setLoading] = useState(true)
   const [pending, startTransition] = useTransition()
+
+  // Add-promoter form
   const [identifier, setIdentifier] = useState("")
+  const [mode, setMode] = useState<"algorithm" | "fixed">("algorithm")
   const [amount, setAmount] = useState(String(SITE.defaultPromoterSalary))
   const [note, setNote] = useState("")
+
+  // Config editor
+  const [showConfig, setShowConfig] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      setRows((await listPromoterSalaries()) as SalaryRow[])
+      const data = await listPromoterSalaries()
+      setRows(data.promoters)
+      setCfg(data.config)
     } finally {
       setLoading(false)
     }
@@ -3671,7 +4107,12 @@ function SalariesTab() {
 
   function assign() {
     startTransition(async () => {
-      const res = await setPromoterSalary({ identifier, weeklyAmount: Number(amount), note })
+      const res = await setPromoterSalary({
+        identifier,
+        useAlgorithm: mode === "algorithm",
+        weeklyAmount: mode === "fixed" ? Number(amount) : 0,
+        note,
+      })
       res.ok ? toast.success(res.message) : toast.error(res.message)
       if (res.ok) {
         setIdentifier("")
@@ -3684,6 +4125,23 @@ function SalariesTab() {
   function toggle(userId: string, isActive: boolean) {
     startTransition(async () => {
       await togglePromoterSalary(userId, isActive)
+      load()
+    })
+  }
+
+  function remove(userId: string) {
+    if (!confirm("Remove this promoter from the salary program?")) return
+    startTransition(async () => {
+      const res = await removePromoterSalary(userId)
+      res.ok ? toast.success(res.message) : toast.error(res.message)
+      load()
+    })
+  }
+
+  function sync() {
+    startTransition(async () => {
+      const res = await syncAutoPromoters()
+      res.ok ? toast.success(res.message) : toast.error(res.message)
       load()
     })
   }
@@ -3704,58 +4162,106 @@ function SalariesTab() {
     })
   }
 
-  const totalWeekly = rows.filter((r) => r.isActive).reduce((s, r) => s + Number(r.weeklyAmount), 0)
+  const totalWeekly = rows.filter((r) => r.isActive).reduce((s, r) => s + Number(r.payable), 0)
+  const inputCls = "rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Assign salary */}
+      {/* How it works */}
+      <div className="rounded-2xl border-2 border-ink bg-primary/10 p-4 text-xs leading-relaxed">
+        <p className="font-black">Referral-based weekly salary</p>
+        <p className="mt-1 text-muted-foreground">
+          Promoters earn points from active referrals — bigger packages earn more points. Salary = points × rate,
+          capped at the weekly maximum. Use <strong>Auto-qualify</strong> to enroll everyone who hits the referral
+          threshold, or add someone manually with a fixed amount.
+        </p>
+      </div>
+
+      {/* Config toggle */}
+      <button
+        onClick={() => setShowConfig((s) => !s)}
+        className="flex items-center justify-between rounded-2xl border-2 border-ink bg-card px-4 py-3 text-sm font-bold"
+      >
+        <span className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" /> Salary algorithm settings</span>
+        <ChevronDown className={`h-4 w-4 transition-transform ${showConfig ? "rotate-180" : ""}`} />
+      </button>
+      {showConfig && cfg && <SalaryConfigEditor cfg={cfg} onSaved={load} />}
+
+      {/* Add promoter */}
       <div className="rounded-2xl border-2 border-ink bg-card p-4">
-        <p className="mb-3 text-sm font-bold">Assign / Update Salary</p>
+        <p className="mb-3 text-sm font-bold">Add / Update Promoter</p>
         <div className="flex flex-col gap-2">
           <input
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             placeholder="Promoter phone or email"
-            className="rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+            className={inputCls}
           />
           <div className="flex gap-2">
+            <button
+              onClick={() => setMode("algorithm")}
+              className={`flex-1 rounded-xl border-2 border-ink px-3 py-2 text-xs font-bold ${
+                mode === "algorithm" ? "bg-primary text-primary-foreground" : "bg-surface text-muted-foreground"
+              }`}
+            >
+              Algorithm-based
+            </button>
+            <button
+              onClick={() => setMode("fixed")}
+              className={`flex-1 rounded-xl border-2 border-ink px-3 py-2 text-xs font-bold ${
+                mode === "fixed" ? "bg-primary text-primary-foreground" : "bg-surface text-muted-foreground"
+              }`}
+            >
+              Fixed amount
+            </button>
+          </div>
+          {mode === "fixed" && (
             <input
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               inputMode="numeric"
               placeholder="Weekly ₦"
-              className="w-32 rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
+              className={inputCls}
             />
-            <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Note (optional)"
-              className="flex-1 rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
-            />
-          </div>
+          )}
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Note (optional)"
+            className={inputCls}
+          />
           <button
             onClick={assign}
-            disabled={pending}
+            disabled={pending || !identifier}
             className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
           >
-            {pending && <Loader2 className="h-4 w-4 animate-spin" />} Set Salary
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />} Save Promoter
           </button>
         </div>
       </div>
 
-      {/* Summary + pay all */}
-      <div className="flex items-center justify-between rounded-2xl border-2 border-ink bg-card px-4 py-3">
+      {/* Summary + actions */}
+      <div className="flex items-center justify-between gap-2 rounded-2xl border-2 border-ink bg-card px-4 py-3">
         <div>
           <p className="text-xs text-muted-foreground">Total weekly payroll</p>
           <p className="text-lg font-black tabular-nums">{formatNaira(totalWeekly)}</p>
         </div>
-        <button
-          onClick={payAll}
-          disabled={pending || totalWeekly === 0}
-          className="rounded-xl bg-success px-4 py-2.5 text-sm font-bold text-success-foreground disabled:opacity-50"
-        >
-          Pay All
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={sync}
+            disabled={pending}
+            className="flex items-center gap-1 rounded-xl border-2 border-ink bg-secondary px-3 py-2.5 text-xs font-bold disabled:opacity-50"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Auto-qualify
+          </button>
+          <button
+            onClick={payAll}
+            disabled={pending || totalWeekly === 0}
+            className="rounded-xl bg-success px-4 py-2.5 text-sm font-bold text-success-foreground disabled:opacity-50"
+          >
+            Pay All
+          </button>
+        </div>
       </div>
 
       {/* List */}
@@ -3772,11 +4278,29 @@ function SalariesTab() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold">{r.userName ?? "Unknown"}</p>
                 <p className="truncate text-xs text-muted-foreground">{r.userPhone ?? r.userEmail ?? r.userId}</p>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  <span className={`rounded-full border border-ink px-2 py-0.5 text-[10px] font-bold ${
+                    r.manualOverride ? "bg-gold/20 text-gold" : "bg-primary/15 text-primary"
+                  }`}>
+                    {r.manualOverride ? "Fixed" : "Algorithm"}
+                  </span>
+                  {r.autoQualified && (
+                    <span className="rounded-full border border-ink bg-success/15 px-2 py-0.5 text-[10px] font-bold text-success">
+                      Auto
+                    </span>
+                  )}
+                  <span className="rounded-full border border-ink bg-surface px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                    {r.referralsCounted} refs · {r.points} pts
+                  </span>
+                </div>
                 {r.note && <p className="mt-1 text-[11px] text-muted-foreground">{r.note}</p>}
               </div>
               <div className="text-right">
-                <p className="text-sm font-black tabular-nums">{formatNaira(Number(r.weeklyAmount))}</p>
+                <p className="text-sm font-black tabular-nums">{formatNaira(Number(r.payable))}</p>
                 <p className="text-[10px] text-muted-foreground">/week</p>
+                {!r.manualOverride && (
+                  <p className="text-[10px] text-muted-foreground">computed</p>
+                )}
               </div>
             </div>
             <div className="mt-3 flex items-center gap-2">
@@ -3789,11 +4313,18 @@ function SalariesTab() {
                 {r.isActive ? "Active" : "Paused"}
               </button>
               <button
+                onClick={() => remove(r.userId)}
+                disabled={pending}
+                className="flex items-center gap-1 rounded-lg border-2 border-ink bg-destructive/10 px-2.5 py-1.5 text-xs font-bold text-destructive disabled:opacity-60"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+              <button
                 onClick={() => payOne(r.userId)}
-                disabled={pending || !r.isActive}
+                disabled={pending || !r.isActive || Number(r.payable) <= 0}
                 className="ml-auto rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-50"
               >
-                Pay ₦{Number(r.weeklyAmount).toLocaleString()}
+                Pay {formatNaira(Number(r.payable))}
               </button>
             </div>
             {r.lastPaidAt && (
@@ -3804,6 +4335,101 @@ function SalariesTab() {
           </div>
         ))
       )}
+    </div>
+  )
+}
+
+function SalaryConfigEditor({ cfg, onSaved }: { cfg: SalaryCfg; onSaved: () => void }) {
+  const [pending, startTransition] = useTransition()
+  const [ratePerPoint, setRate] = useState(String(cfg.ratePerPoint))
+  const [maxWeekly, setMax] = useState(String(cfg.maxWeekly))
+  const [windowDays, setWindow] = useState(String(cfg.windowDays))
+  const [autoQualifyMin, setAutoMin] = useState(String(cfg.autoQualifyMin))
+  const [tiers, setTiers] = useState(cfg.planTiers)
+
+  const updateTier = (i: number, key: "minPrice" | "points", val: string) =>
+    setTiers((t) => t.map((row, idx) => (idx === i ? { ...row, [key]: Number(val) } : row)))
+  const addTier = () => setTiers((t) => [...t, { minPrice: 0, points: 1 }])
+  const removeTier = (i: number) => setTiers((t) => t.filter((_, idx) => idx !== i))
+
+  function save() {
+    startTransition(async () => {
+      try {
+        await saveSalaryConfig({
+          ratePerPoint: Number(ratePerPoint),
+          maxWeekly: Number(maxWeekly),
+          windowDays: Number(windowDays),
+          autoQualifyMin: Number(autoQualifyMin),
+          planTiers: [...tiers].sort((a, b) => a.minPrice - b.minPrice),
+        })
+        toast.success("Salary settings saved")
+      } catch {
+        toast.error("Failed to save")
+      }
+      onSaved()
+    })
+  }
+
+  const fieldCls = "w-full rounded-xl border-2 border-ink bg-surface px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary"
+  const labelCls = "mb-1 block text-xs font-bold uppercase tracking-wide text-muted-foreground"
+
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl border-2 border-ink bg-card p-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={labelCls}>Rate per point (₦)</label>
+          <input type="number" value={ratePerPoint} onChange={(e) => setRate(e.target.value)} className={fieldCls} min={0} />
+        </div>
+        <div>
+          <label className={labelCls}>Weekly max (₦)</label>
+          <input type="number" value={maxWeekly} onChange={(e) => setMax(e.target.value)} className={fieldCls} min={0} />
+        </div>
+        <div>
+          <label className={labelCls}>Window (days)</label>
+          <input type="number" value={windowDays} onChange={(e) => setWindow(e.target.value)} className={fieldCls} min={1} />
+        </div>
+        <div>
+          <label className={labelCls}>Auto-qualify min refs</label>
+          <input type="number" value={autoQualifyMin} onChange={(e) => setAutoMin(e.target.value)} className={fieldCls} min={1} />
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Package point brackets</p>
+          <button onClick={addTier} className="flex items-center gap-1 rounded-lg border-2 border-ink bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground">
+            <Plus className="h-3 w-3" /> Add
+          </button>
+        </div>
+        <div className="flex flex-col gap-2">
+          {tiers.map((t, i) => (
+            <div key={i} className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className={labelCls}>Min package price (₦)</label>
+                <input type="number" value={t.minPrice} onChange={(e) => updateTier(i, "minPrice", e.target.value)} className={fieldCls} min={0} />
+              </div>
+              <div className="w-24">
+                <label className={labelCls}>Points</label>
+                <input type="number" value={t.points} onChange={(e) => updateTier(i, "points", e.target.value)} className={fieldCls} min={0} />
+              </div>
+              <button
+                onClick={() => removeTier(i)}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border-2 border-ink bg-destructive/10 text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button
+        onClick={save}
+        disabled={pending}
+        className="flex items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+      >
+        {pending && <Loader2 className="h-4 w-4 animate-spin" />} Save Settings
+      </button>
     </div>
   )
 }

@@ -36,7 +36,16 @@ export async function requestWithdrawal(data: {
   if (!tier) {
     return { ok: false, message: "You need an active package before you can withdraw." }
   }
-  if (!canWithdrawToday(tier)) {
+
+  // Check if this is the user's very first withdrawal — if so, skip the day restriction
+  const [priorWithdrawals] = await db
+    .select({ c: sql<number>`count(*)::int` })
+    .from(withdrawal)
+    .where(eq(withdrawal.userId, userId))
+
+  const isFirstWithdrawal = Number(priorWithdrawals?.c ?? 0) === 0
+
+  if (!isFirstWithdrawal && !canWithdrawToday(tier)) {
     return {
       ok: false,
       message: `Your ${WITHDRAWAL_TIERS[tier].label} withdrawal day is ${WITHDRAWAL_TIERS[tier].dayLabel}. Please come back then.`,
