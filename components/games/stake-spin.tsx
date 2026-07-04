@@ -200,7 +200,12 @@ export function StakeSpinGame({
     })
   }
 
-  const nonZeroPrizes = spinPrizes.filter((p) => p.amount > 0)
+  // Show all prizes in order: no-win first, then ascending cash, then bonus spin last
+  const displayPrizes = [...spinPrizes].sort((a, b) => {
+    if (a.amount === -1) return 1   // bonus spin always last
+    if (b.amount === -1) return -1
+    return a.amount - b.amount      // ascending by amount (0 = no win first)
+  })
 
   return (
     <div className="flex flex-col gap-4">
@@ -309,13 +314,15 @@ export function StakeSpinGame({
       <div className="rounded-2xl border-2 border-ink bg-card p-4 shadow-[3px_3px_0_0_var(--ink)]">
         <p className="mb-3 text-xs font-black uppercase tracking-wide text-muted-foreground">Prize Table</p>
         <div className="grid grid-cols-2 gap-2">
-          {nonZeroPrizes.map((p) => (
+          {displayPrizes.map((p) => (
             <div
               key={p.amount}
               className={`flex items-center justify-between rounded-xl border border-ink px-3 py-2 ${prizeColor(p.amount)}`}
             >
               <span className="text-sm font-black">{prizeToSymbol(p.amount)}</span>
-              <span className="font-mono text-xs font-bold">{formatNaira(p.amount)}</span>
+              <span className="font-mono text-xs font-bold">
+                {p.amount === -1 ? "+1 Spin" : p.amount === 0 ? "No Win" : formatNaira(p.amount)}
+              </span>
             </div>
           ))}
         </div>
