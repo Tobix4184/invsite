@@ -25,6 +25,7 @@ export default async function GamesPage() {
 
   const balance = Number(w?.balance ?? 0)
   const hasDeposited = Number(w?.totalDeposited ?? 0) > 0
+  const hasActiveInvestment = activeInv.length > 0
 
   // Count active investments (for gating)
   const activeInv = await db
@@ -50,6 +51,7 @@ export default async function GamesPage() {
       <GamesHub
         balance={balance}
         hasDeposited={hasDeposited}
+        hasInvestment={hasActiveInvestment}
         activeInvestments={activeInv.length}
         today={drawState.today}
         round={drawState.round}

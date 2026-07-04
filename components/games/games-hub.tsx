@@ -19,6 +19,7 @@ type Props = {
   balance: number
   activeInvestments: number
   hasDeposited: boolean
+  hasInvestment?: boolean
   today: string
   round: Round
   todaySlotsCount: number
@@ -45,6 +46,7 @@ const TABS: {
 
 export function GamesHub(props: Props) {
   const { balance, hasDeposited } = props
+  const canPlay = props.hasInvestment ?? hasDeposited
   const searchParams = useSearchParams()
   const initialTab = (searchParams.get("game") as Tab | null) ?? "spin"
   const [tab, setTab] = useState<Tab>(initialTab)
@@ -81,29 +83,29 @@ export function GamesHub(props: Props) {
       </header>
 
       <div className="mx-auto max-w-2xl px-4 pt-5 animate-fade-up">
-        {/* Deposit gate */}
-        {!hasDeposited && (
+        {/* Investment gate */}
+        {!canPlay && (
           <div className="card-glass mb-5 flex flex-col items-center gap-4 rounded-3xl px-6 py-10 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-ink bg-surface">
               <ShieldAlert className="h-7 w-7 text-foreground" />
             </div>
             <div>
-              <p className="text-lg font-black uppercase">Deposit Required</p>
+              <p className="text-lg font-black uppercase">Investment Required</p>
               <p className="mt-1 text-sm text-muted-foreground text-pretty">
-                Make your first deposit to unlock all game features — Lucky Roulette and Lucky Draw.
+                You need an active investment plan to access the Game Center. Invest now to unlock Lucky Roulette and Lucky Draw.
               </p>
             </div>
             <Link
-              href="/deposits"
+              href="/products"
               className="press flex h-11 items-center gap-2 rounded-2xl border-2 border-ink bg-primary px-6 text-sm font-black uppercase text-primary-foreground shadow-[3px_3px_0_0_var(--ink)]"
             >
-              Make a Deposit
+              View Plans
             </Link>
           </div>
         )}
 
-        {/* Tab switcher + game content — only shown when user has deposited */}
-        {hasDeposited && (
+        {/* Tab switcher + game content — only shown when user has an active investment */}
+        {canPlay && (
           <>
             <div className="mb-5 flex gap-2 rounded-2xl border-2 border-ink bg-card p-1.5 shadow-[3px_3px_0_0_var(--ink)]">
               {TABS.map((t) => (
