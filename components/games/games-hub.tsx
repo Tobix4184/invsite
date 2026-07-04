@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import { Dices, ScrewdriverIcon as ScratchIcon, ArrowLeft, ShieldAlert } from "lucide-react"
+import { Dices, Layers, ArrowLeft, ShieldAlert } from "lucide-react"
 import Link from "next/link"
 import { StakeSpinGame } from "./stake-spin"
 import { ScratchCardGame } from "./scratch-card"
@@ -35,7 +35,7 @@ const TABS: {
   delay: string
 }[] = [
   { id: "spin",    label: "Lucky Roulette", icon: Dices,       activeColor: "text-gold",    inactiveColor: "text-gold/60",    delay: "0ms" },
-  { id: "scratch", label: "Scratch Card",   icon: ScratchIcon, activeColor: "text-success", inactiveColor: "text-success/60", delay: "120ms" },
+  { id: "scratch", label: "Scratch Card",   icon: Layers,      activeColor: "text-success", inactiveColor: "text-success/60", delay: "120ms" },
 ]
 
 export function GamesHub(props: Props) {
