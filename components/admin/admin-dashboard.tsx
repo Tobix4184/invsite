@@ -54,7 +54,7 @@ import {
 } from "@/app/actions/salary"
 import { listPromos, createPromo, togglePromo, deletePromo } from "@/app/actions/promos"
 import { adminGetTasks, adminCreateTask, adminUpdateTask, adminSetTaskStatus } from "@/app/actions/tasks"
-import { getGameConfig, saveGameConfig } from "@/app/actions/settings"
+
 import {
   approveWithdrawal,
   rejectWithdrawal,
@@ -471,7 +471,13 @@ export function AdminDashboard(initial: AdminData) {
 
 // ─── Game Config Tab ─────────────────────────────────────────────────────────
 
-type GameCfg = Awaited<ReturnType<typeof getGameConfig>>
+type GameCfg = {
+  spinPrizes: { amount: number; weight: number }[]
+  luckyDrawSlotCost: number
+  luckyDrawPrizeShares: number[]
+  gamePlaysPerInvestment: number
+  gamePlaysPerReferral: number
+}
 type SpinPrize = { amount: number; weight: number }
 
 function GameConfigTab() {
@@ -492,17 +498,18 @@ function GameConfigTab() {
   const [playsPerReferral, setPlaysPerReferral] = useState("1")
 
   useEffect(() => {
-    getGameConfig().then((cfg: GameCfg) => {
-      setPrizes(cfg.spinPrizes)
-      setSlotCost(String(cfg.luckyDrawSlotCost))
-      const [s1 = 0.5, s2 = 0.3, s3 = 0.2] = cfg.luckyDrawPrizeShares
-      setShare1(String(Math.round(s1 * 100)))
-      setShare2(String(Math.round(s2 * 100)))
-      setShare3(String(Math.round(s3 * 100)))
-      setPlaysPerInvest(String(cfg.gamePlaysPerInvestment))
-      setPlaysPerReferral(String(cfg.gamePlaysPerReferral))
-      setLoading(false)
-    })
+    fetch("/api/game-config")
+      .then((r) => r.json())
+      .then((cfg: GameCfg) => {
+        setPrizes(cfg.spinPrizes)
+        setSlotCost(String(cfg.luckyDrawSlotCost))
+        const [s1 = 0.5, s2 = 0.3] = cfg.luckyDrawPrizeShares
+        setShare1(String(Math.round(s1 * 100)))
+        setShare2(String(Math.round(s2 * 100)))
+        setPlaysPerInvest(String(cfg.gamePlaysPerInvestment))
+        setPlaysPerReferral(String(cfg.gamePlaysPerReferral))
+        setLoading(false)
+      })
   }, [])
 
   const addPrize = () => setPrizes((p) => [...p, { amount: 0, weight: 10 }])
@@ -521,12 +528,16 @@ function GameConfigTab() {
       return
     }
     startTransition(async () => {
-      await saveGameConfig({
-        spinPrizes: prizes,
-        luckyDrawSlotCost: Number(slotCost),
-        luckyDrawPrizeShares: [s1, s2, parseFloat(s3.toFixed(4))],
-        gamePlaysPerInvestment: Number(playsPerInvest),
-        gamePlaysPerReferral: Number(playsPerReferral),
+      await fetch("/api/game-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spinPrizes: prizes,
+          luckyDrawSlotCost: Number(slotCost),
+          luckyDrawPrizeShares: [s1, s2, parseFloat(s3.toFixed(4))],
+          gamePlaysPerInvestment: Number(playsPerInvest),
+          gamePlaysPerReferral: Number(playsPerReferral),
+        }),
       })
       toast.success("Game config saved — changes are live immediately")
     })
