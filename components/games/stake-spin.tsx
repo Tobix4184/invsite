@@ -13,26 +13,26 @@ type SpinResult = {
   newBalance: number
 }
 
-// Slot reel symbols — each prize has a matching symbol
-const SYMBOLS = ["7", "BAR", "$", "★", "♦", "▶", "✦", "₦"]
-
-// Map prize tiers to symbols (higher = rarer symbol)
+// Map every prize amount to a unique reel symbol.
+// amount -1 = bonus spin, 0 = no win, 10/50/100/200/350/500/1000 = cash prizes.
 function prizeToSymbol(amount: number): string {
-  if (amount === 0)    return "▶"
-  if (amount <= 100)   return "₦"
-  if (amount <= 200)   return "★"
-  if (amount <= 350)   return "♦"
-  if (amount <= 500)   return "BAR"
-  if (amount <= 1000)  return "$"
-  if (amount <= 2500)  return "7"
-  return "✦"
+  if (amount === -1)   return "+"    // bonus spin
+  if (amount === 0)    return "▶"   // no win
+  if (amount === 10)   return "₦"   // ₦10
+  if (amount === 50)   return "★"   // ₦50
+  if (amount === 100)  return "♦"   // ₦100
+  if (amount === 200)  return "BAR" // ₦200
+  if (amount === 350)  return "$"   // ₦350
+  if (amount === 500)  return "7"   // ₦500
+  return "✦"                         // ₦1,000+
 }
 
 function prizeColor(amount: number): string {
+  if (amount === -1)   return "text-gold bg-gold/20"
   if (amount === 0)    return "text-muted-foreground bg-surface"
-  if (amount <= 200)   return "text-foreground bg-card"
-  if (amount <= 500)   return "text-success bg-success/10"
-  if (amount <= 1000)  return "text-primary bg-primary/10"
+  if (amount <= 50)    return "text-foreground bg-card"
+  if (amount <= 200)   return "text-success bg-success/10"
+  if (amount <= 500)   return "text-primary bg-primary/10"
   return "text-gold bg-gold/20"
 }
 
