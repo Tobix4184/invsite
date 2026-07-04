@@ -116,17 +116,6 @@ function Reel({
   )
 }
 
-// Deterministic strip for SSR (no Math.random) — all symbols in order, repeated
-function buildReelStripStatic(prizes: { amount: number; weight: number }[], length = 24): string[] {
-  const pool: string[] = []
-  for (const p of prizes) {
-    for (let i = 0; i < Math.max(1, p.weight); i++) pool.push(prizeToSymbol(p.amount))
-  }
-  const strip: string[] = []
-  while (strip.length < length) strip.push(...pool)
-  return strip.slice(0, length)
-}
-
 export function StakeSpinGame({
   balance,
   spinsAvailable,
@@ -136,20 +125,17 @@ export function StakeSpinGame({
   spinsAvailable: number
   spinPrizes: { amount: number; weight: number }[]
 }) {
-  // Start with deterministic strips (matches SSR); shuffle them client-side after mount
-  const [strips, setStrips] = useState<string[][]>(() => [
-    buildReelStripStatic(spinPrizes),
-    buildReelStripStatic(spinPrizes),
-    buildReelStripStatic(spinPrizes),
-  ])
+  // Only render reels after mount — avoids any SSR/client Math.random() mismatch
+  const [mounted, setMounted] = useState(false)
+  const [strips, setStrips] = useState<string[][]>([[], [], []])
 
-  // After hydration, replace with shuffled strips — safe because this runs only on the client
   useEffect(() => {
     setStrips([
       buildReelStrip(spinPrizes),
       buildReelStrip(spinPrizes),
       buildReelStrip(spinPrizes),
     ])
+    setMounted(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -247,22 +233,34 @@ export function StakeSpinGame({
         </p>
         <p className="mb-5 text-xs text-muted-foreground">Match symbols to win rewards</p>
 
-        {/* 3 reels */}
+        {/* 3 reels — only rendered client-side to avoid SSR/Math.random hydration mismatch */}
         <div className="mb-4 flex items-center gap-2">
-          {/* Left bracket */}
           <div className="h-16 w-2 rounded-l-lg border-y-2 border-l-2 border-ink bg-surface" />
 
-          {strips.map((strip, i) => (
-            <Reel
-              key={i}
-              strip={strip}
-              targetIndex={targetIndexes[i]}
-              spinning={spinning}
-              delay={i * 0.2}
-            />
-          ))}
+          {!mounted ? (
+            // Stable SSR placeholder — three blank reel windows
+            <>
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="flex h-[56px] w-[72px] items-center justify-center rounded-xl border-2 border-ink bg-card text-2xl font-black text-muted-foreground"
+                >
+                  ?
+                </div>
+              ))}
+            </>
+          ) : (
+            strips.map((strip, i) => (
+              <Reel
+                key={i}
+                strip={strip}
+                targetIndex={targetIndexes[i]}
+                spinning={spinning}
+                delay={i * 0.2}
+              />
+            ))
+          )}
 
-          {/* Right bracket */}
           <div className="h-16 w-2 rounded-r-lg border-y-2 border-r-2 border-ink bg-surface" />
         </div>
 
