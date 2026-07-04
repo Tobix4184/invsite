@@ -5,16 +5,17 @@ import { useRouter } from "next/navigation"
 import { Loader2, Sparkles, RotateCcw, Star, Trophy, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { formatNaira } from "@/lib/plans"
-import { playSpin } from "@/app/actions/games"
+import { playScratchCard } from "@/app/actions/games"
 
-// Each scratch card has 3 hidden slots. Reveal all 3 = win the prize.
-// We re-use the spin prize pool / claim logic since both are free plays.
+// Each scratch card has 3 visible slots that reveal when scratched.
+// Scratch cards are earned separately from spins: 2 cards per valid referral.
 
 type Prize = { amount: number; weight: number }
 
 type Props = {
-  spinsAvailable: number
-  spinPrizes: Prize[]
+  cardsAvailable: number
+  scratchPrizes: Prize[]
+  scratchCardsPerReferral: number
   balance: number
 }
 
@@ -250,29 +251,28 @@ function ScratchCardUnit({
   )
 }
 
-export function ScratchCardGame({ spinsAvailable, spinPrizes, balance }: Props) {
+export function ScratchCardGame({ cardsAvailable, scratchPrizes, scratchCardsPerReferral, balance }: Props) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [playsLeft, setPlaysLeft] = useState(spinsAvailable)
+  const [playsLeft, setPlaysLeft] = useState(cardsAvailable)
   const [cardKey, setCardKey] = useState(0)
   const [lastWin, setLastWin] = useState<number | null>(null)
   const [history, setHistory] = useState<{ amount: number; label: string }[]>([])
 
   function handleClaim() {
     startTransition(async () => {
-      const res = await playSpin()
+      const res = await playScratchCard()
       if (res.ok) {
-        if (res.outcome === "bonus_spin") toast.success("You won a bonus scratch card!")
-        else if (res.winAmount && res.winAmount > 0) toast.success(`You won ${formatNaira(res.winAmount)}!`)
+        if (res.winAmount && res.winAmount > 0) toast.success(`You won ${formatNaira(res.winAmount)}!`)
         else toast.info("Better luck next time!")
-        const won = res.isBonusSpin ? -1 : (res.winAmount ?? 0)
+        const won = res.winAmount ?? 0
         setLastWin(won)
         setHistory((h) => [{ amount: won, label: prizeLabel(won) }, ...h].slice(0, 5))
-        setPlaysLeft(res.spinsLeft ?? Math.max(0, playsLeft - 1))
+        setPlaysLeft(res.cardsLeft ?? Math.max(0, playsLeft - 1))
         setCardKey((k) => k + 1)
         router.refresh()
       } else {
-        toast.error("Could not process card. Try again.")
+        toast.error(res.message ?? "Could not process card. Try again.")
       }
     })
   }
@@ -310,7 +310,7 @@ export function ScratchCardGame({ spinsAvailable, spinPrizes, balance }: Props) 
       <div className="flex items-start gap-2.5 rounded-2xl border-2 border-ink bg-gold/15 px-3 py-2.5">
         <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-foreground" />
         <p className="text-[11px] font-semibold leading-relaxed text-foreground">
-          Scratch the card to reveal your hidden prize. Each investment plan earns you 1 scratch card. Referrals earn extra cards.
+          Scratch the card to reveal your prize. Every valid referral (a friend who invests) earns you {scratchCardsPerReferral} scratch cards — completely separate from your Lucky Roulette spins.
         </p>
       </div>
 
@@ -318,7 +318,7 @@ export function ScratchCardGame({ spinsAvailable, spinPrizes, balance }: Props) 
       {playsLeft > 0 ? (
         <ScratchCardUnit
           key={cardKey}
-          prizes={spinPrizes}
+          prizes={scratchPrizes}
           onClaim={handleClaim}
           disabled={pending}
         />
@@ -330,7 +330,7 @@ export function ScratchCardGame({ spinsAvailable, spinPrizes, balance }: Props) 
           <div>
             <p className="font-black uppercase">No cards left</p>
             <p className="mt-1 text-sm text-muted-foreground text-pretty">
-              Buy a new investment plan or refer a friend to earn more scratch cards.
+              Refer a friend who invests to earn {scratchCardsPerReferral} more scratch cards.
             </p>
           </div>
           <button

@@ -22,6 +22,9 @@ type Props = {
   referralSlotsAvailable: number
   recentWinners: { name: string; amount: number; drawDate: string; place: number }[]
   spinsAvailable: number
+  scratchCardsAvailable: number
+  scratchPrizes: { amount: number; weight: number }[]
+  scratchCardsPerReferral: number
   slotCost: number
   spinPrizes: { amount: number; weight: number }[]
 }
@@ -121,8 +124,9 @@ export function GamesHub(props: Props) {
             {tab === "spin" && <StakeSpinGame balance={balance} spinsAvailable={props.spinsAvailable} spinPrizes={props.spinPrizes} />}
             {tab === "scratch" && (
               <ScratchCardGame
-                spinsAvailable={props.spinsAvailable}
-                spinPrizes={props.spinPrizes}
+                cardsAvailable={props.scratchCardsAvailable}
+                scratchPrizes={props.scratchPrizes}
+                scratchCardsPerReferral={props.scratchCardsPerReferral}
                 balance={balance}
               />
             )}

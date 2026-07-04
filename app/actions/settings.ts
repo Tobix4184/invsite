@@ -30,6 +30,10 @@ export const SETTING_KEYS = {
   // Plays earned per investment / per qualifying referral
   gamePlaysPerInvestment: "game_plays_per_investment",
   gamePlaysPerReferral: "game_plays_per_referral",
+  // Scratch card prizes — JSON array of {amount, weight}
+  scratchPrizes: "game_scratch_prizes",
+  // Scratch cards earned per valid referral
+  scratchCardsPerReferral: "game_scratch_cards_per_referral",
 } as const
 
 /** Reads a single setting value, returns null if missing. */
@@ -88,6 +92,12 @@ export async function getGameConfig() {
   const gamePlaysPerInvestment = parseInt(raw(SETTING_KEYS.gamePlaysPerInvestment, String(SITE.gamePlaysPerInvestment)), 10)
   const gamePlaysPerReferral   = parseInt(raw(SETTING_KEYS.gamePlaysPerReferral,   String(SITE.gamePlaysPerReferral)), 10)
 
+  const scratchPrizesRaw = map.get(SETTING_KEYS.scratchPrizes)
+  const scratchPrizes: { amount: number; weight: number }[] = scratchPrizesRaw
+    ? JSON.parse(scratchPrizesRaw)
+    : SITE.scratchPrizes
+  const scratchCardsPerReferral = parseInt(raw(SETTING_KEYS.scratchCardsPerReferral, String(SITE.scratchCardsPerReferral)), 10)
+
   return {
     withdrawalCharge: withdrawalChargePct,
     stakeHouseEdge: houseEdge,
@@ -99,6 +109,8 @@ export async function getGameConfig() {
     spinPrizes,
     gamePlaysPerInvestment,
     gamePlaysPerReferral,
+    scratchPrizes,
+    scratchCardsPerReferral,
     vaultTiers: [
       { days: 7,  bonusPercent: vaultBonus7,  penaltyPercent: vaultPenalty },
       { days: 14, bonusPercent: vaultBonus14, penaltyPercent: vaultPenalty },
@@ -167,6 +179,8 @@ export async function saveGameConfig(config: {
   luckyDrawPrizeShares?: number[]
   gamePlaysPerInvestment?: number
   gamePlaysPerReferral?: number
+  scratchPrizes?: { amount: number; weight: number }[]
+  scratchCardsPerReferral?: number
 }): Promise<void> {
   const g = SETTING_KEYS
   const tasks: Promise<void>[] = []
@@ -180,6 +194,10 @@ export async function saveGameConfig(config: {
     tasks.push(setSetting(g.gamePlaysPerInvestment, String(config.gamePlaysPerInvestment)))
   if (config.gamePlaysPerReferral !== undefined)
     tasks.push(setSetting(g.gamePlaysPerReferral, String(config.gamePlaysPerReferral)))
+  if (config.scratchPrizes !== undefined)
+    tasks.push(setSetting(g.scratchPrizes, JSON.stringify(config.scratchPrizes)))
+  if (config.scratchCardsPerReferral !== undefined)
+    tasks.push(setSetting(g.scratchCardsPerReferral, String(config.scratchCardsPerReferral)))
   await Promise.all(tasks)
 }
 

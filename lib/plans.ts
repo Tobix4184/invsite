@@ -226,6 +226,21 @@ export const SITE = {
     { amount: -1,   weight: 1  },  // bonus spin
   ] as { amount: number; weight: number }[],
 
+  // Scratch Card prizes — amount 0 = no win, amount > 0 = naira reward.
+  scratchPrizes: [
+    { amount: 0,    weight: 25 },  // no win
+    { amount: 50,   weight: 20 },  // ₦50
+    { amount: 100,  weight: 18 },  // ₦100
+    { amount: 200,  weight: 12 },  // ₦200
+    { amount: 500,  weight: 8  },  // ₦500
+    { amount: 1000, weight: 5  },  // ₦1,000
+    { amount: 2000, weight: 2  },  // ₦2,000
+    { amount: 5000, weight: 1  },  // ₦5,000 (jackpot)
+  ] as { amount: number; weight: number }[],
+
+  // How many scratch cards a valid referral earns the referrer
+  scratchCardsPerReferral: 2,
+
   // Legacy stake fields kept for backward compatibility (unused by the new spin)
   stakeMin: 0,
   stakeMax: 0,

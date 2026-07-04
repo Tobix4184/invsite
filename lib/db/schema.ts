@@ -298,10 +298,21 @@ export const stakeSpin = pgTable("stake_spin", {
   id: serial("id").primaryKey(),
   userId: text("userId").notNull(),
   stakeAmount: numeric("stakeAmount", { precision: 14, scale: 2 }).notNull(),
-  outcome: text("outcome").notNull(), // "win" | "lose"
+  outcome: text("outcome").notNull(), // "win" | "lose" | "bonus_spin"
   multiplier: numeric("multiplier", { precision: 6, scale: 3 }).notNull(),
   winAmount: numeric("winAmount", { precision: 14, scale: 2 }).notNull(),
+  // Extra spins granted by this result (1 when outcome = "bonus_spin")
+  spinBonus: integer("spin_bonus").notNull().default(0),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
+})
+
+// Scratch Card: one card per qualifying referral (2 cards per referral)
+export const scratchCard = pgTable("scratch_card", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  outcome: text("outcome").notNull().default("lose"), // "win" | "lose"
+  winAmount: numeric("win_amount", { precision: 14, scale: 2 }).notNull().default("0"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 })
 
 // Lucky Draw: one slot = one ticket for today's draw
