@@ -47,61 +47,62 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
-   247 Incum — NEO-BRUTALIST LIGHT.
-   Warm cream paper, solid ink borders, hard offset shadows,
-   vivid tangerine primary. No blur, no gradients, no glow.
-   Chunky, confident, unmistakably NOT a dark crypto clone.
+   247 Incum — PREMIUM NEO-BRUTALIST.
+   Clean off-white paper, deep forest-green primary, rich
+   charcoal ink, warm gold VIP accent. Feels like a private
+   wealth manager — serious, trusted, unmistakably Nigerian
+   fintech. Zero orange, zero crypto vibes.
    ───────────────────────────────────────────────────────────── */
 :root {
-  /* Warm cream paper */
-  --background: oklch(0.965 0.018 78);
-  --foreground: oklch(0.19 0.015 55);
+  /* Clean off-white paper — professional, not cream */
+  --background: oklch(0.975 0.006 100);
+  --foreground: oklch(0.16 0.02 250);
 
-  /* Ink — the universal border/shadow color */
-  --ink: oklch(0.19 0.015 55);
+  /* Rich charcoal — the universal border/shadow color */
+  --ink: oklch(0.18 0.02 250);
 
-  /* Card — crisp white panels */
-  --card: oklch(0.995 0.004 90);
-  --card-foreground: oklch(0.19 0.015 55);
+  /* Card — pure white panels with depth */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.02 250);
 
-  /* Surface — warm cream inner wells */
-  --surface: oklch(0.935 0.024 78);
+  /* Surface — cool light grey inner wells */
+  --surface: oklch(0.948 0.008 240);
 
-  --popover: oklch(0.995 0.004 90);
-  --popover-foreground: oklch(0.19 0.015 55);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.02 250);
 
-  /* Vivid tangerine — primary accent */
-  --primary: oklch(0.705 0.185 45);
-  --primary-foreground: oklch(0.19 0.015 55);
+  /* Deep forest green — primary brand color */
+  --primary: oklch(0.38 0.1 155);
+  --primary-foreground: oklch(0.98 0.005 100);
 
-  --secondary: oklch(0.995 0.004 90);
-  --secondary-foreground: oklch(0.19 0.015 55);
+  --secondary: oklch(1 0 0);
+  --secondary-foreground: oklch(0.16 0.02 250);
 
-  --muted: oklch(0.935 0.024 78);
-  --muted-foreground: oklch(0.46 0.02 60);
+  --muted: oklch(0.948 0.008 240);
+  --muted-foreground: oklch(0.48 0.018 240);
 
-  --accent: oklch(0.9 0.03 78);
-  --accent-foreground: oklch(0.19 0.015 55);
+  --accent: oklch(0.93 0.012 240);
+  --accent-foreground: oklch(0.16 0.02 250);
 
-  --brand: oklch(0.705 0.185 45);
-  --brand-foreground: oklch(0.19 0.015 55);
+  --brand: oklch(0.38 0.1 155);
+  --brand-foreground: oklch(0.98 0.005 100);
 
-  /* Bold sunflower — highlights / VIP */
-  --gold: oklch(0.84 0.16 88);
-  --gold-foreground: oklch(0.19 0.015 55);
+  /* Warm gold — VIP / earnings highlight */
+  --gold: oklch(0.78 0.14 82);
+  --gold-foreground: oklch(0.16 0.02 250);
 
-  /* Bold grass green — earnings / positive */
-  --success: oklch(0.66 0.17 150);
-  --success-foreground: oklch(0.19 0.015 55);
+  /* Forest green — positive / earnings */
+  --success: oklch(0.52 0.14 152);
+  --success-foreground: oklch(0.98 0.005 100);
 
-  /* Bold vermilion — negative / danger */
-  --destructive: oklch(0.6 0.225 27);
+  /* Deep crimson — negative / danger */
+  --destructive: oklch(0.55 0.2 22);
   --destructive-foreground: oklch(0.99 0.004 90);
 
-  /* SOLID ink borders — the neo-brutalist signature */
-  --border: oklch(0.19 0.015 55);
-  --input: oklch(0.19 0.015 55);
-  --ring: oklch(0.705 0.185 45);
+  /* Solid charcoal borders — neo-brutalist signature */
+  --border: oklch(0.18 0.02 250);
+  --input: oklch(0.18 0.02 250);
+  --ring: oklch(0.38 0.1 155);
 
   --radius: 0.9rem;
 }
@@ -112,8 +113,8 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Subtle ink dot-grid texture */
-    background-image: radial-gradient(oklch(0.19 0.015 55 / 0.05) 1.2px, transparent 1.2px);
+    /* Subtle dot-grid texture */
+    background-image: radial-gradient(oklch(0.18 0.02 250 / 0.055) 1.2px, transparent 1.2px);
     background-size: 22px 22px;
     background-attachment: fixed;
   }
