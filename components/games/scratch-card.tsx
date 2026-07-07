@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useRef, useEffect, useTransition } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Sparkles, RotateCcw, Star, Trophy, Lock } from "lucide-react"
+import { Loader2, Sparkles, Star, Trophy, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { formatNaira } from "@/lib/plans"
 import { playScratchCard } from "@/app/actions/games"
 
-// Each scratch card has 3 visible slots that reveal when scratched.
-// Scratch cards are earned separately from spins: 2 cards per valid referral.
+// Each scratch card has a single prize slot that reveals when scratched.
+// The prize is determined SERVER-SIDE when "Claim & Continue" is pressed,
+// then shown in the reveal layer. Client-side never picks prizes.
 
 type Prize = { amount: number; weight: number }
 
@@ -17,16 +18,6 @@ type Props = {
   scratchPrizes: Prize[]
   scratchCardsPerReferral: number
   balance: number
-}
-
-function pickPrize(prizes: Prize[]): number {
-  const total = prizes.reduce((s, p) => s + p.weight, 0)
-  let r = Math.random() * total
-  for (const p of prizes) {
-    r -= p.weight
-    if (r <= 0) return p.amount
-  }
-  return 0
 }
 
 function prizeLabel(amount: number) {
@@ -153,33 +144,47 @@ function CardSlot({ value, revealed }: { value: number; revealed: boolean }) {
   )
 }
 
-type CardState = "idle" | "scratching" | "revealed" | "claiming" | "done"
+// "idle"     — card is covered, user can scratch
+// "scratched" — user scratched, waiting for server result
+// "loading"  — server action in flight
+// "revealed" — server returned prize, showing result
+// "done"     — claimed, parent handles next card
+type CardState = "idle" | "scratched" | "loading" | "revealed" | "done"
 
 function ScratchCardUnit({
-  prizes,
-  onClaim,
+  onClaimed,
   disabled,
 }: {
-  prizes: Prize[]
-  onClaim: () => void
+  onClaimed: (winAmount: number, cardsLeft: number) => void
   disabled: boolean
 }) {
   const [state, setState] = useState<CardState>("idle")
-  // Generate 3 slots — one is the "win" slot, the other two are decoratives
-  const [slots] = useState<number[]>(() => {
-    // Pick the actual prize for slot 0
-    const win = pickPrize(prizes)
-    // Decorative slots: random amounts from the pool for visual effect
-    const decoy1 = pickPrize(prizes)
-    const decoy2 = pickPrize(prizes)
-    return [win, decoy1, decoy2]
-  })
-  const [revealedIdx, setRevealedIdx] = useState<boolean[]>([false, false, false])
+  // serverPrize is null until the server action resolves
+  const [serverPrize, setServerPrize] = useState<number | null>(null)
 
+  // Called by ScratchOverlay once enough of the canvas is cleared
   function handleScratchDone() {
-    setRevealedIdx([true, true, true])
-    setState("revealed")
+    if (state !== "idle") return
+    setState("scratched")
+    // Immediately fire the server action so the real prize is ready
+    claimNow()
   }
+
+  async function claimNow() {
+    setState("loading")
+    const res = await playScratchCard()
+    if (!res.ok) {
+      toast.error(res.message ?? "Could not process card. Try again.")
+      setState("idle")
+      return
+    }
+    setServerPrize(res.winAmount ?? 0)
+    setState("revealed")
+    // Notify parent with the real prize and remaining count
+    onClaimed(res.winAmount ?? 0, res.cardsLeft ?? 0)
+  }
+
+  const prize = serverPrize ?? 0
 
   return (
     <div className="overflow-hidden rounded-3xl border-2 border-ink bg-card shadow-[4px_4px_0_0_var(--ink)]">
@@ -190,8 +195,8 @@ function ScratchCardUnit({
           <span className="text-xs font-black uppercase tracking-wider text-primary-foreground">Scratch &amp; Win</span>
         </div>
         {state === "revealed" && (
-          <span className={`rounded-full border-2 border-ink px-2.5 py-0.5 text-[10px] font-black ${slots[0] > 0 ? "bg-gold text-gold-foreground" : "bg-surface text-muted-foreground"}`}>
-            {slots[0] > 0 ? "WIN!" : "Try again"}
+          <span className={`rounded-full border-2 border-ink px-2.5 py-0.5 text-[10px] font-black ${prize > 0 ? "bg-gold text-gold-foreground" : "bg-surface text-muted-foreground"}`}>
+            {prize > 0 ? "WIN!" : "Try again"}
           </span>
         )}
       </div>
@@ -199,13 +204,20 @@ function ScratchCardUnit({
       {/* Scratch zone */}
       <div className="p-4">
         <div className="relative">
-          {/* Reveal layer — the 3 slots */}
-          <div className="grid grid-cols-3 gap-2">
-            {slots.map((v, i) => (
-              <CardSlot key={i} value={v} revealed={revealedIdx[i]} />
-            ))}
+          {/* Reveal layer — single prize slot */}
+          <div className="flex h-20 items-center justify-center rounded-2xl border-2 border-ink bg-surface">
+            {state === "revealed" ? (
+              <span className={`text-2xl font-black tabular-nums ${prize > 0 ? "text-success" : "text-muted-foreground"}`}>
+                {prize > 0 ? formatNaira(prize) : "No win"}
+              </span>
+            ) : state === "loading" ? (
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            ) : (
+              <span className="text-3xl font-black text-muted-foreground/30">?</span>
+            )}
           </div>
-          {/* Scratch overlay sits on top */}
+
+          {/* Scratch overlay sits on top — only shown while idle */}
           {state === "idle" && !disabled && (
             <div className="absolute inset-0">
               <ScratchOverlay onRevealed={handleScratchDone} disabled={false} />
@@ -224,25 +236,29 @@ function ScratchCardUnit({
           </p>
         )}
 
+        {state === "loading" && (
+          <p className="mt-3 text-center text-[11px] font-bold text-muted-foreground">
+            Revealing your prize...
+          </p>
+        )}
+
         {state === "revealed" && (
           <div className="mt-3 flex flex-col items-center gap-3">
-            <div className={`flex items-center gap-2 rounded-2xl border-2 border-ink px-4 py-2 ${slots[0] > 0 ? "bg-gold/20" : "bg-surface"}`}>
-              {slots[0] > 0 ? (
+            <div className={`flex items-center gap-2 rounded-2xl border-2 border-ink px-4 py-2 ${prize > 0 ? "bg-gold/20" : "bg-surface"}`}>
+              {prize > 0 ? (
                 <>
                   <Sparkles className="h-4 w-4 text-gold-foreground" />
-                  <span className="font-black text-foreground">
-                    {slots[0] === -1 ? "You won a bonus spin!" : `You won ${formatNaira(slots[0])}!`}
-                  </span>
+                  <span className="font-black text-foreground">You won {formatNaira(prize)}!</span>
                 </>
               ) : (
                 <span className="text-sm font-bold text-muted-foreground">No win this time</span>
               )}
             </div>
             <button
-              onClick={() => { setState("done"); onClaim() }}
+              onClick={() => setState("done")}
               className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-3 text-sm font-black uppercase text-primary-foreground shadow-[3px_3px_0_0_var(--ink)]"
             >
-              Claim &amp; Continue
+              Next Card
             </button>
           </div>
         )}
@@ -253,28 +269,21 @@ function ScratchCardUnit({
 
 export function ScratchCardGame({ cardsAvailable, scratchPrizes, scratchCardsPerReferral, balance }: Props) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
   const [playsLeft, setPlaysLeft] = useState(cardsAvailable)
   const [cardKey, setCardKey] = useState(0)
-  const [lastWin, setLastWin] = useState<number | null>(null)
   const [history, setHistory] = useState<{ amount: number; label: string }[]>([])
 
-  function handleClaim() {
-    startTransition(async () => {
-      const res = await playScratchCard()
-      if (res.ok) {
-        if (res.winAmount && res.winAmount > 0) toast.success(`You won ${formatNaira(res.winAmount)}!`)
-        else toast.info("Better luck next time!")
-        const won = res.winAmount ?? 0
-        setLastWin(won)
-        setHistory((h) => [{ amount: won, label: prizeLabel(won) }, ...h].slice(0, 5))
-        setPlaysLeft(res.cardsLeft ?? Math.max(0, playsLeft - 1))
-        setCardKey((k) => k + 1)
-        router.refresh()
-      } else {
-        toast.error(res.message ?? "Could not process card. Try again.")
-      }
-    })
+  // Called by ScratchCardUnit once the server action has resolved with the real prize
+  function handleClaimed(winAmount: number, cardsLeft: number) {
+    if (winAmount > 0) toast.success(`You won ${formatNaira(winAmount)}!`)
+    else toast.info("Better luck next time!")
+    setHistory((h) => [{ amount: winAmount, label: prizeLabel(winAmount) }, ...h].slice(0, 5))
+    setPlaysLeft(cardsLeft)
+    // Advance to next card after a short pause so user can see the result
+    setTimeout(() => {
+      setCardKey((k) => k + 1)
+      router.refresh()
+    }, 1800)
   }
 
   const totalWon = history.filter((h) => h.amount > 0 && h.amount !== -1).reduce((s, h) => s + h.amount, 0)
@@ -318,9 +327,8 @@ export function ScratchCardGame({ cardsAvailable, scratchPrizes, scratchCardsPer
       {playsLeft > 0 ? (
         <ScratchCardUnit
           key={cardKey}
-          prizes={scratchPrizes}
-          onClaim={handleClaim}
-          disabled={pending}
+          onClaimed={handleClaimed}
+          disabled={false}
         />
       ) : (
         <div className="flex flex-col items-center gap-4 rounded-3xl border-2 border-ink bg-card px-6 py-10 text-center shadow-[4px_4px_0_0_var(--ink)]">
