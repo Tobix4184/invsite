@@ -127,69 +127,29 @@ export async function getUserWithdrawals() {
     .limit(20)
 }
 
-// ── Bank name verification via NubAPI (free, no key required) ────────────────
+// ── Bank name verification via Paystack ──────────────────────────────────────
 
-/** Maps display bank names to NubAPI bank codes */
-const BANK_CODES: Record<string, string> = {
-  "Access Bank": "044",
-  "Citibank Nigeria": "023",
-  "Ecobank Nigeria": "050",
-  "Fidelity Bank": "070",
-  "First Bank of Nigeria": "011",
-  "First City Monument Bank (FCMB)": "214",
-  "Globus Bank": "00103",
-  "Guaranty Trust Bank (GTBank)": "058",
-  "Heritage Bank": "030",
-  "Jaiz Bank": "301",
-  "Keystone Bank": "082",
-  "Lotus Bank": "303",
-  "Optimus Bank": "107",
-  "Parallex Bank": "526",
-  "Polaris Bank": "076",
-  "Premium Trust Bank": "105",
-  "Providus Bank": "101",
-  "Stanbic IBTC Bank": "221",
-  "Standard Chartered Bank": "068",
-  "Sterling Bank": "232",
-  "SunTrust Bank": "100",
-  "Titan Trust Bank": "102",
-  "Union Bank of Nigeria": "032",
-  "United Bank for Africa (UBA)": "033",
-  "Unity Bank": "215",
-  "Wema Bank": "035",
-  "Zenith Bank": "057",
-  "Carbon (One Finance)": "565",
-  "EKONDO Microfinance Bank": "562",
-  "Fairmoney Microfinance Bank": "51318",
-  "Kuda Bank": "50211",
-  "Moniepoint Microfinance Bank": "50515",
-  "OPay (PayCom)": "100004",
-  "PalmPay": "100033",
-  "Sparkle Microfinance Bank": "51310",
-  "VFD Microfinance Bank": "566",
-  "9PSB (9 Payment Service Bank)": "120001",
-}
-
+/**
+ * Resolves an account holder name using Paystack's bank/resolve endpoint.
+ * @param accountNumber - 10-digit NUBAN account number
+ * @param bankCode      - Paystack bank code (from /api/banks)
+ */
 export async function lookupBankAccountName(
   accountNumber: string,
-  bankName: string
+  bankCode: string,
 ): Promise<{ ok: boolean; accountName?: string; message?: string }> {
-  const bankCode = BANK_CODES[bankName]
-  if (!bankCode) return { ok: false, message: "Bank not found. Enter account name manually." }
+  if (!bankCode) return { ok: false, message: "Select a bank first." }
   if (accountNumber.length !== 10) return { ok: false, message: "Enter a 10-digit account number first." }
 
   const paystackKey = process.env.PAYSTACK_SECRET_KEY
   if (!paystackKey) {
-    return { ok: false, message: "Auto-verify not configured. Enter your account name below." }
+    return { ok: false, message: "Auto-verify not available. Enter your account name below." }
   }
 
   try {
     const url = `https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`
     const res = await fetch(url, {
-      headers: {
-        "Authorization": `Bearer ${paystackKey}`,
-        "Accept": "application/json",
-      },
+      headers: { Authorization: `Bearer ${paystackKey}`, Accept: "application/json" },
       cache: "no-store",
     })
     const data = await res.json()

@@ -18,26 +18,23 @@ import { toast } from "sonner"
 import { SITE, formatNaira } from "@/lib/plans"
 import { requestWithdrawal, getSavedBankDetails, lookupBankAccountName } from "@/app/actions/wallet"
 
-const NIGERIAN_BANKS = [
-  "Access Bank", "Citibank Nigeria", "Ecobank Nigeria", "Fidelity Bank",
-  "First Bank of Nigeria", "First City Monument Bank (FCMB)", "Globus Bank",
-  "Guaranty Trust Bank (GTBank)", "Heritage Bank", "Jaiz Bank", "Keystone Bank",
-  "Lotus Bank", "Optimus Bank", "Parallex Bank", "Polaris Bank", "Premium Trust Bank",
-  "Providus Bank", "Stanbic IBTC Bank", "Standard Chartered Bank", "Sterling Bank",
-  "SunTrust Bank", "Titan Trust Bank", "Union Bank of Nigeria",
-  "United Bank for Africa (UBA)", "Unity Bank", "Wema Bank", "Zenith Bank",
-  "Carbon (One Finance)", "EKONDO Microfinance Bank", "Fairmoney Microfinance Bank",
-  "Kuda Bank", "Moniepoint Microfinance Bank", "OPay (PayCom)", "PalmPay",
-  "Sparkle Microfinance Bank", "VFD Microfinance Bank", "9PSB (9 Payment Service Bank)",
-].sort()
+type Bank = { name: string; code: string }
 
-function BankPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function BankPicker({
+  value,
+  banks,
+  onChange,
+}: {
+  value: string
+  banks: Bank[]
+  onChange: (name: string, code: string) => void
+}) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const ref = useRef<HTMLDivElement>(null)
   const filtered = query
-    ? NIGERIAN_BANKS.filter((b) => b.toLowerCase().includes(query.toLowerCase()))
-    : NIGERIAN_BANKS
+    ? banks.filter((b) => b.name.toLowerCase().includes(query.toLowerCase()))
+    : banks
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -56,7 +53,7 @@ function BankPicker({ value, onChange }: { value: string; onChange: (v: string) 
       >
         <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
         <span className={`flex-1 text-left ${value ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-          {value || "Select your bank"}
+          {value || (banks.length === 0 ? "Loading banks..." : "Select your bank")}
         </span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -83,17 +80,18 @@ function BankPicker({ value, onChange }: { value: string; onChange: (v: string) 
               <li className="px-4 py-3 text-sm text-muted-foreground">No banks found</li>
             ) : (
               filtered.map((bank) => (
-                <li key={bank}>
+                <li key={bank.code}>
                   <button
                     type="button"
-                    onClick={() => { onChange(bank); setOpen(false); setQuery("") }}
+                    onClick={() => { onChange(bank.name, bank.code); setOpen(false); setQuery("") }}
                     className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors hover:bg-surface ${
-                      bank === value ? "bg-primary/10 font-black text-primary" : ""
+                      bank.name === value ? "bg-primary/10 font-black text-primary" : ""
                     }`}
                   >
-                    {bank === value && <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-primary" />}
-                    {bank !== value && <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
-                    {bank}
+                    {bank.name === value
+                      ? <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-primary" />
+                      : <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                    {bank.name}
                   </button>
                 </li>
               ))
@@ -117,35 +115,45 @@ export function WithdrawForm({
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [loading, setLoading] = useState(true)
+  const [banks, setBanks] = useState<Bank[]>([])
   const [step, setStep] = useState<"amount" | "bank" | "confirm">("amount")
-  const [form, setForm] = useState({ amount: "", bankName: "", accountNumber: "", accountName: "" })
+  const [form, setForm] = useState({ amount: "", bankName: "", bankCode: "", accountNumber: "", accountName: "" })
   const [lookupState, setLookupState] = useState<"idle" | "loading" | "found" | "error">("idle")
   const [lookupMsg, setLookupMsg] = useState("")
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }))
 
+  // Load live bank list + saved details on mount
   useEffect(() => {
-    startTransition(async () => {
-      const saved = await getSavedBankDetails()
+    async function init() {
+      const [bankRes, saved] = await Promise.all([
+        fetch("/api/banks").then((r) => r.json()).catch(() => ({ ok: false, banks: [] })),
+        getSavedBankDetails(),
+      ])
+      if (bankRes.ok && bankRes.banks?.length) setBanks(bankRes.banks)
       if (saved?.savedBankName) {
+        // Try to match saved bank name to a code from the live list
+        const match = (bankRes.banks as Bank[]).find((b: Bank) => b.name === saved.savedBankName)
         setForm({
           amount: "",
           bankName: saved.savedBankName,
+          bankCode: match?.code ?? "",
           accountNumber: saved.savedAccountNumber || "",
           accountName: saved.savedAccountName || "",
         })
       }
       setLoading(false)
-    })
+    }
+    init()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Auto-fetch account name when 10 digits + bank selected
+  // Auto-fetch account name when 10 digits + bank code available
   useEffect(() => {
-    if (form.accountNumber.length === 10 && form.bankName) {
+    if (form.accountNumber.length === 10 && form.bankCode) {
       setLookupState("loading")
       setLookupMsg("")
       startTransition(async () => {
-        const res = await lookupBankAccountName(form.accountNumber, form.bankName)
+        const res = await lookupBankAccountName(form.accountNumber, form.bankCode)
         if (res.ok && res.accountName) {
           setForm((f) => ({ ...f, accountName: res.accountName! }))
           setLookupState("found")
@@ -160,7 +168,7 @@ export function WithdrawForm({
       setLookupMsg("")
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.accountNumber, form.bankName])
+  }, [form.accountNumber, form.bankCode])
 
   const amount = Number(form.amount)
   const charge = amount > 0 ? Math.round((amount * withdrawalCharge) / 100) : 0
@@ -316,11 +324,14 @@ export function WithdrawForm({
             {/* Bank picker */}
             <div>
               <label className="mb-1.5 block text-[11px] font-black uppercase tracking-widest text-muted-foreground">Bank</label>
-              <BankPicker value={form.bankName} onChange={(v) => {
-                set("bankName")(v)
-                // Reset account name when bank changes so it re-fetches
-                if (form.accountNumber.length === 10) setForm((f) => ({ ...f, bankName: v, accountName: "" }))
-              }} />
+              <BankPicker
+                value={form.bankName}
+                banks={banks}
+                onChange={(name, code) => {
+                  setForm((f) => ({ ...f, bankName: name, bankCode: code, accountName: "" }))
+                  setLookupState("idle")
+                }}
+              />
             </div>
 
             {/* Account number */}
