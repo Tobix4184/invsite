@@ -3,6 +3,7 @@ import { getSession } from '@/lib/session'
 import { AppHeader } from '@/components/app-header'
 import { BottomNav } from '@/components/bottom-nav'
 import { PlanCard } from '@/components/plan-card'
+import { EarningsSheet } from '@/components/earnings-sheet'
 import { PLANS, formatNaira, SITE } from '@/lib/plans'
 import { Layers, TrendingUp, ShieldCheck } from 'lucide-react'
 
@@ -26,7 +27,7 @@ export default async function ProductsPage() {
               <Layers className="h-3.5 w-3.5" />
               {SITE.packageCount} packages
             </span>
-            <h2 className="mt-3 text-2xl font-black leading-tight tracking-tight text-balance text-gradient">
+            <h2 className="mt-3 text-2xl font-black leading-tight tracking-tight text-balance">
               Invest in real valued assets
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -44,7 +45,7 @@ export default async function ProductsPage() {
                 <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
                 <div className="min-w-0">
                   <p className="text-[10px] text-muted-foreground">Cycle length</p>
-                  <p className="text-sm font-black">45–70 days</p>
+                  <p className="text-sm font-black">40–70 days</p>
                 </div>
               </div>
             </div>
@@ -59,6 +60,15 @@ export default async function ProductsPage() {
               <PlanCard key={plan.id} plan={plan} />
             ))}
           </div>
+        </section>
+
+        {/* ── Earnings Sheet ─────────────────────────────────────────── */}
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <span className="h-1.5 w-6 rounded-full bg-primary" />
+            <h2 className="text-lg font-black tracking-tight">Full Earnings Breakdown</h2>
+          </div>
+          <EarningsSheet />
         </section>
 
         <p className="px-1 text-center text-xs text-muted-foreground">
