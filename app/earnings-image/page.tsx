@@ -1,6 +1,8 @@
 import { PLANS, SITE, getTotalEarning } from "@/lib/plans"
 import { getSession } from "@/lib/session"
 import { redirect } from "next/navigation"
+import Link from "next/link"
+import { PrintButton } from "@/components/print-button"
 
 export const dynamic = "force-dynamic"
 
@@ -207,17 +209,29 @@ export default async function EarningsImagePage() {
           </p>
           <div className="mt-3 flex items-center justify-center gap-1">
             <div className="h-px flex-1 bg-white/10" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-white/30">247incum.com</span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-white/30">www.247incumb.fun</span>
             <div className="h-px flex-1 bg-white/10" />
           </div>
         </div>
 
       </div>
 
-      {/* Screenshot hint */}
-      <p className="mt-4 hidden text-center text-xs text-muted-foreground sm:block">
-        Screenshot this page to share your earnings plan
-      </p>
+      {/* Action bar */}
+      <div className="mt-5 flex w-full max-w-sm flex-col gap-2 print:hidden">
+        {/* Download / save instruction */}
+        <p className="text-center text-[11px] text-muted-foreground">
+          On mobile: screenshot this page. On desktop: use the button below.
+        </p>
+        <div className="flex gap-2">
+          <PrintButton />
+          <Link
+            href="/earnings-image/landscape"
+            className="press flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-ink bg-card py-2.5 text-[12px] font-black uppercase tracking-widest shadow-[3px_3px_0_0_var(--ink)]"
+          >
+            Landscape
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }
