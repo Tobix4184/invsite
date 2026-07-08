@@ -209,7 +209,7 @@ export const SITE = {
   signInBonus: 100,
   welcomeBonus: 500,
   minWithdrawal: 1000,
-  minDeposit: 10000,
+  minDeposit: 3000,
   withdrawalCharge: 18,
   referralLevel1: 20,
   referralLevel2: 3,
