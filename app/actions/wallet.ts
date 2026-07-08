@@ -175,22 +175,32 @@ export async function lookupBankAccountName(
   bankName: string
 ): Promise<{ ok: boolean; accountName?: string; message?: string }> {
   const bankCode = BANK_CODES[bankName]
-  if (!bankCode) return { ok: false, message: "Bank not supported for auto-lookup" }
-  if (accountNumber.length !== 10) return { ok: false, message: "Enter a 10-digit account number" }
+  if (!bankCode) return { ok: false, message: "Bank not found. Enter account name manually." }
+  if (accountNumber.length !== 10) return { ok: false, message: "Enter a 10-digit account number first." }
+
+  const paystackKey = process.env.PAYSTACK_SECRET_KEY
+  if (!paystackKey) {
+    return { ok: false, message: "Auto-verify not configured. Enter your account name below." }
+  }
 
   try {
-    const url = `https://nubapi.com/verify?account_number=${accountNumber}&bank_code=${bankCode}`
+    const url = `https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`
     const res = await fetch(url, {
-      headers: { "Accept": "application/json" },
-      next: { revalidate: 0 },
+      headers: {
+        "Authorization": `Bearer ${paystackKey}`,
+        "Accept": "application/json",
+      },
+      cache: "no-store",
     })
-    if (!res.ok) return { ok: false, message: "Could not verify account. Enter name manually." }
     const data = await res.json()
-    const name: string | undefined = data?.account_name ?? data?.accountName ?? data?.name
-    if (!name) return { ok: false, message: "Account not found. Enter name manually." }
+    if (!res.ok || !data?.status) {
+      return { ok: false, message: data?.message ?? "Account not found. Enter name manually." }
+    }
+    const name: string | undefined = data?.data?.account_name
+    if (!name) return { ok: false, message: "Could not fetch name. Enter manually." }
     return { ok: true, accountName: name }
   } catch {
-    return { ok: false, message: "Verification failed. Enter name manually." }
+    return { ok: false, message: "Verification failed. Enter your account name below." }
   }
 }
 

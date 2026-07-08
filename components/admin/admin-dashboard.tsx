@@ -65,6 +65,7 @@ import {
   adminGetSubmissions,
   adminApproveSubmission,
   adminRejectSubmission,
+  seedSystemTasks,
 } from "@/app/actions/tasks"
 
 import {
@@ -739,7 +740,7 @@ function GameConfigTab() {
         </div>
       </section>
 
-      {/* ── Plays per action ──────────────��───────────────── */}
+      {/* ── Plays per action ──────────────���───────────────── */}
       <section className="rounded-2xl border-2 border-ink bg-card p-4 shadow-[3px_3px_0_0_var(--ink)]">
         <p className="mb-3 font-black">Plays Earned</p>
         <div className="grid grid-cols-2 gap-3">
@@ -1054,12 +1055,25 @@ function TasksTab() {
       <div className="flex items-center justify-between">
         <h2 className="text-base font-black">Task Center</h2>
         {view === "tasks" && (
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-[3px_3px_0_0_var(--ink)]"
-          >
-            <Plus className="h-4 w-4" /> New Task
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                const res = await seedSystemTasks()
+                toast(res.message ?? (res.ok ? "Done" : "Failed"))
+                if (res.ok) router.refresh()
+              }}
+              className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-card px-3 py-2 text-xs font-bold text-foreground shadow-[2px_2px_0_0_var(--ink)]"
+              title="Seed default system tasks (Telegram, Withdrawal Proof)"
+            >
+              Seed Tasks
+            </button>
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-[3px_3px_0_0_var(--ink)]"
+            >
+              <Plus className="h-4 w-4" /> New Task
+            </button>
+          </div>
         )}
       </div>
 
