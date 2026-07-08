@@ -57,7 +57,7 @@ async function earnedSpins(userId: string): Promise<number> {
   const [inv] = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(investment)
-    .where(eq(investment.userId, userId))
+    .where(and(eq(investment.userId, userId), sql`${investment.status} NOT IN ('cancelled', 'deleted')`))
 
   const [ref] = await db
     .select({ c: sql<number>`count(*)::int` })
@@ -87,7 +87,7 @@ async function earnedScratchCards(userId: string): Promise<number> {
   const [inv] = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(investment)
-    .where(eq(investment.userId, userId))
+    .where(and(eq(investment.userId, userId), sql`${investment.status} NOT IN ('cancelled', 'deleted')`))
 
   const [ref] = await db
     .select({ c: sql<number>`count(*)::int` })

@@ -36,6 +36,7 @@ export function PointsTab() {
   const [referralJoinPoints, setReferralJoinPoints] = useState("1000")
   const [gameWinPointsRate, setGameWinPointsRate] = useState("1")
   const [investmentDefaultPoints, setInvestmentDefaultPoints] = useState("500")
+  const [dailyIncomePointsRate, setDailyIncomePointsRate] = useState("5")
 
   async function load() {
     setLoading(true)
@@ -57,6 +58,7 @@ export function PointsTab() {
         gameWinPointsRate: parseFloat(gameWinPointsRate) || 1,
         investmentDefaultPoints: parseInt(investmentDefaultPoints, 10) || 500,
         investmentPointsMap: overview ? {} : {},
+        dailyIncomePointsRate: parseFloat(dailyIncomePointsRate) || 5,
       }
       await savePointsConfig(cfg)
       toast.success("Points config saved")
@@ -232,6 +234,24 @@ export function PointsTab() {
               className={fieldCls}
               placeholder="500"
             />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+              Daily income points rate (pts per ₦100 earned)
+            </span>
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              value={dailyIncomePointsRate}
+              onChange={(e) => setDailyIncomePointsRate(e.target.value)}
+              className={fieldCls}
+              placeholder="5"
+            />
+            <span className="text-[10px] text-muted-foreground">
+              e.g. ₦3,000/day × 5pts/₦100 = 150 pts daily
+            </span>
           </label>
 
           <button

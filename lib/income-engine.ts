@@ -1,6 +1,7 @@
 import { db, pool } from "@/lib/db"
 import { investment } from "@/lib/db/schema"
 import { eq, and } from "drizzle-orm"
+import { awardPoints, getPointsConfig } from "@/app/actions/points"
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -91,6 +92,20 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
 
       await client.query("COMMIT")
       totalCredited += credit
+
+      // Award weekend salary points proportional to daily earnings.
+      // Rate: 5 pts per ₦100 earned (i.e. ₦3,000/day → 150 pts/day).
+      // getPointsConfig is cached so this is cheap.
+      try {
+        const ptsCfg = await getPointsConfig()
+        const dailyPtsRate = ptsCfg.dailyIncomePointsRate ?? 5 // pts per ₦100
+        const pts = Math.floor((credit / 100) * dailyPtsRate)
+        if (pts > 0) {
+          await awardPoints(userId, pts, `Daily investment points (${payDays}d × ${dailyPtsRate}pts/₦100)`)
+        }
+      } catch {
+        // Never let points errors break income accrual
+      }
     } catch (err) {
       await client.query("ROLLBACK").catch(() => {})
       console.error(`[v0] accrueIncomeForUser failed for investment ${id}:`, err)

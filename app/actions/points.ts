@@ -19,6 +19,8 @@ export type PointsConfig = {
   investmentDefaultPoints: number
   /** planId → points override map */
   investmentPointsMap: Record<string, number>
+  /** Points awarded per ₦100 of daily investment income (default 5 → ₦3k/day = 150 pts) */
+  dailyIncomePointsRate: number
 }
 
 export async function getPointsConfig(): Promise<PointsConfig> {
@@ -26,7 +28,7 @@ export async function getPointsConfig(): Promise<PointsConfig> {
     .select()
     .from(siteSetting)
     .where(
-      sql`key IN ('points_per_naira','referral_join_points','game_win_points_rate','investment_default_points','investment_points_map')`
+      sql`key IN ('points_per_naira','referral_join_points','game_win_points_rate','investment_default_points','investment_points_map','daily_income_points_rate')`
     )
 
   const map: Record<string, string> = {}
@@ -38,6 +40,7 @@ export async function getPointsConfig(): Promise<PointsConfig> {
     gameWinPointsRate: parseFloat(map["game_win_points_rate"] ?? "1"),
     investmentDefaultPoints: parseInt(map["investment_default_points"] ?? "500", 10),
     investmentPointsMap: JSON.parse(map["investment_points_map"] ?? "{}"),
+    dailyIncomePointsRate: parseFloat(map["daily_income_points_rate"] ?? "5"),
   }
 }
 
@@ -49,6 +52,7 @@ export async function savePointsConfig(cfg: PointsConfig): Promise<void> {
     ["game_win_points_rate", String(cfg.gameWinPointsRate)],
     ["investment_default_points", String(cfg.investmentDefaultPoints)],
     ["investment_points_map", JSON.stringify(cfg.investmentPointsMap)],
+    ["daily_income_points_rate", String(cfg.dailyIncomePointsRate)],
   ]
   for (const [key, value] of pairs) {
     await db
@@ -132,7 +136,71 @@ export async function getUserPoints(): Promise<UserPointsData> {
   return { points, nairaEquivalent, pointsPerNaira: cfg.pointsPerNaira, nextPayoutDay }
 }
 
-// ─── Admin: weekend payout ─────────────────────────────────────────────────────
+// ─── User: withdraw weekend points to wallet ───────────────────────────────────
+
+export type UserWithdrawPointsResult = {
+  ok: boolean
+  points?: number
+  naira?: number
+  message: string
+}
+
+/**
+ * User-triggered: convert their own weekend salary points to ₦ in their wallet.
+ * Only allowed on Saturday (or if admin forces it).
+ * Points are reset to 0 after conversion.
+ */
+export async function withdrawWeekendPoints(): Promise<UserWithdrawPointsResult> {
+  const userId = await getUserId()
+
+  const [row] = await db
+    .select({ weekendPoints: wallet.weekendPoints })
+    .from(wallet)
+    .where(eq(wallet.userId, userId))
+
+  const pts = row?.weekendPoints ?? 0
+  if (pts <= 0) {
+    return { ok: false, message: "You have no weekend salary points to withdraw." }
+  }
+
+  // Only allow on Saturdays (getDay() === 6)
+  const today = new Date().getDay()
+  if (today !== 6) {
+    const daysLeft = today === 0 ? 7 : (6 - today)
+    return {
+      ok: false,
+      message: `Weekend salary withdrawals are only available on Saturdays. ${daysLeft} day${daysLeft !== 1 ? "s" : ""} to go.`,
+    }
+  }
+
+  const cfg = await getPointsConfig()
+  const naira = pts * cfg.pointsPerNaira
+
+  await db
+    .update(wallet)
+    .set({
+      balance: sql`${wallet.balance} + ${String(naira)}`,
+      totalEarned: sql`${wallet.totalEarned} + ${String(naira)}`,
+      weekendPoints: 0,
+      updatedAt: new Date(),
+    })
+    .where(eq(wallet.userId, userId))
+
+  await db.insert(transaction).values({
+    userId,
+    type: "weekend_salary",
+    amount: String(naira),
+    status: "completed",
+    description: `Weekend salary: ${pts} pts × ₦${cfg.pointsPerNaira} = ₦${naira.toFixed(2)}`,
+  })
+
+  revalidatePath("/weekend-salary")
+  revalidatePath("/dashboard")
+
+  return { ok: true, points: pts, naira, message: `₦${naira.toLocaleString()} added to your wallet!` }
+}
+
+// ─── Admin: weekend payout (bulk run) ─────────────────────────────────────────
 
 export type WeekendPayoutResult = {
   ok: boolean
@@ -143,9 +211,9 @@ export type WeekendPayoutResult = {
 }
 
 /**
- * Convert all users' weekend_points to ₦ and credit their wallet balance.
- * Resets weekend_points to 0 after paying out.
- * Intended to run every Saturday (admin triggers from dashboard).
+ * Admin bulk trigger: convert ALL users' weekend_points to ₦.
+ * This processes users who haven't withdrawn manually.
+ * Only admins can call this.
  */
 export async function processWeekendPayout(): Promise<WeekendPayoutResult> {
   await requireAdmin()

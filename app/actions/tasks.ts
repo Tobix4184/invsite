@@ -239,12 +239,14 @@ async function grantTaskRewards(userId: string, t: Task) {
   }
 }
 
-function rewardSummary(t: Task | { reward: string | number; rewardSpins: number; rewardScratch: number }) {
+function rewardSummary(t: Task | { reward: string | number; rewardSpins: number; rewardScratch: number; rewardPoints?: number }) {
   const parts: string[] = []
   const cash = Number(t.reward)
   if (cash > 0) parts.push(`₦${cash.toLocaleString()}`)
   if (t.rewardSpins > 0) parts.push(`${t.rewardSpins} spin${t.rewardSpins > 1 ? "s" : ""}`)
   if (t.rewardScratch > 0) parts.push(`${t.rewardScratch} scratch card${t.rewardScratch > 1 ? "s" : ""}`)
+  const pts = (t as { rewardPoints?: number }).rewardPoints ?? 0
+  if (pts > 0) parts.push(`${pts.toLocaleString()} pts`)
   return parts.length ? parts.join(" + ") : "Reward"
 }
 
