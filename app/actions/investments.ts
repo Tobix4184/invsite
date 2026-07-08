@@ -160,6 +160,10 @@ async function payReferralCommission(buyerId: string, amount: number, isFirstPur
     }
   }
 
+  // Cash commission only fires on the referred user's FIRST investment.
+  // Subsequent purchases by the same user give the upline nothing.
+  if (!isFirstPurchase) return
+
   for (const r of refs) {
     // Determine rate: promoters use their per-user override if set, else the
     // site-wide promoterLevel1 default. Normal users use referralLevel1/2.
@@ -192,7 +196,7 @@ async function payReferralCommission(buyerId: string, amount: number, isFirstPur
       userId: r.referrerId,
       type: "referral",
       amount: String(commission),
-      description: `Level ${r.level} referral commission (${rate}%)`,
+      description: `Level ${r.level} referral commission (${rate}%) — first investment`,
     })
   }
 }
