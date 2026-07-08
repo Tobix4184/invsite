@@ -3,7 +3,7 @@
 import { useState } from "react"
 import useSWR from "swr"
 import { BellDot, X, Clock3, Users, Wallet, ArrowDownToLine, TrendingUp, ShieldCheck, Send, Headphones, BadgeCheck } from "lucide-react"
-import { Logo } from "@/components/logo"
+import { LogoMark } from "@/components/logo"
 import { SITE, formatNaira } from "@/lib/plans"
 
 type PlatformInfo = {
@@ -45,13 +45,7 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
       <header className="sticky top-0 z-30 border-b-2 border-ink bg-background">
         <div className="mx-auto flex h-16 max-w-md items-center justify-between px-4 py-2">
           {isHome ? (
-            <div className="flex items-center gap-2.5">
-              <Logo className="h-10 w-10 rounded-xl border-2 border-ink" />
-              <div className="leading-none">
-                <span className="block text-base font-black tracking-tight">{SITE.name}</span>
-                <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{SITE.tagline}</span>
-              </div>
-            </div>
+            <LogoMark />
           ) : (
             <h1 className="text-lg font-black uppercase tracking-tight">{title}</h1>
           )}
@@ -59,10 +53,9 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
           <button
             onClick={() => setOpen(true)}
             aria-label="Platform info"
-            className="press relative flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink bg-gold text-gold-foreground shadow-[3px_3px_0_0_var(--ink)]"
+            className="press flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink bg-card text-foreground shadow-[2px_2px_0_0_var(--ink)]"
           >
             <BellDot className="h-4 w-4" />
-            <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-ink bg-primary" />
           </button>
         </div>
       </header>
@@ -152,7 +145,6 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
                     title="Telegram Group"
                     desc="Chat with the community & other investors"
                     badge="JOIN"
-                    bg="bg-primary"
                   />
                   <CommunityLink
                     href={SITE.telegramChannel}
@@ -160,7 +152,6 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
                     title="Official Channel"
                     desc="Announcements, updates & platform news"
                     badge="FOLLOW"
-                    bg="bg-gold"
                   />
                   <CommunityLink
                     href={SITE.telegramSupport}
@@ -168,7 +159,6 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
                     title="Customer Support"
                     desc="Need help? Message us directly on Telegram"
                     badge="CHAT"
-                    bg="bg-success"
                   />
                 </div>
               </div>
@@ -181,19 +171,19 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
 }
 
 function CommunityLink({
-  href, icon: Icon, title, desc, badge, bg,
+  href, icon: Icon, title, desc, badge,
 }: {
-  href: string; icon: typeof Send; title: string; desc: string; badge: string; bg: string
+  href: string; icon: typeof Send; title: string; desc: string; badge: string
 }) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="press flex items-center gap-3.5 rounded-2xl border-2 border-ink bg-card px-4 py-3.5 shadow-[3px_3px_0_0_var(--ink)]"
+      className="press flex items-center gap-3.5 rounded-2xl border-2 border-ink bg-card px-4 py-3.5 shadow-[2px_2px_0_0_var(--ink)]"
     >
-      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-ink ${bg}`}>
-        <Icon className="h-5 w-5 text-foreground" />
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-primary">
+        <Icon className="h-5 w-5 text-primary-foreground" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-black text-foreground">{title}</p>

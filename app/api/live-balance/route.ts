@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { wallet, investment } from "@/lib/db/schema"
 import { eq, and } from "drizzle-orm"
 import { accrueIncomeForUser } from "@/lib/income-engine"
+import { getPointsConfig } from "@/app/actions/points"
 
 export const dynamic = "force-dynamic"
 
@@ -18,12 +19,13 @@ export async function GET() {
   // Run income accrual so balance is always up-to-date
   await accrueIncomeForUser(userId)
 
-  const [[w], investments] = await Promise.all([
+  const [[w], investments, ptsCfg] = await Promise.all([
     db.select().from(wallet).where(eq(wallet.userId, userId)),
     db
       .select()
       .from(investment)
       .where(and(eq(investment.userId, userId), eq(investment.status, "active"))),
+    getPointsConfig(),
   ])
 
   const todayIncome = investments.reduce(
@@ -31,9 +33,19 @@ export async function GET() {
     0,
   )
 
+  // Next Saturday calculation
+  const now = new Date()
+  const daysUntilSat = now.getDay() === 6 ? 7 : (6 - now.getDay())
+  const nextSat = new Date(now)
+  nextSat.setDate(now.getDate() + daysUntilSat)
+  const nextPayoutDay = nextSat.toLocaleDateString("en-NG", { weekday: "long", month: "long", day: "numeric" })
+
   return NextResponse.json({
     balance: Number(w?.balance ?? 0),
     todayIncome,
+    weekendPoints: w?.weekendPoints ?? 0,
+    pointsPerNaira: ptsCfg.pointsPerNaira,
+    nextPayoutDay,
     investments: investments.map((inv) => ({
       id: inv.id,
       planName: inv.planName,

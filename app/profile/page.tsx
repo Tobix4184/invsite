@@ -22,6 +22,9 @@ export default async function ProfilePage() {
         totalDeposited={data.totalDeposited}
         totalEarned={data.totalEarned}
         referralEarnings={data.referralEarnings}
+        weekendPoints={data.weekendPoints ?? 0}
+        pointsPerNaira={data.pointsPerNaira ?? 0.5}
+        nextPayoutDay={data.nextPayoutDay ?? "Saturday"}
       />
       <BottomNav />
     </div>

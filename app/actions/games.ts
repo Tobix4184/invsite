@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getGameConfig } from "@/app/actions/settings"
+import { awardPoints, getPointsConfig } from "@/app/actions/points"
 
 /** Picks a random reward from a live-configured prize table. */
 function pickSpinPrizeLive(prizes: { amount: number; weight: number }[]): number {
@@ -56,7 +57,7 @@ async function earnedSpins(userId: string): Promise<number> {
   const [inv] = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(investment)
-    .where(eq(investment.userId, userId))
+    .where(and(eq(investment.userId, userId), sql`${investment.status} NOT IN ('cancelled', 'deleted')`))
 
   const [ref] = await db
     .select({ c: sql<number>`count(*)::int` })
@@ -74,13 +75,19 @@ async function earnedSpins(userId: string): Promise<number> {
 }
 
 /**
- * SCRATCH CARD entitlement: 1 per investment + 1 per valid referral + task grants.
+ * SCRATCH CARD entitlement:
+ *   1 per active investment
+ *   + scratchCardsPerReferral per valid referral (referral that earned commission)
+ *   + task / admin grants
  */
 async function earnedScratchCards(userId: string): Promise<number> {
+  const cfg = await getGameConfig()
+  const cardsPerReferral = cfg.scratchCardsPerReferral ?? 2
+
   const [inv] = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(investment)
-    .where(eq(investment.userId, userId))
+    .where(and(eq(investment.userId, userId), sql`${investment.status} NOT IN ('cancelled', 'deleted')`))
 
   const [ref] = await db
     .select({ c: sql<number>`count(*)::int` })
@@ -89,7 +96,7 @@ async function earnedScratchCards(userId: string): Promise<number> {
 
   const granted = await grantedPlays(userId, "scratch")
 
-  return Number(inv?.c ?? 0) + Number(ref?.c ?? 0) + granted
+  return Number(inv?.c ?? 0) + (Number(ref?.c ?? 0) * cardsPerReferral) + granted
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -167,6 +174,11 @@ export async function playSpin() {
       amount: String(prize),
       description: `Lucky Roulette reward — ₦${prize.toLocaleString()}`,
     })
+
+    // Award weekend salary points proportional to win amount
+    const ptsCfg = await getPointsConfig()
+    const spinPts = Math.floor(prize / 10 * ptsCfg.gameWinPointsRate)
+    if (spinPts > 0) await awardPoints(userId, spinPts, `Spin win points: ₦${prize}`)
   } else {
     const [w] = await db.select({ balance: wallet.balance }).from(wallet).where(eq(wallet.userId, userId))
     newBalance = Number(w?.balance ?? 0)
@@ -258,6 +270,11 @@ export async function playScratchCard() {
       amount: String(prize),
       description: `Scratch Card win — ₦${prize.toLocaleString()}`,
     })
+
+    // Award weekend salary points proportional to win amount
+    const ptsCfg = await getPointsConfig()
+    const scratchPts = Math.floor(prize / 10 * ptsCfg.gameWinPointsRate)
+    if (scratchPts > 0) await awardPoints(userId, scratchPts, `Scratch win points: ₦${prize}`)
   } else {
     const [w] = await db.select({ balance: wallet.balance }).from(wallet).where(eq(wallet.userId, userId))
     newBalance = Number(w?.balance ?? 0)

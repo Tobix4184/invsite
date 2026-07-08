@@ -11,6 +11,8 @@ export type Plan = {
   /** Fixed daily earning in Naira */
   dailyEarning: number
   durationDays: number
+  /** Fixed weekend salary points awarded per day of active earnings */
+  dailyPoints: number
   /** Which withdrawal tier this package unlocks */
   withdrawalTier: WithdrawalTier
   popular?: boolean
@@ -20,6 +22,7 @@ export type Plan = {
 
 export const PLANS: Plan[] = [
   {
+    // ₦3k × 40 days × ₦650/day = ₦26,000 total → 867% ROI
     id: 1,
     name: 'Starter',
     tier: 'Entry',
@@ -27,6 +30,22 @@ export const PLANS: Plan[] = [
     assetImage: '/assets/treasury.png',
     price: 3000,
     dailyEarning: 650,
+    dailyPoints: 150,
+    durationDays: 40,
+    withdrawalTier: 'tier3',
+    accentColor: '#00D4FF',
+    badgeClass: 'bg-primary text-primary-foreground',
+  },
+  {
+    // ₦6k × 40 days × ₦1,000/day = ₦40,000 total → 667% ROI
+    id: 9,
+    name: 'Rising',
+    tier: 'Entry',
+    asset: 'Micro Finance Bond',
+    assetImage: '/assets/treasury.png',
+    price: 6000,
+    dailyEarning: 1000,
+    dailyPoints: 200,
     durationDays: 40,
     withdrawalTier: 'tier3',
     accentColor: '#00D4FF',
@@ -41,6 +60,7 @@ export const PLANS: Plan[] = [
     assetImage: '/assets/gold.png',
     price: 10000,
     dailyEarning: 1300,
+    dailyPoints: 400,
     durationDays: 45,
     withdrawalTier: 'tier3',
     accentColor: '#00D4FF',
@@ -55,6 +75,7 @@ export const PLANS: Plan[] = [
     assetImage: '/assets/solar.png',
     price: 35000,
     dailyEarning: 4200,
+    dailyPoints: 800,
     durationDays: 45,
     withdrawalTier: 'tier3',
     popular: true,
@@ -70,6 +91,7 @@ export const PLANS: Plan[] = [
     assetImage: '/assets/agriculture.png',
     price: 80000,
     dailyEarning: 8800,
+    dailyPoints: 1500,
     durationDays: 50,
     withdrawalTier: 'tier2',
     accentColor: '#34D399',
@@ -84,6 +106,7 @@ export const PLANS: Plan[] = [
     assetImage: '/assets/realestate.png',
     price: 150000,
     dailyEarning: 15000,
+    dailyPoints: 2500,
     durationDays: 55,
     withdrawalTier: 'tier2',
     accentColor: '#34D399',
@@ -98,6 +121,7 @@ export const PLANS: Plan[] = [
     assetImage: '/assets/oil.png',
     price: 300000,
     dailyEarning: 28000,
+    dailyPoints: 4000,
     durationDays: 60,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
@@ -112,6 +136,7 @@ export const PLANS: Plan[] = [
     assetImage: '/assets/datacenter.png',
     price: 500000,
     dailyEarning: 45000,
+    dailyPoints: 6000,
     durationDays: 65,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
@@ -126,6 +151,7 @@ export const PLANS: Plan[] = [
     assetImage: '/assets/diamond.png',
     price: 1000000,
     dailyEarning: 85000,
+    dailyPoints: 10000,
     durationDays: 70,
     withdrawalTier: 'tier1',
     accentColor: '#F5C451',
@@ -176,7 +202,7 @@ export const SITE = {
   name: '247 Incum',
   short: '247',
   tagline: 'Earn Every Hour, Every Day',
-  packageCount: 8,
+  packageCount: 9,
 
   // Phone numbers that are auto-granted the admin role on signup.
   adminPhones: ['08077229485'],

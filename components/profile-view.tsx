@@ -16,6 +16,7 @@ import {
   Wallet2,
   TrendingUp,
   BadgeDollarSign,
+  CalendarClock,
   Star,
   Phone,
   Mail,
@@ -36,6 +37,9 @@ type Props = {
   totalDeposited: number
   totalEarned: number
   referralEarnings: number
+  weekendPoints: number
+  pointsPerNaira: number
+  nextPayoutDay: string
 }
 
 export function ProfileView(props: Props) {
@@ -191,6 +195,37 @@ export function ProfileView(props: Props) {
           </p>
         </div>
       )}
+
+      {/* ── Weekend salary balance ───────────────────────────── */}
+      <div className="mt-3 mx-4 overflow-hidden rounded-2xl border-2 border-ink bg-card shadow-[3px_3px_0_0_var(--ink)]">
+        <div className="flex items-center justify-between border-b-2 border-ink/10 bg-primary px-4 py-2.5">
+          <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-primary-foreground">
+            <Star className="h-3.5 w-3.5" />
+            Weekend Salary Points
+          </span>
+          <span className="rounded-full border border-white/30 bg-white/10 px-2 py-0.5 text-[10px] font-black text-primary-foreground">
+            Pays Saturday
+          </span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-3">
+          <div>
+            <p className="text-2xl font-black tabular-nums text-foreground">
+              {props.weekendPoints.toLocaleString()}
+              <span className="ml-1.5 text-base font-bold text-muted-foreground">pts</span>
+            </p>
+            <p className="mt-0.5 text-xs font-bold text-muted-foreground">
+              ≈ {formatNaira(props.weekendPoints * props.pointsPerNaira)}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-surface px-3 py-2">
+            <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Next payout</p>
+              <p className="text-[11px] font-black text-foreground">{props.nextPayoutDay}</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* ── Menu ─────────────────────────────────────────────── */}
       <div className="mt-5 px-4">

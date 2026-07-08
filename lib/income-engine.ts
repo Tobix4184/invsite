@@ -1,6 +1,8 @@
 import { db, pool } from "@/lib/db"
 import { investment } from "@/lib/db/schema"
 import { eq, and } from "drizzle-orm"
+import { awardPoints } from "@/app/actions/points"
+import { getPlanById } from "@/lib/plans"
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -35,7 +37,7 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
 
       // Lock this investment row. Any concurrent accrual for the same row waits here.
       const { rows } = await client.query(
-        `SELECT id, "planName", "dailyEarning", "durationDays", "daysPaid", "lastPayoutAt", status
+        `SELECT id, "planId", "planName", "dailyEarning", "durationDays", "daysPaid", "lastPayoutAt", status
          FROM investment WHERE id = $1 FOR UPDATE`,
         [id],
       )
@@ -91,6 +93,24 @@ export async function accrueIncomeForUser(userId: string): Promise<number> {
 
       await client.query("COMMIT")
       totalCredited += credit
+
+      // Award per-plan daily weekend salary points.
+      // Each plan has a fixed dailyPoints value (e.g. Starter=150, Basic=400).
+      // We multiply by payDays to account for multi-day catch-up accruals.
+      try {
+        const plan = getPlanById(Number(inv.planId))
+        const dailyPts = plan?.dailyPoints ?? 0
+        const pts = dailyPts * payDays
+        if (pts > 0) {
+          await awardPoints(
+            userId,
+            pts,
+            `Daily points: ${inv.planName} (${payDays}d × ${dailyPts} pts/day)`,
+          )
+        }
+      } catch {
+        // Never let points errors break income accrual
+      }
     } catch (err) {
       await client.query("ROLLBACK").catch(() => {})
       console.error(`[v0] accrueIncomeForUser failed for investment ${id}:`, err)

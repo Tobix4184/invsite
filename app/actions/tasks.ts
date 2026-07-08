@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { task, taskSubmission, gameGrant, wallet, transaction, investment, user as userTable, profile } from "@/lib/db/schema"
 import { getUserId, requireAdmin } from "@/lib/session"
 import { getUserTier } from "@/lib/user-tier"
+import { awardPoints } from "@/app/actions/points"
 import { and, desc, eq, inArray, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
@@ -196,7 +197,7 @@ export async function submitTask(
   }
 }
 
-/** Credit all rewards for a task to a user (cash + spins + scratch cards). */
+/** Credit all rewards for a task to a user (cash + spins + scratch cards + points). */
 async function grantTaskRewards(userId: string, t: Task) {
   const reward = Number(t.reward)
   if (reward > 0) {
@@ -231,14 +232,21 @@ async function grantTaskRewards(userId: string, t: Task) {
       source: `task:${t.id}`,
     })
   }
+  // Award weekend salary points if the task grants any
+  const pts = (t as typeof t & { rewardPoints?: number }).rewardPoints ?? 0
+  if (pts > 0) {
+    await awardPoints(userId, pts, `Task reward points: ${t.title}`)
+  }
 }
 
-function rewardSummary(t: Task | { reward: string | number; rewardSpins: number; rewardScratch: number }) {
+function rewardSummary(t: Task | { reward: string | number; rewardSpins: number; rewardScratch: number; rewardPoints?: number }) {
   const parts: string[] = []
   const cash = Number(t.reward)
   if (cash > 0) parts.push(`₦${cash.toLocaleString()}`)
   if (t.rewardSpins > 0) parts.push(`${t.rewardSpins} spin${t.rewardSpins > 1 ? "s" : ""}`)
   if (t.rewardScratch > 0) parts.push(`${t.rewardScratch} scratch card${t.rewardScratch > 1 ? "s" : ""}`)
+  const pts = (t as { rewardPoints?: number }).rewardPoints ?? 0
+  if (pts > 0) parts.push(`${pts.toLocaleString()} pts`)
   return parts.length ? parts.join(" + ") : "Reward"
 }
 
@@ -339,6 +347,7 @@ export async function adminCreateTask(data: {
   reward: number
   rewardSpins?: number
   rewardScratch?: number
+  rewardPoints?: number
   taskType: string
   fields?: string[]
   targetType?: "all" | "tier" | "plan"
@@ -356,6 +365,7 @@ export async function adminCreateTask(data: {
     reward: String(data.reward),
     rewardSpins: data.rewardSpins ?? 0,
     rewardScratch: data.rewardScratch ?? 0,
+    rewardPoints: data.rewardPoints ?? 0,
     taskType: data.taskType,
     fields: data.fields ? JSON.stringify(data.fields) : null,
     targetType: data.targetType ?? "all",
@@ -381,6 +391,7 @@ export async function adminUpdateTask(
     reward: number
     rewardSpins: number
     rewardScratch: number
+    rewardPoints: number
     taskType: string
     fields: string[]
     targetType: "all" | "tier" | "plan"
@@ -402,6 +413,7 @@ export async function adminUpdateTask(
       ...(data.reward !== undefined && { reward: String(data.reward) }),
       ...(data.rewardSpins !== undefined && { rewardSpins: data.rewardSpins }),
       ...(data.rewardScratch !== undefined && { rewardScratch: data.rewardScratch }),
+      ...(data.rewardPoints !== undefined && { rewardPoints: data.rewardPoints }),
       ...(data.taskType !== undefined && { taskType: data.taskType }),
       ...(data.fields !== undefined && { fields: JSON.stringify(data.fields) }),
       ...(data.targetType !== undefined && { targetType: data.targetType }),

@@ -29,7 +29,8 @@ export const metadata: Metadata = {
   generator: 'v0.app',
   icons: {
     icon: '/favicon.png',
-    apple: '/logo.png',
+    apple: '/apple-icon.png',
+    shortcut: '/favicon.png',
   },
   openGraph: {
     title: '247 Incum — Earn Every Hour, Every Day',
@@ -46,7 +47,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#F8F8F9',
+  themeColor: '#1a3d2b',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,

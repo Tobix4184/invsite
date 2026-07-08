@@ -105,6 +105,7 @@ import {
   saveGameConfig,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
+import { PointsTab } from "@/components/admin/points-tab"
 
 const POLL_INTERVAL = 20_000 // 20 seconds
 
@@ -254,6 +255,7 @@ const TABS = [
   "Milestones",
   "Tasks",
   "Game Config",
+  "Points",
 ] as const
 type Tab = (typeof TABS)[number]
 
@@ -476,6 +478,7 @@ export function AdminDashboard(initial: AdminData) {
         {tab === "Milestones" && <MilestonesTab items={milestones} isModerator={isModerator} />}
         {tab === "Tasks" && <TasksTab />}
         {tab === "Game Config" && <GameConfigTab />}
+        {tab === "Points" && <PointsTab />}
       </div>
     </div>
   )
@@ -736,7 +739,7 @@ function GameConfigTab() {
         </div>
       </section>
 
-      {/* ── Plays per action ──────────────────────────────── */}
+      {/* ── Plays per action ──────────────��───────────────── */}
       <section className="rounded-2xl border-2 border-ink bg-card p-4 shadow-[3px_3px_0_0_var(--ink)]">
         <p className="mb-3 font-black">Plays Earned</p>
         <div className="grid grid-cols-2 gap-3">
@@ -783,6 +786,7 @@ function TasksTab() {
     reward: "",
     rewardSpins: "0",
     rewardScratch: "0",
+    rewardPoints: "0",
     taskType: "rating",
     fields: "Location,Service,Value",
     perUserLimit: "1",
@@ -810,6 +814,7 @@ function TasksTab() {
       reward: "",
       rewardSpins: "0",
       rewardScratch: "0",
+      rewardPoints: "0",
       taskType: "rating",
       fields: "Location,Service,Value",
       perUserLimit: "1",
@@ -831,6 +836,7 @@ function TasksTab() {
       reward: String(Number(t.reward)),
       rewardSpins: String(t.rewardSpins ?? 0),
       rewardScratch: String(t.rewardScratch ?? 0),
+      rewardPoints: String((t as typeof t & { rewardPoints?: number }).rewardPoints ?? 0),
       taskType: t.taskType,
       fields: t.fields ? (JSON.parse(t.fields) as string[]).join(",") : "",
       perUserLimit: String(t.perUserLimit),
@@ -853,6 +859,7 @@ function TasksTab() {
       reward: Number(form.reward),
       rewardSpins: Number(form.rewardSpins) || 0,
       rewardScratch: Number(form.rewardScratch) || 0,
+      rewardPoints: Number(form.rewardPoints) || 0,
       taskType: form.taskType,
       fields: fieldsArr,
       perUserLimit: Number(form.perUserLimit),
@@ -917,7 +924,7 @@ function TasksTab() {
               ))}
 
               {/* Bonus game rewards */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className={labelCls}>Bonus spins</label>
                   <input
@@ -935,6 +942,16 @@ function TasksTab() {
                     min={0}
                     value={form.rewardScratch}
                     onChange={(e) => setForm((p) => ({ ...p, rewardScratch: e.target.value }))}
+                    className={fieldCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Weekend pts reward</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.rewardPoints}
+                    onChange={(e) => setForm((p) => ({ ...p, rewardPoints: e.target.value }))}
                     className={fieldCls}
                   />
                 </div>
@@ -1231,6 +1248,7 @@ function TaskReviewPanel({ onReviewed }: { onReviewed: () => void }) {
                   {formatNaira(Number(s.reward))}
                   {(s.rewardSpins ?? 0) > 0 && <span className="text-foreground"> · {s.rewardSpins} spins</span>}
                   {(s.rewardScratch ?? 0) > 0 && <span className="text-foreground"> · {s.rewardScratch} cards</span>}
+                  {((s as typeof s & { rewardPoints?: number }).rewardPoints ?? 0) > 0 && <span className="text-foreground"> · {(s as typeof s & { rewardPoints?: number }).rewardPoints} pts</span>}
                 </p>
                 {s.submittedAt && (
                   <p className="mt-0.5 text-[10px] text-muted-foreground">
@@ -4434,7 +4452,7 @@ function SalaryConfigEditor({ cfg, onSaved }: { cfg: SalaryCfg; onSaved: () => v
   )
 }
 
-// ── Promotions Tab ────────────────────────────────────────────────────────────
+// ── Promotions Tab ───────────────────────────────────────────────��────────────
 type PromoRow = {
   id: number
   name: string
