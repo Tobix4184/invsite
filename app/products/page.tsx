@@ -1,11 +1,12 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getSession } from '@/lib/session'
 import { AppHeader } from '@/components/app-header'
 import { BottomNav } from '@/components/bottom-nav'
 import { PlanCard } from '@/components/plan-card'
 import { EarningsSheet } from '@/components/earnings-sheet'
 import { PLANS, formatNaira, SITE } from '@/lib/plans'
-import { Layers, TrendingUp, ShieldCheck } from 'lucide-react'
+import { Layers, TrendingUp, ShieldCheck, ImageDown } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,9 +65,18 @@ export default async function ProductsPage() {
 
         {/* ── Earnings Sheet ─────────────────────────────────────────── */}
         <section>
-          <div className="mb-3 flex items-center gap-2">
-            <span className="h-1.5 w-6 rounded-full bg-primary" />
-            <h2 className="text-lg font-black tracking-tight">Full Earnings Breakdown</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-6 rounded-full bg-primary" />
+              <h2 className="text-lg font-black tracking-tight">Full Earnings Breakdown</h2>
+            </div>
+            <Link
+              href="/earnings-image"
+              className="press flex items-center gap-1.5 rounded-xl border-2 border-ink bg-card px-3 py-1.5 text-[11px] font-black shadow-[2px_2px_0_0_var(--ink)]"
+            >
+              <ImageDown className="h-3.5 w-3.5" />
+              View Poster
+            </Link>
           </div>
           <EarningsSheet />
         </section>
