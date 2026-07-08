@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getGameConfig } from "@/app/actions/settings"
+import { awardPoints, getPointsConfig } from "@/app/actions/points"
 
 /** Picks a random reward from a live-configured prize table. */
 function pickSpinPrizeLive(prizes: { amount: number; weight: number }[]): number {
@@ -167,6 +168,11 @@ export async function playSpin() {
       amount: String(prize),
       description: `Lucky Roulette reward — ₦${prize.toLocaleString()}`,
     })
+
+    // Award weekend salary points proportional to win amount
+    const ptsCfg = await getPointsConfig()
+    const spinPts = Math.floor(prize / 10 * ptsCfg.gameWinPointsRate)
+    if (spinPts > 0) await awardPoints(userId, spinPts, `Spin win points: ₦${prize}`)
   } else {
     const [w] = await db.select({ balance: wallet.balance }).from(wallet).where(eq(wallet.userId, userId))
     newBalance = Number(w?.balance ?? 0)
@@ -258,6 +264,11 @@ export async function playScratchCard() {
       amount: String(prize),
       description: `Scratch Card win — ₦${prize.toLocaleString()}`,
     })
+
+    // Award weekend salary points proportional to win amount
+    const ptsCfg = await getPointsConfig()
+    const scratchPts = Math.floor(prize / 10 * ptsCfg.gameWinPointsRate)
+    if (scratchPts > 0) await awardPoints(userId, scratchPts, `Scratch win points: ₦${prize}`)
   } else {
     const [w] = await db.select({ balance: wallet.balance }).from(wallet).where(eq(wallet.userId, userId))
     newBalance = Number(w?.balance ?? 0)

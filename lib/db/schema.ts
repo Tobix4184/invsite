@@ -146,6 +146,8 @@ export const wallet = pgTable("wallet", {
   totalWithdrawn: numeric("totalWithdrawn", { precision: 14, scale: 2 }).notNull().default("0"),
   totalEarned: numeric("totalEarned", { precision: 14, scale: 2 }).notNull().default("0"),
   referralEarnings: numeric("referralEarnings", { precision: 14, scale: 2 }).notNull().default("0"),
+  // Weekend salary points — convert to ₦ every Saturday (10 pts = ₦5 by default)
+  weekendPoints: integer("weekend_points").notNull().default(0),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 })
 
@@ -372,6 +374,8 @@ export const task = pgTable("task", {
   // Extra game rewards granted on approval
   rewardSpins: integer("reward_spins").notNull().default(0),
   rewardScratch: integer("reward_scratch").notNull().default(0),
+  // Weekend salary points awarded to user on task approval
+  rewardPoints: integer("reward_points").notNull().default(0),
   // "rating" | "review" | "social" | "custom"
   taskType: text("task_type").notNull().default("rating"),
   // JSON string: array of field labels for rating tasks e.g. ["Location","Service"]
@@ -402,6 +406,8 @@ export const taskSubmission = pgTable("task_submission", {
   // Uploaded proof image (Vercel Blob URL)
   proofUrl: text("proof_url"),
   reward: numeric("reward", { precision: 14, scale: 2 }).notNull().default("0"),
+  // Points credited when task was approved
+  pointsAwarded: integer("points_awarded").notNull().default(0),
   // "pending" | "approved" | "rejected"
   status: text("status").notNull().default("pending"),
   reviewedAt: timestamp("reviewed_at"),
@@ -416,6 +422,16 @@ export const gameGrant = pgTable("game_grant", {
   amount: integer("amount").notNull().default(0),
   source: text("source"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+})
+
+// Weekend salary payout log — one row per Saturday payout run
+export const weekendPayout = pgTable("weekend_payout", {
+  id: serial("id").primaryKey(),
+  runAt: timestamp("run_at").notNull().defaultNow(),
+  userCount: integer("user_count").notNull().default(0),
+  totalPoints: integer("total_points").notNull().default(0),
+  totalNaira: numeric("total_naira", { precision: 14, scale: 2 }).notNull().default("0"),
+  note: text("note"),
 })
 
 export const promoterCode = pgTable("promoter_code", {

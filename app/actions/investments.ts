@@ -5,6 +5,7 @@ import { investment, wallet, transaction, profile, referral, promo, promoRedempt
 import { PLANS, SITE, getDailyEarning, getTotalEarning } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { accrueIncomeForUser } from "@/lib/income-engine"
+import { awardPoints, getPointsConfig } from "@/app/actions/points"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
@@ -54,6 +55,11 @@ export async function buyPlan(planId: number) {
 
   // pay referral commissions on the purchase amount
   await payReferralCommission(userId, plan.price)
+
+  // award weekend salary points for this investment
+  const ptsCfg = await getPointsConfig()
+  const investPts = ptsCfg.investmentPointsMap[String(plan.id)] ?? ptsCfg.investmentDefaultPoints
+  if (investPts > 0) await awardPoints(userId, investPts, `Investment points: ${plan.name}`)
 
   // apply any qualifying promo cashback
   const promoBonus = await applyPromo(userId, plan.price, isFirstPurchase)

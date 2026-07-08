@@ -14,6 +14,7 @@ import {
 import { SITE } from "@/lib/plans"
 import { getUserId, getSession } from "@/lib/session"
 import { accrueIncomeForUser } from "@/lib/income-engine"
+import { awardPoints, getPointsConfig } from "@/app/actions/points"
 import { and, desc, eq, gte, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
@@ -131,6 +132,16 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string; p
     if (l1?.referredBy) {
       await db.insert(referral).values({ referrerId: l1.referredBy, referredId: userId, level: 2 })
     }
+
+    // Award join points to both new user and referrer
+    const ptsCfg = await getPointsConfig()
+    const joinPts = ptsCfg.referralJoinPoints
+    if (joinPts > 0) {
+      await Promise.all([
+        awardPoints(userId, joinPts, "Referral join bonus (new member)"),
+        awardPoints(referrerId, joinPts, "Referral join bonus (referrer)"),
+      ])
+    }
   }
 
   revalidatePath("/")
@@ -162,6 +173,16 @@ export async function getDashboardData() {
     .from(dailySignin)
     .where(and(eq(dailySignin.userId, userId), gte(dailySignin.signedAt, since)))
 
+  // Calculate next Saturday for the points payout display
+  const now = new Date()
+  const daysUntilSat = now.getDay() === 6 ? 7 : (6 - now.getDay())
+  const nextSat = new Date(now)
+  nextSat.setDate(now.getDate() + daysUntilSat)
+  const nextPayoutDay = nextSat.toLocaleDateString("en-NG", { weekday: "long", month: "long", day: "numeric" })
+
+  // Get points config for the rate
+  const ptsCfg = await getPointsConfig()
+
   return {
     name: u?.name ?? "User",
     email: u?.email ?? "",
@@ -175,6 +196,9 @@ export async function getDashboardData() {
     totalWithdrawn: Number(w?.totalWithdrawn ?? 0),
     totalEarned: Number(w?.totalEarned ?? 0),
     referralEarnings: Number(w?.referralEarnings ?? 0),
+    weekendPoints: w?.weekendPoints ?? 0,
+    pointsPerNaira: ptsCfg.pointsPerNaira,
+    nextPayoutDay,
     signedInToday: todaySignin.length > 0,
     isNewUser,
   }

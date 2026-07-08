@@ -105,6 +105,7 @@ import {
   saveGameConfig,
 } from "@/app/actions/admin"
 import { approveDeposit, rejectDeposit } from "@/app/actions/deposit"
+import { PointsTab } from "@/components/admin/points-tab"
 
 const POLL_INTERVAL = 20_000 // 20 seconds
 
@@ -254,6 +255,7 @@ const TABS = [
   "Milestones",
   "Tasks",
   "Game Config",
+  "Points",
 ] as const
 type Tab = (typeof TABS)[number]
 
@@ -476,6 +478,7 @@ export function AdminDashboard(initial: AdminData) {
         {tab === "Milestones" && <MilestonesTab items={milestones} isModerator={isModerator} />}
         {tab === "Tasks" && <TasksTab />}
         {tab === "Game Config" && <GameConfigTab />}
+        {tab === "Points" && <PointsTab />}
       </div>
     </div>
   )

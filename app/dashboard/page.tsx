@@ -59,7 +59,13 @@ export default async function DashboardPage() {
           </h1>
         </div>
 
-        <BalanceCard balance={data.balance} todayIncome={todayIncome} />
+        <BalanceCard
+          balance={data.balance}
+          todayIncome={todayIncome}
+          weekendPoints={data.weekendPoints ?? 0}
+          pointsPerNaira={data.pointsPerNaira ?? 0.5}
+          nextPayoutDay={data.nextPayoutDay ?? "Saturday"}
+        />
         <QuickActions signedInToday={data.signedInToday} />
 
         <ActiveInvestments investments={investments} />
