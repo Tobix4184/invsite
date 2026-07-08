@@ -75,9 +75,15 @@ async function earnedSpins(userId: string): Promise<number> {
 }
 
 /**
- * SCRATCH CARD entitlement: 1 per investment + 1 per valid referral + task grants.
+ * SCRATCH CARD entitlement:
+ *   1 per active investment
+ *   + scratchCardsPerReferral per valid referral (referral that earned commission)
+ *   + task / admin grants
  */
 async function earnedScratchCards(userId: string): Promise<number> {
+  const cfg = await getGameConfig()
+  const cardsPerReferral = cfg.scratchCardsPerReferral ?? 2
+
   const [inv] = await db
     .select({ c: sql<number>`count(*)::int` })
     .from(investment)
@@ -90,7 +96,7 @@ async function earnedScratchCards(userId: string): Promise<number> {
 
   const granted = await grantedPlays(userId, "scratch")
 
-  return Number(inv?.c ?? 0) + Number(ref?.c ?? 0) + granted
+  return Number(inv?.c ?? 0) + (Number(ref?.c ?? 0) * cardsPerReferral) + granted
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
