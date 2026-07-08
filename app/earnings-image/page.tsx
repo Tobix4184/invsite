@@ -6,16 +6,8 @@ import { PrintButton } from "@/components/print-button"
 
 export const dynamic = "force-dynamic"
 
-function fmt(n: number) {
+function N(n: number) {
   return "₦" + n.toLocaleString("en-NG")
-}
-
-const TIER_COLORS: Record<string, { row: string; badge: string; badgeText: string }> = {
-  Entry:   { row: "",              badge: "#1a3d2b", badgeText: "#ffffff" },
-  Popular: { row: "bg-primary/8",  badge: "#1a3d2b", badgeText: "#ffffff" },
-  Growth:  { row: "",              badge: "#166534", badgeText: "#dcfce7" },
-  Premium: { row: "bg-success/8",  badge: "#166534", badgeText: "#dcfce7" },
-  VIP:     { row: "bg-gold/10",    badge: "#c9a84c", badgeText: "#1a1a1a" },
 }
 
 export default async function EarningsImagePage() {
@@ -23,210 +15,225 @@ export default async function EarningsImagePage() {
   if (!session?.user) redirect("/")
 
   return (
-    <div className="min-h-screen bg-background flex items-start justify-center py-6 px-4">
-      {/* ── Poster card ─────────────────────────────────────────────── */}
+    <div
+      className="min-h-screen flex flex-col items-center justify-start py-6 px-4 gap-5"
+      style={{ background: "#f0f0f0" }}
+    >
+      {/* ────────────────────────────────────────────────────────── */}
+      {/* POSTER — fixed 390px wide, like a phone screenshot         */}
+      {/* ────────────────────────────────────────────────────────── */}
       <div
-        id="earnings-poster"
-        className="w-full max-w-sm overflow-hidden rounded-3xl border-2 border-ink shadow-[6px_6px_0_0_var(--ink)]"
-        style={{ background: "#1a3d2b" }}
+        id="poster"
+        style={{
+          width: 390,
+          background: "#1a3d2b",
+          borderRadius: 20,
+          overflow: "hidden",
+          fontFamily: "Archivo, system-ui, sans-serif",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+        }}
       >
 
-        {/* Header */}
-        <div className="px-6 pt-6 pb-5" style={{ background: "#1a3d2b" }}>
+        {/* ── Header ── */}
+        <div style={{ background: "#0f2518", padding: "22px 20px 18px" }}>
           {/* Logo row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-white/30 bg-white/10">
-                <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
-                  <path d="M20 2L38 12V28L20 38L2 28V12L20 2Z" fill="white" fillOpacity="0.15" stroke="white" strokeWidth="1.5" />
-                  <path d="M20 2L38 12L28 12L20 5Z" fill="#c9a84c" opacity="0.95" />
-                  <text x="50%" y="53%" dominantBaseline="middle" textAnchor="middle" fontSize="10" fontWeight="900" fontFamily="Archivo, system-ui" fill="white" letterSpacing="-0.3">247</text>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{
+                width: 42, height: 42, borderRadius: 10,
+                border: "2px solid rgba(255,255,255,0.25)",
+                background: "rgba(255,255,255,0.08)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
+                  <path d="M20 2L38 12V28L20 38L2 28V12L20 2Z" fill="white" fillOpacity="0.12" stroke="white" strokeWidth="1.5"/>
+                  <path d="M20 2L38 12L28 12L20 5Z" fill="#c9a84c"/>
+                  <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle"
+                    fontSize="10" fontWeight="900" fill="white" letterSpacing="-0.5">247</text>
                 </svg>
               </div>
-              <div className="leading-none">
-                <p className="text-[15px] font-black tracking-tight text-white">247 Incum</p>
-                <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/50">Invest · Earn · Grow</p>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", lineHeight: 1.1 }}>247 Incum</div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.45)", letterSpacing: "0.15em", textTransform: "uppercase" }}>
+                  Invest · Earn · Grow
+                </div>
               </div>
             </div>
-            <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-white/80">
-              Earnings Plan
-            </span>
+            <div style={{
+              background: "#c9a84c", borderRadius: 20,
+              padding: "5px 12px", fontSize: 10, fontWeight: 900,
+              color: "#1a1a1a", letterSpacing: "0.12em", textTransform: "uppercase",
+            }}>
+              Join Now
+            </div>
           </div>
 
-          {/* Headline */}
-          <h1 className="mt-5 text-[22px] font-black leading-tight tracking-tight text-white">
-            Your daily returns,<br />
-            <span style={{ color: "#c9a84c" }}>exactly what you earn.</span>
-          </h1>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-white/60">
-            Fixed daily income for the full plan duration. Earnings drop every 24 hours.
-          </p>
+          {/* Title */}
+          <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.4)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 6 }}>
+            Investment Plans
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#fff", lineHeight: 1.2 }}>
+            Earn <span style={{ color: "#4ade80" }}>daily returns</span>{"\n"}on every plan
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 6 }}>
+            www.247incumb.fun
+          </div>
         </div>
 
-        {/* ── Plans table ──────────────────────────────────────────── */}
-        <div className="mx-4 overflow-hidden rounded-2xl border-2 border-white/20">
-          {/* Column headers */}
-          <div
-            className="grid px-3 py-2"
-            style={{
-              gridTemplateColumns: "1fr 72px 76px 72px 40px",
-              background: "#0f2518",
-            }}
-          >
-            {["Plan", "Price", "Daily", "Total", "Days"].map((h) => (
-              <span key={h} className="text-[9px] font-black uppercase tracking-wider text-white/50">
-                {h}
-              </span>
-            ))}
-          </div>
+        {/* ── Table header ── */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1.1fr 0.9fr 0.9fr 1fr 0.55fr",
+          padding: "8px 16px",
+          background: "#0a1a10",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          {["Plan", "Price", "Daily", "Total", "Days"].map((h) => (
+            <div key={h} style={{
+              fontSize: 9, fontWeight: 900, color: "rgba(255,255,255,0.4)",
+              textTransform: "uppercase", letterSpacing: "0.1em",
+            }}>
+              {h}
+            </div>
+          ))}
+        </div>
 
-          {/* Rows */}
-          {PLANS.map((plan, i) => {
-            const tc = TIER_COLORS[plan.tier] ?? TIER_COLORS.Entry
-            const total = getTotalEarning(plan)
-            const isVip = plan.tier === "VIP"
-            const isLast = i === PLANS.length - 1
-            return (
-              <div
-                key={plan.id}
-                className={`grid items-center px-3 py-2 ${!isLast ? "border-b border-white/10" : ""}`}
-                style={{
-                  gridTemplateColumns: "1fr 72px 76px 72px 40px",
-                  background: isVip
-                    ? "rgba(201,168,76,0.08)"
-                    : i % 2 === 0
-                    ? "rgba(255,255,255,0.04)"
-                    : "rgba(255,255,255,0.01)",
-                  borderLeft: isVip ? "2.5px solid #c9a84c" : undefined,
-                }}
-              >
-                {/* Name + badge */}
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-[12px] font-black leading-none text-white truncate">
-                    {plan.name}
-                  </span>
-                  <span
-                    className="inline-block rounded-full px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wider w-fit"
-                    style={{ background: tc.badge, color: tc.badgeText }}
-                  >
-                    {plan.tier}
-                  </span>
+        {/* ── Plan rows ── */}
+        {PLANS.map((plan, i) => {
+          const total = getTotalEarning(plan)
+          const isVip = plan.tier === "VIP"
+          const rowBg = isVip
+            ? "rgba(201,168,76,0.09)"
+            : i % 2 === 0
+            ? "rgba(255,255,255,0.05)"
+            : "rgba(255,255,255,0.02)"
+          return (
+            <div
+              key={plan.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.1fr 0.9fr 0.9fr 1fr 0.55fr",
+                padding: "9px 16px",
+                background: rowBg,
+                borderLeft: isVip ? "3px solid #c9a84c" : "3px solid transparent",
+                borderBottom: i < PLANS.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                alignItems: "center",
+              }}
+            >
+              {/* Plan name */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 900, color: "#fff", lineHeight: 1 }}>{plan.name}</div>
+                <div style={{ fontSize: 8, fontWeight: 700, color: isVip ? "#c9a84c" : "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 2 }}>
+                  {plan.tier}
                 </div>
-                {/* Price */}
-                <span className="text-[10px] font-bold tabular-nums text-white/50">
-                  {fmt(plan.price)}
-                </span>
-                {/* Daily — bright green */}
-                <span className="text-[12px] font-black tabular-nums" style={{ color: "#4ade80" }}>
-                  +{fmt(plan.dailyEarning)}
-                </span>
-                {/* Total */}
-                <span className="text-[10px] font-bold tabular-nums text-white/70">
-                  {fmt(total)}
-                </span>
-                {/* Days */}
-                <span className="text-[10px] font-bold tabular-nums text-white/40">
-                  {plan.durationDays}d
-                </span>
               </div>
-            )
-          })}
-        </div>
+              {/* Price */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.55)", tabularNums: true } as React.CSSProperties}>
+                {N(plan.price)}
+              </div>
+              {/* Daily */}
+              <div style={{ fontSize: 13, fontWeight: 900, color: "#4ade80" }}>
+                {N(plan.dailyEarning)}
+              </div>
+              {/* Total */}
+              <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.8)" }}>
+                {N(total)}
+              </div>
+              {/* Days */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)" }}>
+                {plan.durationDays}d
+              </div>
+            </div>
+          )
+        })}
 
-        {/* ── Info strips ──────────────────────────────────────────── */}
-        <div className="mx-4 mt-3 overflow-hidden rounded-2xl border-2 border-white/20">
+        {/* ── Bottom info boxes ── */}
+        <div style={{ padding: "14px 14px 4px", display: "flex", gap: 10 }}>
           {/* Platform rules */}
-          <div
-            className="grid grid-cols-2 gap-px"
-            style={{ background: "rgba(255,255,255,0.05)" }}
-          >
+          <div style={{
+            flex: 1, background: "#0f2518", borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.1)", padding: "12px 12px",
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 900, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>
+              Platform Rules
+            </div>
             {[
-              { label: "Min. Deposit",    value: fmt(SITE.minDeposit) },
-              { label: "Min. Withdrawal", value: fmt(SITE.minWithdrawal) },
-              { label: "Withdrawal Fee",  value: `${SITE.withdrawalCharge}%` },
-              { label: "Earnings Drop",   value: "Every 24 hours" },
-            ].map((s, i) => (
-              <div
-                key={s.label}
-                className="flex flex-col px-3 py-2.5"
-                style={{
-                  background: "#0f2518",
-                  borderRight: i % 2 === 0 ? "1px solid rgba(255,255,255,0.1)" : undefined,
-                  borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.1)" : undefined,
-                }}
-              >
-                <span className="text-[8px] font-black uppercase tracking-wider text-white/40">{s.label}</span>
-                <span className="mt-0.5 text-[13px] font-black text-white">{s.value}</span>
+              [`Min. Deposit`, N(SITE.minDeposit)],
+              [`Min. Withdraw`, N(SITE.minWithdrawal)],
+              [`Withdrawal Fee`, `${SITE.withdrawalCharge}%`],
+              [`Earnings Drop`, `Every 24 hours`],
+            ].map(([label, val]) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{label}</span>
+                <span style={{ fontSize: 11, fontWeight: 900, color: "#fff" }}>{val}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Referral bonus */}
+          <div style={{
+            flex: 1, background: "#0f2518", borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.1)", padding: "12px 12px",
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 900, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 8 }}>
+              Referral Bonus
+            </div>
+            {[
+              [`Level 1`, `${SITE.referralLevel1}%`],
+              [`Level 2`, `${SITE.referralLevel2}%`],
+              [`Join Bonus`, `1,000 pts`],
+            ].map(([label, val]) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{label}</span>
+                <span style={{ fontSize: 11, fontWeight: 900, color: "#c9a84c" }}>{val}</span>
+              </div>
+            ))}
+            <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "8px 0" }} />
+            {[
+              [`Task Cash`, `Up to ₦1,000`],
+              [`Task Pts`, `50–200 pts`],
+              [`Weekend Salary`, `Pts → ₦ Sat`],
+            ].map(([label, val]) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}>{label}</span>
+                <span style={{ fontSize: 10, fontWeight: 800, color: "#fff" }}>{val}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* ── Referral + Task strip ─────────────────────────────────── */}
-        <div className="mx-4 mt-3 overflow-hidden rounded-2xl border-2 border-white/20">
-          <div
-            className="grid grid-cols-2 gap-px"
-            style={{ background: "rgba(255,255,255,0.05)" }}
-          >
-            {/* Referral bonus */}
-            <div className="px-3 py-3" style={{ background: "#0f2518", borderRight: "1px solid rgba(255,255,255,0.1)" }}>
-              <p className="text-[8px] font-black uppercase tracking-wider text-white/40 mb-1.5">Referral Bonus</p>
-              {[
-                { label: "Level 1", value: `${SITE.referralLevel1}%` },
-                { label: "Level 2", value: `${SITE.referralLevel2}%` },
-                { label: "Join Pts", value: "1,000 pts" },
-              ].map((r) => (
-                <div key={r.label} className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-bold text-white/60">{r.label}</span>
-                  <span className="text-[10px] font-black" style={{ color: "#c9a84c" }}>{r.value}</span>
-                </div>
-              ))}
-            </div>
-            {/* Task earnings */}
-            <div className="px-3 py-3" style={{ background: "#0f2518" }}>
-              <p className="text-[8px] font-black uppercase tracking-wider text-white/40 mb-1.5">Task Earnings</p>
-              {[
-                { label: "Cash", value: "Up to ₦1,000" },
-                { label: "Points", value: "50–200 pts" },
-                { label: "Weekend pts", value: "Pay every Sat" },
-              ].map((t) => (
-                <div key={t.label} className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-bold text-white/60">{t.label}</span>
-                  <span className="text-[10px] font-black text-white/90">{t.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Footer ───────────────────────────────────────────────── */}
-        <div className="px-5 py-4 mt-2 text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: "#c9a84c" }}>
+        {/* ── Footer ── */}
+        <div style={{ padding: "12px 16px 18px", textAlign: "center" }}>
+          <div style={{ fontSize: 11, fontWeight: 900, color: "#4ade80", letterSpacing: "0.05em" }}>
             Earnings drop every 24 hours
-          </p>
-          <p className="mt-0.5 text-[10px] text-white/40">
+          </div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 3 }}>
             Withdrawal: Mornings on your tier day
-          </p>
-          <div className="mt-3 flex items-center justify-center gap-1">
-            <div className="h-px flex-1 bg-white/10" />
-            <span className="text-[9px] font-black uppercase tracking-widest text-white/30">www.247incumb.fun</span>
-            <div className="h-px flex-1 bg-white/10" />
+          </div>
+          <div style={{
+            marginTop: 10,
+            display: "flex", alignItems: "center", gap: 8, justifyContent: "center",
+          }}>
+            <div style={{ height: 1, flex: 1, background: "rgba(255,255,255,0.1)" }} />
+            <span style={{ fontSize: 10, fontWeight: 900, color: "rgba(255,255,255,0.3)", letterSpacing: "0.15em", textTransform: "uppercase" }}>
+              www.247incumb.fun
+            </span>
+            <div style={{ height: 1, flex: 1, background: "rgba(255,255,255,0.1)" }} />
           </div>
         </div>
 
-      </div>
+      </div>{/* end poster */}
 
-      {/* Action bar */}
-      <div className="mt-5 flex w-full max-w-sm flex-col gap-2 print:hidden">
-        {/* Download / save instruction */}
+      {/* ── Action bar ── */}
+      <div className="flex w-full flex-col items-center gap-3 print:hidden" style={{ maxWidth: 390 }}>
         <p className="text-center text-[11px] text-muted-foreground">
-          On mobile: screenshot this page. On desktop: use the button below.
+          Mobile: screenshot this page. Desktop: Save / Print below.
         </p>
-        <div className="flex gap-2">
+        <div className="flex w-full gap-2">
           <PrintButton />
           <Link
             href="/earnings-image/landscape"
-            className="press flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-ink bg-card py-2.5 text-[12px] font-black uppercase tracking-widest shadow-[3px_3px_0_0_var(--ink)]"
+            className="press flex flex-1 items-center justify-center rounded-xl border-2 border-ink bg-card py-2.5 text-[12px] font-black uppercase tracking-widest shadow-[2px_2px_0_0_var(--ink)]"
           >
             Landscape
           </Link>
