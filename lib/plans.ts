@@ -220,7 +220,7 @@ export const SITE = {
   inviteCode: 'INCUM01',
   telegramGroup: 'https://t.me/incomehh',
   telegramChannel: 'https://t.me/incomehh',
-  telegramSupport: 'https://t.me/247incumSpt',
+  telegramSupport: 'https://t.me/incum247SPT',
 
   // Promoter salary system (promoters get salary, NOT extra referral commission)
   defaultPromoterSalary: 5000, // weekly, admin can override per promoter

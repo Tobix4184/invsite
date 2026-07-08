@@ -477,7 +477,7 @@ export async function seedSystemTasks() {
     {
       title: "Send Withdrawal Proof to Support",
       description:
-        "After receiving your withdrawal, take a screenshot of the credit alert and send it to support on Telegram (@247incumSpt). Upload the screenshot below — this helps us verify payments and unlock future bonuses.",
+        "After receiving your withdrawal, take a screenshot of the credit alert and send it to support on Telegram (@incum247SPT). Upload the screenshot below — this helps us verify payments and unlock future bonuses.",
       reward: 100,
       rewardPoints: 200,
       taskType: "proof",
