@@ -1,9 +1,9 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { wallet, transaction, weekendPayout, siteSetting } from "@/lib/db/schema"
+import { wallet, transaction, weekendPayout, siteSetting, investment } from "@/lib/db/schema"
 import { getUserId, requireAdmin } from "@/lib/session"
-import { eq, sql, desc } from "drizzle-orm"
+import { and, eq, sql, desc } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
 // ─── Config helpers ────────────────────────────────────────────────────────────
@@ -152,6 +152,23 @@ export type UserWithdrawPointsResult = {
  */
 export async function withdrawWeekendPoints(): Promise<UserWithdrawPointsResult> {
   const userId = await getUserId()
+
+  // Must have at least one active investment to be eligible for a payout
+  const [activeInv] = await db
+    .select({ id: investment.id })
+    .from(investment)
+    .where(and(
+      eq(investment.userId, userId),
+      sql`${investment.status} NOT IN ('cancelled', 'deleted', 'expired', 'completed')`,
+    ))
+    .limit(1)
+
+  if (!activeInv) {
+    return {
+      ok: false,
+      message: "You need an active investment plan to withdraw your weekend salary points.",
+    }
+  }
 
   const [row] = await db
     .select({ weekendPoints: wallet.weekendPoints })

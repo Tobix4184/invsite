@@ -53,8 +53,8 @@ export async function buyPlan(planId: number) {
     description: `Purchased ${plan.name}`,
   })
 
-  // pay referral commissions on the purchase amount
-  await payReferralCommission(userId, plan.price)
+  // pay referral commissions (and first-purchase join points) on this investment
+  await payReferralCommission(userId, plan.price, isFirstPurchase)
 
   // award weekend salary points for this investment
   const ptsCfg = await getPointsConfig()
@@ -143,8 +143,23 @@ async function applyPromo(userId: string, price: number, isFirstPurchase: boolea
   return best.bonus
 }
 
-async function payReferralCommission(buyerId: string, amount: number) {
+async function payReferralCommission(buyerId: string, amount: number, isFirstPurchase: boolean) {
   const refs = await db.select().from(referral).where(eq(referral.referredId, buyerId))
+
+  // On first investment only, award join points to the new investor and their upline (level 1).
+  // This ensures the upline gets nothing if the referred user never buys a plan.
+  if (isFirstPurchase) {
+    const ptsCfg = await getPointsConfig()
+    const joinPts = ptsCfg.referralJoinPoints
+    if (joinPts > 0) {
+      const level1Ref = refs.find((r) => r.level === 1)
+      await awardPoints(buyerId, joinPts, "Referral join bonus (first investment)")
+      if (level1Ref) {
+        await awardPoints(level1Ref.referrerId, joinPts, "Referral join bonus (referred user invested)")
+      }
+    }
+  }
+
   for (const r of refs) {
     // Determine rate: promoters use their per-user override if set, else the
     // site-wide promoterLevel1 default. Normal users use referralLevel1/2.

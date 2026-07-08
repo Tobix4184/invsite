@@ -14,7 +14,7 @@ import {
 import { SITE } from "@/lib/plans"
 import { getUserId, getSession } from "@/lib/session"
 import { accrueIncomeForUser } from "@/lib/income-engine"
-import { awardPoints, getPointsConfig } from "@/app/actions/points"
+import { getPointsConfig } from "@/app/actions/points"
 import { and, desc, eq, gte, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 
@@ -133,15 +133,8 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string; p
       await db.insert(referral).values({ referrerId: l1.referredBy, referredId: userId, level: 2 })
     }
 
-    // Award join points to both new user and referrer
-    const ptsCfg = await getPointsConfig()
-    const joinPts = ptsCfg.referralJoinPoints
-    if (joinPts > 0) {
-      await Promise.all([
-        awardPoints(userId, joinPts, "Referral join bonus (new member)"),
-        awardPoints(referrerId, joinPts, "Referral join bonus (referrer)"),
-      ])
-    }
+    // Referral join points are awarded on first investment purchase, not at
+    // registration — so the upline only benefits when the new user actually buys.
   }
 
   revalidatePath("/")
