@@ -193,21 +193,21 @@ export async function startDeposit(amount: number) {
 
   const data = paystackData.data as Record<string, unknown>
 
-  // Paystack bank_transfer response nests virtual account in data.bank_transfer
-  // Shape: { bank_transfer: { account_name, account_number, bank_name, expiry_date } }
-  const bt = (data.bank_transfer ?? {}) as Record<string, unknown>
-  const bankName: string = (bt.bank_name as string) ?? "Paystack-Titan"
-  const accountNumber: string = (bt.account_number as string) ?? ""
-  const accountName: string = (bt.account_name as string) ?? "247 Incum"
+  // Paystack returns virtual account details at the top level of data:
+  // { account_name, account_number, bank: { name }, account_expires_at, ... }
+  const bankObj = (data.bank ?? {}) as Record<string, unknown>
+  const bankName: string = (bankObj.name as string) ?? "Paystack-Titan"
+  const accountNumber: string = (data.account_number as string) ?? ""
+  const accountName: string = (data.account_name as string) ?? "247 Incum"
 
   if (!accountNumber) {
-    console.log("[v0] No account number in Paystack response:", JSON.stringify(data))
     return { ok: false, message: "Could not generate virtual account. Please try again." }
   }
 
-  // Paystack expiry is 30 minutes for bank transfer
-  const expiresAt = new Date()
-  expiresAt.setMinutes(expiresAt.getMinutes() + 30)
+  // Use Paystack's actual expiry or fall back to 30 minutes
+  const expiresAt = data.account_expires_at
+    ? new Date(data.account_expires_at as string)
+    : new Date(Date.now() + 30 * 60 * 1000)
 
   await db.insert(deposit).values({
     userId,
