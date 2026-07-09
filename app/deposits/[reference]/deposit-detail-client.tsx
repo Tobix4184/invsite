@@ -59,10 +59,29 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
 
   // ── Copy helper ────────────────────────────────────────────────────────
   function copy(value: string, field: string) {
-    navigator.clipboard.writeText(value)
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(value).catch(() => legacyCopy(value))
+      } else {
+        legacyCopy(value)
+      }
+    } catch {
+      legacyCopy(value)
+    }
     setCopiedField(field)
     toast.success(`${field} copied!`)
     setTimeout(() => setCopiedField(null), 2000)
+  }
+
+  function legacyCopy(value: string) {
+    const el = document.createElement("textarea")
+    el.value = value
+    el.style.cssText = "position:fixed;opacity:0;pointer-events:none"
+    document.body.appendChild(el)
+    el.focus()
+    el.select()
+    document.execCommand("copy")
+    document.body.removeChild(el)
   }
 
   // ── Polling ────────────────────────────────────────────────────────────

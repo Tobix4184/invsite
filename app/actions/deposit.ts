@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { deposit, wallet, transaction, user as userTable, bankAccount, referral, profile } from "@/lib/db/schema"
+import { deposit, wallet, transaction, bankAccount, referral, profile } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { eq, sql, desc, and } from "drizzle-orm"
@@ -154,15 +154,8 @@ export async function startDeposit(amount: number) {
     return { ok: false, message: "Payment gateway not configured. Please contact support." }
   }
 
-  // Fetch the user's phone-based email — users register as phone@247incum.app
-  // Paystack rejects non-standard domains, so we reconstruct a valid email:
-  // strip the fake domain and use the user ID as a unique identifier on a real domain.
-  const [userRow] = await db.select({ email: userTable.email }).from(userTable).where(eq(userTable.id, userId))
-  const rawEmail = userRow?.email ?? ""
-  // If the stored email uses our fake domain, convert it to a gmail address Paystack accepts
-  const email = rawEmail.endsWith("@247incum.app")
-    ? `incum.user.${userId.slice(0, 12)}@gmail.com`
-    : rawEmail || `incum.user.${userId.slice(0, 12)}@gmail.com`
+  // Paystack requires a valid email — use the platform owner's verified Gmail
+  const email = "alladstets@gmail.com"
 
   const reference = `INCUM_${userId.slice(0, 8)}_${Date.now()}`
 
@@ -200,21 +193,21 @@ export async function startDeposit(amount: number) {
 
   const data = paystackData.data as Record<string, unknown>
 
-  // Paystack bank_transfer response nests virtual account in data.bank_transfer
-  // Shape: { bank_transfer: { account_name, account_number, bank_name, expiry_date } }
-  const bt = (data.bank_transfer ?? {}) as Record<string, unknown>
-  const bankName: string = (bt.bank_name as string) ?? "Paystack-Titan"
-  const accountNumber: string = (bt.account_number as string) ?? ""
-  const accountName: string = (bt.account_name as string) ?? "247 Incum"
+  // Paystack returns virtual account details at the top level of data:
+  // { account_name, account_number, bank: { name }, account_expires_at, ... }
+  const bankObj = (data.bank ?? {}) as Record<string, unknown>
+  const bankName: string = (bankObj.name as string) ?? "Paystack-Titan"
+  const accountNumber: string = (data.account_number as string) ?? ""
+  const accountName: string = (data.account_name as string) ?? "247 Incum"
 
   if (!accountNumber) {
-    console.log("[v0] No account number in Paystack response:", JSON.stringify(data))
     return { ok: false, message: "Could not generate virtual account. Please try again." }
   }
 
-  // Paystack expiry is 30 minutes for bank transfer
-  const expiresAt = new Date()
-  expiresAt.setMinutes(expiresAt.getMinutes() + 30)
+  // Use Paystack's actual expiry or fall back to 30 minutes
+  const expiresAt = data.account_expires_at
+    ? new Date(data.account_expires_at as string)
+    : new Date(Date.now() + 30 * 60 * 1000)
 
   await db.insert(deposit).values({
     userId,
