@@ -171,10 +171,12 @@ export async function startDeposit(amount: number) {
       },
       body: JSON.stringify({
         email,
-        amount: amt * 100, // Paystack uses kobo
+        amount: amt * 100, // Paystack uses kobo (1 NGN = 100 kobo)
         currency: "NGN",
         reference,
-        channel: "bank_transfer",
+        bank_transfer: {
+          account_expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        },
       }),
       cache: "no-store",
     })
@@ -182,6 +184,8 @@ export async function startDeposit(amount: number) {
   } catch {
     return { ok: false, message: "Could not reach payment gateway. Please try again." }
   }
+
+  console.log("[v0] Paystack charge response:", JSON.stringify(paystackData))
 
   if (!paystackData?.status || !paystackData?.data) {
     return {
@@ -192,11 +196,17 @@ export async function startDeposit(amount: number) {
 
   const data = paystackData.data as Record<string, unknown>
 
-  // Paystack returns virtual account details nested in data.bank_transfer
-  const bt = (data.bank_transfer ?? data) as Record<string, unknown>
-  const bankName: string = (bt.bank_name as string) ?? (bt.account_bank as string) ?? "Paystack-Titan"
+  // Paystack bank_transfer response nests virtual account in data.bank_transfer
+  // Shape: { bank_transfer: { account_name, account_number, bank_name, expiry_date } }
+  const bt = (data.bank_transfer ?? {}) as Record<string, unknown>
+  const bankName: string = (bt.bank_name as string) ?? "Paystack-Titan"
   const accountNumber: string = (bt.account_number as string) ?? ""
   const accountName: string = (bt.account_name as string) ?? "247 Incum"
+
+  if (!accountNumber) {
+    console.log("[v0] No account number in Paystack response:", JSON.stringify(data))
+    return { ok: false, message: "Could not generate virtual account. Please try again." }
+  }
 
   // Paystack expiry is 30 minutes for bank transfer
   const expiresAt = new Date()
