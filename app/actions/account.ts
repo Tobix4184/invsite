@@ -58,16 +58,20 @@ export async function initAccount(opts: { phone?: string; inviteCode?: string; p
     code = genInviteCode()
   }
 
-  // resolve referrer from invite code (default to admin if no code provided)
-  let referrerId: string | null = null
-  const codeToUse = opts.inviteCode?.trim().toUpperCase() || SITE.inviteCode
-  if (codeToUse) {
-    const [ref] = await db
-      .select()
-      .from(profile)
-      .where(eq(profile.inviteCode, codeToUse))
-    if (ref && ref.userId !== userId) referrerId = ref.userId // don't self-refer
+  // resolve referrer from invite code — REQUIRED (user must have an upline)
+  const inviteCodeInput = opts.inviteCode?.trim().toUpperCase()
+  if (!inviteCodeInput) {
+    throw new Error("Invite code is required. Please register with a referral link.")
   }
+
+  const [ref] = await db
+    .select()
+    .from(profile)
+    .where(eq(profile.inviteCode, inviteCodeInput))
+  if (!ref || ref.userId === userId) {
+    throw new Error("Invalid invite code. Please check and try again.")
+  }
+  const referrerId = ref.userId
 
   // resolve promoter code: tag as promoter only when the code is active AND
   // hasn't hit its maxSignups cap (null = unlimited).
