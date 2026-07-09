@@ -3,7 +3,7 @@
 import { db } from "@/lib/db"
 import { wallet, withdrawal, transaction, giftCode, giftCodeRedemption, profile } from "@/lib/db/schema"
 import { SITE, WITHDRAWAL_TIERS, canWithdrawToday } from "@/lib/plans"
-import { getUserId } from "@/lib/session"
+import { getSession, getUserId } from "@/lib/session"
 import { getUserTier } from "@/lib/user-tier"
 import { getBoolSetting, getLiveDepositLimits, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
 import { and, desc, eq, sql } from "drizzle-orm"
@@ -19,8 +19,13 @@ export async function requestWithdrawal(data: {
   const userId = await getUserId()
   const amount = Number(data.amount)
 
-  // Respect global withdrawal pause — surface as a generic network error
-  if (await getBoolSetting(SETTING_KEYS.withdrawalsPaused)) {
+  // Check if this user is an admin — admins bypass all tier/day/pause restrictions
+  const session = await getSession()
+  const [userProfile] = await db.select({ role: profile.role }).from(profile).where(eq(profile.userId, userId))
+  const isAdmin = userProfile?.role === "admin"
+
+  // Respect global withdrawal pause — surface as a generic network error (not for admins)
+  if (!isAdmin && await getBoolSetting(SETTING_KEYS.withdrawalsPaused)) {
     return { ok: false, message: "Network error. Please try again later." }
   }
 
@@ -32,24 +37,26 @@ export async function requestWithdrawal(data: {
     return { ok: false, message: "Please fill in your bank details" }
   }
 
-  // Enforce withdrawal-day tiers based on the user's active packages
+  // Enforce withdrawal-day tiers (skipped for admins)
   const tier = await getUserTier(userId)
-  if (!tier) {
-    return { ok: false, message: "You need an active package before you can withdraw." }
-  }
+  if (!isAdmin) {
+    if (!tier) {
+      return { ok: false, message: "You need an active package before you can withdraw." }
+    }
 
-  // Check if this is the user's very first withdrawal — if so, skip the day restriction
-  const [priorWithdrawals] = await db
-    .select({ c: sql<number>`count(*)::int` })
-    .from(withdrawal)
-    .where(eq(withdrawal.userId, userId))
+    // Check if this is the user's very first withdrawal — if so, skip the day restriction
+    const [priorWithdrawals] = await db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(withdrawal)
+      .where(eq(withdrawal.userId, userId))
 
-  const isFirstWithdrawal = Number(priorWithdrawals?.c ?? 0) === 0
+    const isFirstWithdrawal = Number(priorWithdrawals?.c ?? 0) === 0
 
-  if (!isFirstWithdrawal && !canWithdrawToday(tier)) {
-    return {
-      ok: false,
-      message: `Your ${WITHDRAWAL_TIERS[tier].label} withdrawal day is ${WITHDRAWAL_TIERS[tier].dayLabel}. Please come back then.`,
+    if (!isFirstWithdrawal && !canWithdrawToday(tier)) {
+      return {
+        ok: false,
+        message: `Your ${WITHDRAWAL_TIERS[tier].label} withdrawal day is ${WITHDRAWAL_TIERS[tier].dayLabel}. Please come back then.`,
+      }
     }
   }
 
@@ -78,7 +85,7 @@ export async function requestWithdrawal(data: {
     accountNumber: data.accountNumber,
     accountName: data.accountName,
     bankCode: data.bankCode ?? null,
-    withdrawalTier: tier,
+    withdrawalTier: tier ?? "admin",
     status: "pending",
   })
 

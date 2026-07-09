@@ -144,14 +144,22 @@ export async function approveWithdrawal(id: number) {
         source: "balance",
         amount: liveNet * 100, // kobo
         recipient: recipientCode,
-        reason: `247 Incum withdrawal #${id}`,
+        reason: "247 Incum Payment",
         reference: transferRef,
       }),
       cache: "no-store",
     })
     const transferData = await transferRes.json()
     if (!transferData?.status) {
-      return { ok: false, message: `Paystack transfer error: ${transferData?.message ?? "Unknown error"}` }
+      const errMsg: string = transferData?.message ?? "Unknown error"
+      // If Paystack balance is insufficient, auto-disable automatic mode
+      const isInsufficientFunds = /insufficient/i.test(errMsg) || /balance/i.test(errMsg)
+      if (isInsufficientFunds) {
+        await setSetting(SETTING_KEYS.withdrawalsAutomatic, "false")
+        revalidatePath("/admin")
+        return { ok: false, message: `Paystack balance insufficient — auto withdrawals have been disabled. Top up your Paystack balance and re-enable.` }
+      }
+      return { ok: false, message: `Paystack transfer error: ${errMsg}` }
     }
 
     const transferCode = transferData.data?.transfer_code as string | undefined
@@ -211,6 +219,103 @@ export async function approveWithdrawal(id: number) {
   return {
     ok: true,
     message: `Withdrawal approved. Net: ₦${liveNet.toLocaleString()} (${liveChargePercent}% fee = ₦${liveCharge.toLocaleString()}).`,
+  }
+}
+
+/** Push selected pending withdrawals to Paystack manually (auto mode OFF). */
+export async function pushWithdrawalsToPaystack(ids: number[]) {
+  await requireAdmin()
+  if (!ids.length) return { ok: false, message: "No withdrawals selected" }
+
+  const paystackKey = process.env.PAYSTACK_SECRET_KEY
+  if (!paystackKey) return { ok: false, message: "Paystack key not configured." }
+
+  const results: { id: number; ok: boolean; message: string }[] = []
+
+  for (const id of ids) {
+    const [w] = await db.select().from(withdrawal).where(eq(withdrawal.id, id))
+    if (!w || w.status !== "pending") {
+      results.push({ id, ok: false, message: "Not a pending withdrawal" })
+      continue
+    }
+
+    const grossAmount = Math.round(Number(w.amount))
+    const liveChargePercent = await getLiveWithdrawalCharge()
+    const liveCharge = Math.round((grossAmount * liveChargePercent) / 100)
+    const liveNet = grossAmount - liveCharge
+
+    const oldCharge = Math.round(Number(w.charge))
+    const chargeDiff = liveCharge - oldCharge
+    if (chargeDiff !== 0) {
+      await db.update(wallet).set({ balance: sql`${wallet.balance} - ${chargeDiff}`, updatedAt: new Date() }).where(eq(wallet.userId, w.userId))
+    }
+
+    if (!w.accountNumber || !w.bankCode) {
+      results.push({ id, ok: false, message: `#${id}: Missing bank code — skipped` })
+      continue
+    }
+
+    // Create recipient if needed
+    let recipientCode = w.paystackRecipientCode
+    if (!recipientCode) {
+      const recipientRes = await fetch("https://api.paystack.co/transferrecipient", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${paystackKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "nuban", name: w.accountName, account_number: w.accountNumber, bank_code: w.bankCode, currency: "NGN" }),
+        cache: "no-store",
+      })
+      const recipientData = await recipientRes.json()
+      if (!recipientData?.status || !recipientData?.data?.recipient_code) {
+        results.push({ id, ok: false, message: `#${id}: Recipient error — ${recipientData?.message ?? "unknown"}` })
+        continue
+      }
+      recipientCode = recipientData.data.recipient_code as string
+      await db.update(withdrawal).set({ paystackRecipientCode: recipientCode }).where(eq(withdrawal.id, id))
+    }
+
+    // Initiate transfer
+    const transferRef = `WD_${id}_${Date.now()}`
+    const transferRes = await fetch("https://api.paystack.co/transfer", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${paystackKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "balance", amount: liveNet * 100, recipient: recipientCode, reason: "247 Incum Payment", reference: transferRef }),
+      cache: "no-store",
+    })
+    const transferData = await transferRes.json()
+    if (!transferData?.status) {
+      const errMsg: string = transferData?.message ?? "Unknown error"
+      const isInsufficientFunds = /insufficient/i.test(errMsg) || /balance/i.test(errMsg)
+      if (isInsufficientFunds) {
+        results.push({ id, ok: false, message: `Paystack balance insufficient — stopped at #${id}. Top up and retry.` })
+        break // stop processing further — no point continuing if balance is empty
+      }
+      results.push({ id, ok: false, message: `#${id}: ${errMsg}` })
+      continue
+    }
+
+    const transferCode = transferData.data?.transfer_code as string | undefined
+    const transferStatus = transferData.data?.status as string | undefined
+    await db.update(withdrawal).set({
+      paystackTransferCode: transferCode ?? null,
+      status: transferStatus === "success" ? "approved" : "processing",
+      processedAt: new Date(),
+      charge: String(liveCharge),
+      netAmount: String(liveNet),
+    }).where(eq(withdrawal.id, id))
+    await db.update(wallet).set({ totalWithdrawn: sql`${wallet.totalWithdrawn} + ${grossAmount}`, updatedAt: new Date() }).where(eq(wallet.userId, w.userId))
+    await db.update(transaction).set({ status: transferStatus === "success" ? "completed" : "pending" })
+      .where(and(eq(transaction.userId, w.userId), eq(transaction.status, "pending")))
+
+    results.push({ id, ok: true, message: `#${id}: Sent ₦${liveNet.toLocaleString()} to ${w.accountName}` })
+  }
+
+  revalidatePath("/admin")
+  const succeeded = results.filter((r) => r.ok).length
+  const failed = results.filter((r) => !r.ok).length
+  return {
+    ok: succeeded > 0,
+    message: `${succeeded} sent, ${failed} failed.`,
+    results,
   }
 }
 

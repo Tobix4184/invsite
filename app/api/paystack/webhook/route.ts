@@ -4,6 +4,7 @@ import { creditApprovedDeposit } from "@/app/actions/deposit"
 import { db } from "@/lib/db"
 import { withdrawal, wallet, transaction } from "@/lib/db/schema"
 import { and, eq, sql } from "drizzle-orm"
+import { setSetting, SETTING_KEYS } from "@/app/actions/settings"
 
 /**
  * POST /api/paystack/webhook
@@ -59,12 +60,17 @@ export async function POST(req: NextRequest) {
           await db.update(wallet)
             .set({ balance: sql`${wallet.balance} + ${Number(wd.amount)}`, updatedAt: new Date() })
             .where(eq(wallet.userId, wd.userId))
+          const failReason = (data?.gateway_response as string ?? "").toLowerCase()
           await db.insert(transaction).values({
             userId: wd.userId,
             type: "refund",
             amount: String(wd.amount),
             description: "Withdrawal transfer failed — amount refunded to wallet",
           })
+          // If failure was due to insufficient Paystack balance, disable auto mode
+          if (failReason.includes("insufficient") || failReason.includes("balance")) {
+            await setSetting(SETTING_KEYS.withdrawalsAutomatic, "false")
+          }
         }
       }
     }

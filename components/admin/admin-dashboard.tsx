@@ -70,6 +70,7 @@ import {
 
 import {
   approveWithdrawal,
+  pushWithdrawalsToPaystack,
   rejectWithdrawal,
   adjustBalance,
   clearUserBalance,
@@ -470,7 +471,7 @@ export function AdminDashboard(initial: AdminData) {
         {tab === "Financials" && <FinancialsTab data={financials} />}
         {tab === "Investments" && <InvestmentsTab items={investments} isModerator={isModerator} onAction={() => refresh()} />}
         {tab === "Transactions" && <TransactionsTab items={transactions} isModerator={isModerator} onAction={() => refresh()} />}
-        {tab === "Withdrawals" && <Withdrawals items={withdrawals} onAction={() => refresh()} />}
+        {tab === "Withdrawals" && <Withdrawals items={withdrawals} isAutomatic={controls.withdrawalsAutomatic} onAction={() => refresh()} />}
         {tab === "Users" && <UsersTab items={users} isModerator={isModerator} />}
         {tab === "Salary" && <SalariesTab />}
         {tab === "Promotions" && <PromotionsTab />}
@@ -1720,14 +1721,48 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
   )
 }
 
-function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () => void }) {
+function Withdrawals({ items, isAutomatic, onAction }: { items: Withdrawal[]; isAutomatic: boolean; onAction: () => void }) {
   const [pending, startTransition] = useTransition()
+  const [bulkPending, startBulkTransition] = useTransition()
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+
+  const pendingItems = items.filter((w) => w.status === "pending")
+
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    if (selected.size === pendingItems.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(pendingItems.map((w) => w.id)))
+    }
+  }
 
   function act(id: number, kind: "approve" | "reject") {
     startTransition(async () => {
       const res = kind === "approve" ? await approveWithdrawal(id) : await rejectWithdrawal(id)
       if (res.ok) toast.success(res.message)
       else toast.error(res.message)
+      setSelected((prev) => { const next = new Set(prev); next.delete(id); return next })
+      onAction()
+    })
+  }
+
+  function bulkPush() {
+    const ids = Array.from(selected)
+    startBulkTransition(async () => {
+      const res = await pushWithdrawalsToPaystack(ids)
+      if (res.ok) toast.success(res.message)
+      else toast.error(res.message)
+      // Show individual failures
+      res.results?.filter((r) => !r.ok).forEach((r) => toast.error(r.message))
+      setSelected(new Set())
       onAction()
     })
   }
@@ -1741,54 +1776,96 @@ function Withdrawals({ items, onAction }: { items: Withdrawal[]; onAction: () =>
 
   return (
     <div className="flex flex-col gap-3">
-      {items.map((w) => (
-        <div key={w.id} className="rounded-2xl border-2 border-ink bg-card p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="font-bold">{formatNaira(Number(w.amount))}</p>
-              <p className="text-xs text-muted-foreground">
-                Net {formatNaira(Number(w.netAmount))} · Fee {formatNaira(Number(w.charge))}
-              </p>
-            </div>
-            <StatusBadge status={w.status} />
+      {/* Bulk controls — shown only when auto mode is OFF and there are pending withdrawals */}
+      {!isAutomatic && pendingItems.length > 0 && (
+        <div className="rounded-2xl border-2 border-ink bg-secondary/50 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded accent-primary"
+                checked={selected.size === pendingItems.length && pendingItems.length > 0}
+                onChange={toggleAll}
+              />
+              {selected.size === 0 ? "Select all pending" : `${selected.size} selected`}
+            </label>
+            <button
+              onClick={bulkPush}
+              disabled={selected.size === 0 || bulkPending}
+              className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-40"
+            >
+              {bulkPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+              Push to Paystack
+            </button>
           </div>
-          <div className="mt-3 rounded-xl bg-secondary/50 p-3 text-xs">
-            <p className="font-semibold">{w.userName ?? "User"} · {w.userEmail}</p>
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <p className="text-muted-foreground">
-                {w.bankName} · <span className="font-mono font-semibold text-foreground">{w.accountNumber}</span> · {w.accountName}
-              </p>
-              {w.accountNumber && (
-                <button
-                  onClick={() => copyAcct(w.accountNumber!)}
-                  className="shrink-0 rounded-lg border-2 border-ink bg-background p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-                  title="Copy account number"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-          {w.status === "pending" && (
-            <div className="mt-3 flex gap-2">
-              <button
-                onClick={() => act(w.id, "approve")}
-                disabled={pending}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-success py-2.5 text-sm font-bold text-success-foreground disabled:opacity-60"
-              >
-                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Approve
-              </button>
-              <button
-                onClick={() => act(w.id, "reject")}
-                disabled={pending}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 py-2.5 text-sm font-bold text-destructive disabled:opacity-60"
-              >
-                <X className="h-4 w-4" /> Reject
-              </button>
-            </div>
-          )}
         </div>
-      ))}
+      )}
+
+      {items.map((w) => {
+        const isPending = w.status === "pending"
+        const isSelected = selected.has(w.id)
+        return (
+          <div
+            key={w.id}
+            className={`rounded-2xl border-2 bg-card p-4 transition-colors ${isSelected ? "border-primary" : "border-ink"}`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2">
+                {!isAutomatic && isPending && (
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded accent-primary"
+                    checked={isSelected}
+                    onChange={() => toggleSelect(w.id)}
+                  />
+                )}
+                <div>
+                  <p className="font-bold">{formatNaira(Number(w.amount))}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Net {formatNaira(Number(w.netAmount))} · Fee {formatNaira(Number(w.charge))}
+                  </p>
+                </div>
+              </div>
+              <StatusBadge status={w.status} />
+            </div>
+            <div className="mt-3 rounded-xl bg-secondary/50 p-3 text-xs">
+              <p className="font-semibold">{w.userName ?? "User"} · {w.userEmail}</p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="text-muted-foreground">
+                  {w.bankName} · <span className="font-mono font-semibold text-foreground">{w.accountNumber}</span> · {w.accountName}
+                </p>
+                {w.accountNumber && (
+                  <button
+                    onClick={() => copyAcct(w.accountNumber!)}
+                    className="shrink-0 rounded-lg border-2 border-ink bg-background p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                    title="Copy account number"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+            {isPending && (
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => act(w.id, "approve")}
+                  disabled={pending}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-success py-2.5 text-sm font-bold text-success-foreground disabled:opacity-60"
+                >
+                  {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Approve
+                </button>
+                <button
+                  onClick={() => act(w.id, "reject")}
+                  disabled={pending}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 py-2.5 text-sm font-bold text-destructive disabled:opacity-60"
+                >
+                  <X className="h-4 w-4" /> Reject
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
