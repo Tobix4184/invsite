@@ -15,11 +15,30 @@ import {
   Hourglass,
   ImageIcon,
   X,
+  ExternalLink,
 } from "lucide-react"
+
+// Extract the first URL from a string and return [textWithoutUrl, url | null]
+function extractActionUrl(text: string): [string, string | null] {
+  const match = text.match(/https?:\/\/[^\s—]+/)
+  if (!match) return [text, null]
+  const url = match[0].replace(/[.,)]+$/, "") // strip trailing punctuation
+  const clean = text.replace(url, "").replace(/\s{2,}/g, " ").trim()
+  return [clean, url]
+}
+
+// Derive a label for the action button based on the URL
+function actionLabel(url: string): string {
+  if (url.includes("t.me"))       return "Open Telegram"
+  if (url.includes("youtube"))    return "Watch Video"
+  if (url.includes("twitter") || url.includes("x.com")) return "Open Twitter / X"
+  if (url.includes("instagram"))  return "Open Instagram"
+  if (url.includes("facebook"))   return "Open Facebook"
+  return "Open Link"
+}
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { submitTask } from "@/app/actions/tasks"
-import { uploadProofImage } from "@/app/actions/upload"
 import { formatNaira } from "@/lib/plans"
 import type { getTasksForUser, getTaskStats } from "@/app/actions/tasks"
 
@@ -104,6 +123,12 @@ function TaskModal({ task, onClose }: { task: TaskWithMeta; onClose: () => void 
     Object.fromEntries(fields.map((f) => [f, 5])),
   )
   const [step, setStep] = useState<Step>("detail")
+  const [actionTapped, setActionTapped] = useState(false)
+
+  // Parse out any embedded URL from the description
+  const [descriptionText, actionUrl] = extractActionUrl(task.description ?? "")
+  // Action must be tapped before proceeding (only when there is an action URL)
+  const actionRequired = !!actionUrl
 
   // Build the ordered list of steps this task requires
   const steps: Step[] = ["detail"]
@@ -126,17 +151,25 @@ function TaskModal({ task, onClose }: { task: TaskWithMeta; onClose: () => void 
     if (!file) return
     setPreview(URL.createObjectURL(file))
     setUploading(true)
-    const fd = new FormData()
-    fd.append("file", file)
-    const res = await uploadProofImage(fd)
-    setUploading(false)
-    if (res.ok && res.url) {
-      setProofUrl(res.url)
-      toast.success("Proof uploaded")
-    } else {
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch("/api/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (data.ok && data.url) {
+        setProofUrl(data.url)
+        toast.success("Proof uploaded")
+      } else {
+        setProofUrl(null)
+        setPreview(null)
+        toast.error(data.message ?? "Upload failed. Try again.")
+      }
+    } catch {
       setProofUrl(null)
       setPreview(null)
-      toast.error(res.message ?? "Upload failed")
+      toast.error("Upload failed. Check your connection and try again.")
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -203,9 +236,23 @@ function TaskModal({ task, onClose }: { task: TaskWithMeta; onClose: () => void 
             <div className="rounded-2xl border-2 border-ink bg-secondary p-4">
               <h2 className="text-base font-black">{task.title}</h2>
               <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-                {task.description}
+                {descriptionText}
               </p>
             </div>
+
+            {/* Action button — must be tapped before completing */}
+            {actionUrl && (
+              <a
+                href={actionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setActionTapped(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-3.5 text-sm font-black uppercase tracking-wider text-primary-foreground shadow-[3px_3px_0_0_var(--ink)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              >
+                <ExternalLink className="h-4 w-4" />
+                {actionLabel(actionUrl)}
+              </a>
+            )}
 
             {(task.requireProof || task.requireApproval) && (
               <div className="flex items-start gap-2 rounded-2xl border-2 border-ink bg-accent/10 p-3">
@@ -218,10 +265,17 @@ function TaskModal({ task, onClose }: { task: TaskWithMeta; onClose: () => void 
 
             <button
               onClick={goNext}
-              className="w-full rounded-2xl border-2 border-ink bg-primary py-3.5 text-sm font-black uppercase tracking-wider text-primary-foreground shadow-[3px_3px_0_0_var(--ink)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+              disabled={actionRequired && !actionTapped}
+              className="w-full rounded-2xl border-2 border-ink bg-primary py-3.5 text-sm font-black uppercase tracking-wider text-primary-foreground shadow-[3px_3px_0_0_var(--ink)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {steps.length === 1 ? (pending ? "Submitting..." : "Complete Task") : "Continue"}
             </button>
+
+            {actionRequired && !actionTapped && (
+              <p className="text-center text-xs font-semibold text-muted-foreground">
+                Tap the button above first to unlock this step
+              </p>
+            )}
           </div>
         )}
 
