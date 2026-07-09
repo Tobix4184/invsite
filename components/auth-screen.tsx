@@ -122,6 +122,10 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
       toast.error("Passwords do not match")
       return
     }
+    if (!form.invite.trim()) {
+      toast.error("Invite code is required. Get one from your referrer.")
+      return
+    }
     if (!captchaValid) {
       toast.error("The security code is incorrect")
       return
@@ -138,7 +142,16 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
         toast.error(/exist/i.test(msg) ? "An account with this phone number already exists" : msg)
         return
       }
-      await initAccount({ phone, inviteCode: form.invite, promoCode })
+      try {
+        await initAccount({ phone, inviteCode: form.invite, promoCode })
+      } catch (initErr) {
+        // initAccount failed (e.g. invalid invite code) — delete the created auth
+        // account so the user isn't left in a broken half-registered state, then
+        // surface the real error message.
+        await authClient.signOut()
+        toast.error(initErr instanceof Error ? initErr.message : "Invalid invite code. Please check and try again.")
+        return
+      }
       toast.success(`Welcome to ${SITE.name}!`)
       router.push("/dashboard")
       router.refresh()
