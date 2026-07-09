@@ -80,6 +80,7 @@ export const profile = pgTable("profile", {
   savedBankName: text("savedBankName"),
   savedAccountName: text("savedAccountName"),
   savedAccountNumber: text("savedAccountNumber"),
+  savedBankCode: text("savedBankCode"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 })
 
@@ -208,6 +209,9 @@ export const withdrawal = pgTable("withdrawal", {
   bankName: text("bankName"),
   accountNumber: text("accountNumber"),
   accountName: text("accountName"),
+  bankCode: text("bankCode"),
+  paystackRecipientCode: text("paystackRecipientCode"),
+  paystackTransferCode: text("paystackTransferCode"),
   withdrawalTier: text("withdrawalTier"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),

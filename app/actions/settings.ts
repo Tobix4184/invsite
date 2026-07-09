@@ -7,6 +7,7 @@ export const SETTING_KEYS = {
   siteFrozen: "site_frozen",               // "true" = entire site frozen for all non-admin users
   depositsPaused: "deposits_paused",
   withdrawalsPaused: "withdrawals_paused",
+  withdrawalsAutomatic: "withdrawals_automatic", // "true" = auto-pay via Paystack on approve
   // Deposit / withdrawal limits — stored in DB so admin can change and takes effect immediately
   minDeposit: "min_deposit",           // naira e.g. "1000"
   minWithdrawal: "min_withdrawal",     // naira e.g. "1000"

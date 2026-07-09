@@ -87,6 +87,7 @@ import {
   setSiteFrozen,
   setDepositsPaused,
   setWithdrawalsPaused,
+  setWithdrawalsAutomatic,
   createPromoterCode,
   updatePromoterCode,
   togglePromoterCode,
@@ -211,6 +212,7 @@ type Milestone = {
     siteFrozen: boolean
     depositsPaused: boolean
     withdrawalsPaused: boolean
+    withdrawalsAutomatic: boolean
     minDeposit: number
     minWithdrawal: number
     withdrawalCharge: number
@@ -1435,9 +1437,11 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
   const [siteFrozen, setSiteFrozenState] = useState(controls.siteFrozen)
   const [depositsPaused, setDepPaused] = useState(controls.depositsPaused)
   const [withdrawalsPaused, setWdPaused] = useState(controls.withdrawalsPaused)
+  const [withdrawalsAutomatic, setWdAuto] = useState(controls.withdrawalsAutomatic)
   const [savingFreeze, startFreezeTransition] = useTransition()
   const [savingDep, startDepTransition] = useTransition()
   const [savingWd, startWdTransition] = useTransition()
+  const [savingWdAuto, startWdAutoTransition] = useTransition()
   const [savingLimits, startLimitsTransition] = useTransition()
 
   const [minDepositVal, setMinDepositVal] = useState(String(controls.minDeposit))
@@ -1448,6 +1452,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
   useEffect(() => { setSiteFrozenState(controls.siteFrozen) }, [controls.siteFrozen])
   useEffect(() => { setDepPaused(controls.depositsPaused) }, [controls.depositsPaused])
   useEffect(() => { setWdPaused(controls.withdrawalsPaused) }, [controls.withdrawalsPaused])
+  useEffect(() => { setWdAuto(controls.withdrawalsAutomatic) }, [controls.withdrawalsAutomatic])
   useEffect(() => { setMinDepositVal(String(controls.minDeposit)) }, [controls.minDeposit])
   useEffect(() => { setMinWithdrawalVal(String(controls.minWithdrawal)) }, [controls.minWithdrawal])
   useEffect(() => { setWithdrawalChargeVal(String(controls.withdrawalCharge)) }, [controls.withdrawalCharge])
@@ -1507,6 +1512,20 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
       else {
         toast.error("Failed")
         setWdPaused(!next)
+      }
+      onAction()
+    })
+  }
+
+  function toggleWdAuto() {
+    const next = !withdrawalsAutomatic
+    setWdAuto(next)
+    startWdAutoTransition(async () => {
+      const res = await setWithdrawalsAutomatic(next)
+      if (res.ok) toast.success(next ? "Auto withdrawals enabled — Paystack will send payments automatically." : "Auto withdrawals disabled — manual approval required.")
+      else {
+        toast.error("Failed to update setting")
+        setWdAuto(!next)
       }
       onAction()
     })
@@ -1612,6 +1631,30 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
                 <>
                   <Play className="h-4 w-4" /> Active
                 </>
+              )}
+            </span>
+          </button>
+
+          {/* Auto Withdrawal Toggle */}
+          <button
+            onClick={toggleWdAuto}
+            disabled={savingWdAuto}
+            className={`col-span-2 flex items-center justify-between rounded-xl border px-3 py-3 text-sm font-semibold transition-colors disabled:opacity-60 ${
+              withdrawalsAutomatic
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-muted bg-muted/30 text-muted-foreground"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Zap className="h-4 w-4" /> Auto Withdrawal (Paystack)
+            </span>
+            <span className="flex items-center gap-1.5">
+              {savingWdAuto ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : withdrawalsAutomatic ? (
+                <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">ON</span>
+              ) : (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-black uppercase tracking-wider">OFF</span>
               )}
             </span>
           </button>

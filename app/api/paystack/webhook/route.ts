@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { creditApprovedDeposit } from "@/app/actions/deposit"
+import { db } from "@/lib/db"
+import { withdrawal, wallet, transaction } from "@/lib/db/schema"
+import { and, eq, sql } from "drizzle-orm"
 
 /**
  * POST /api/paystack/webhook
@@ -33,7 +36,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 })
   }
 
-  // Only handle charge.success for bank_transfer channel
+  // ── Transfer events (outgoing withdrawal auto-pay) ────────────────────────
+  if (event.event === "transfer.success" || event.event === "transfer.failed") {
+    const data = event.data as Record<string, unknown>
+    const transferCode = data?.transfer_code as string | undefined
+    const transferRef = data?.reference as string | undefined
+
+    if (transferCode || transferRef) {
+      // Find the withdrawal by transfer code or reference (WD_{id}_timestamp)
+      const [wd] = transferCode
+        ? await db.select().from(withdrawal).where(eq(withdrawal.paystackTransferCode, transferCode))
+        : await db.select().from(withdrawal).where(eq(withdrawal.paystackTransferCode, transferRef ?? ""))
+
+      if (wd) {
+        if (event.event === "transfer.success") {
+          await db.update(withdrawal).set({ status: "approved", processedAt: new Date() }).where(eq(withdrawal.id, wd.id))
+          await db.update(transaction).set({ status: "completed" })
+            .where(and(eq(transaction.userId, wd.userId), eq(transaction.status, "pending")))
+        } else {
+          // Transfer failed — refund the held amount back to wallet
+          await db.update(withdrawal).set({ status: "failed", processedAt: new Date() }).where(eq(withdrawal.id, wd.id))
+          await db.update(wallet)
+            .set({ balance: sql`${wallet.balance} + ${Number(wd.amount)}`, updatedAt: new Date() })
+            .where(eq(wallet.userId, wd.userId))
+          await db.insert(transaction).values({
+            userId: wd.userId,
+            type: "refund",
+            amount: String(wd.amount),
+            description: "Withdrawal transfer failed — amount refunded to wallet",
+          })
+        }
+      }
+    }
+    return NextResponse.json({ ok: true })
+  }
+
+  // ── Incoming deposit (charge.success) ────────────────────────────────────
   if (event.event !== "charge.success") {
     return NextResponse.json({ ok: true, skipped: true })
   }

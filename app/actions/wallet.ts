@@ -14,6 +14,7 @@ export async function requestWithdrawal(data: {
   bankName: string
   accountNumber: string
   accountName: string
+  bankCode?: string
 }) {
   const userId = await getUserId()
   const amount = Number(data.amount)
@@ -76,17 +77,19 @@ export async function requestWithdrawal(data: {
     bankName: data.bankName,
     accountNumber: data.accountNumber,
     accountName: data.accountName,
+    bankCode: data.bankCode ?? null,
     withdrawalTier: tier,
     status: "pending",
   })
 
-  // Save bank details for next time
+  // Save bank details for next time (including bank code for auto-transfer)
   await db
     .update(profile)
     .set({
       savedBankName: data.bankName,
       savedAccountNumber: data.accountNumber,
       savedAccountName: data.accountName,
+      savedBankCode: data.bankCode ?? null,
     })
     .where(eq(profile.userId, userId))
 
@@ -114,6 +117,7 @@ export async function getSavedBankDetails() {
     savedBankName: p.savedBankName,
     savedAccountNumber: p.savedAccountNumber,
     savedAccountName: p.savedAccountName,
+    savedBankCode: p.savedBankCode,
   }
 }
 

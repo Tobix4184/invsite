@@ -131,12 +131,11 @@ export function WithdrawForm({
       ])
       if (bankRes.ok && bankRes.banks?.length) setBanks(bankRes.banks)
       if (saved?.savedBankName) {
-        // Try to match saved bank name to a code from the live list
         const match = (bankRes.banks as Bank[]).find((b: Bank) => b.name === saved.savedBankName)
         setForm({
           amount: "",
           bankName: saved.savedBankName,
-          bankCode: match?.code ?? "",
+          bankCode: saved.savedBankCode ?? match?.code ?? "",
           accountNumber: saved.savedAccountNumber || "",
           accountName: saved.savedAccountName || "",
         })
@@ -178,8 +177,11 @@ export function WithdrawForm({
     e.preventDefault()
     startTransition(async () => {
       const res = await requestWithdrawal({
-        amount, bankName: form.bankName,
-        accountNumber: form.accountNumber, accountName: form.accountName,
+        amount,
+        bankName: form.bankName,
+        accountNumber: form.accountNumber,
+        accountName: form.accountName,
+        bankCode: form.bankCode || undefined,
       })
       if (res.ok) {
         toast.success(res.message)
