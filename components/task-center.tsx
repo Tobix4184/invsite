@@ -39,7 +39,6 @@ function actionLabel(url: string): string {
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { submitTask } from "@/app/actions/tasks"
-import { uploadProofImage } from "@/app/actions/upload"
 import { formatNaira } from "@/lib/plans"
 import type { getTasksForUser, getTaskStats } from "@/app/actions/tasks"
 
@@ -152,17 +151,25 @@ function TaskModal({ task, onClose }: { task: TaskWithMeta; onClose: () => void 
     if (!file) return
     setPreview(URL.createObjectURL(file))
     setUploading(true)
-    const fd = new FormData()
-    fd.append("file", file)
-    const res = await uploadProofImage(fd)
-    setUploading(false)
-    if (res.ok && res.url) {
-      setProofUrl(res.url)
-      toast.success("Proof uploaded")
-    } else {
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch("/api/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (data.ok && data.url) {
+        setProofUrl(data.url)
+        toast.success("Proof uploaded")
+      } else {
+        setProofUrl(null)
+        setPreview(null)
+        toast.error(data.message ?? "Upload failed. Try again.")
+      }
+    } catch {
       setProofUrl(null)
       setPreview(null)
-      toast.error(res.message ?? "Upload failed")
+      toast.error("Upload failed. Check your connection and try again.")
+    } finally {
+      setUploading(false)
     }
   }
 
