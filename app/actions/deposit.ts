@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { deposit, wallet, transaction, user as userTable, bankAccount, referral, profile } from "@/lib/db/schema"
+import { deposit, wallet, transaction, bankAccount, referral, profile } from "@/lib/db/schema"
 import { SITE } from "@/lib/plans"
 import { getUserId } from "@/lib/session"
 import { eq, sql, desc, and } from "drizzle-orm"
@@ -154,15 +154,8 @@ export async function startDeposit(amount: number) {
     return { ok: false, message: "Payment gateway not configured. Please contact support." }
   }
 
-  // Fetch the user's phone-based email — users register as phone@247incum.app
-  // Paystack rejects non-standard domains, so we reconstruct a valid email:
-  // strip the fake domain and use the user ID as a unique identifier on a real domain.
-  const [userRow] = await db.select({ email: userTable.email }).from(userTable).where(eq(userTable.id, userId))
-  const rawEmail = userRow?.email ?? ""
-  // If the stored email uses our fake domain, convert it to a gmail address Paystack accepts
-  const email = rawEmail.endsWith("@247incum.app")
-    ? `incum.user.${userId.slice(0, 12)}@gmail.com`
-    : rawEmail || `incum.user.${userId.slice(0, 12)}@gmail.com`
+  // Paystack requires a valid email — use the platform owner's verified Gmail
+  const email = "alladstets@gmail.com"
 
   const reference = `INCUM_${userId.slice(0, 8)}_${Date.now()}`
 
