@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { task, taskSubmission, gameGrant, wallet, transaction, investment, user as userTable, profile } from "@/lib/db/schema"
+import { task, taskSubmission, gameGrant, wallet, transaction, investment, withdrawal, user as userTable, profile } from "@/lib/db/schema"
 import { getUserId, requireAdmin } from "@/lib/session"
 import { getUserTier } from "@/lib/user-tier"
 import { awardPoints } from "@/app/actions/points"
@@ -62,6 +62,17 @@ export async function getTasksForUser() {
     submissionMap.set(s.taskId, arr)
   }
 
+  // Pre-fetch withdrawal count once (used for withdrawal_proof tasks)
+  let withdrawalCount: number | null = null
+  const hasWithdrawalProofTask = tasks.some((t) => t.taskType === "withdrawal_proof")
+  if (hasWithdrawalProofTask) {
+    const [row] = await db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(withdrawal)
+      .where(eq(withdrawal.userId, userId))
+    withdrawalCount = Number(row?.c ?? 0)
+  }
+
   const visible: (Task & {
     submissions: TaskSubmission[]
     canDo: boolean
@@ -72,16 +83,28 @@ export async function getTasksForUser() {
   for (const t of tasks) {
     if (!(await taskMatchesUser(t, ctx))) continue
     const done = submissionMap.get(t.id) ?? []
-    // Count approved + pending toward the per-user limit so users can't spam
-    const counted = done.filter((s) => s.status === "approved" || s.status === "pending").length
-    const limit = t.perUserLimit ?? 1
-    const canDo = limit === 0 || counted < limit
+    const approvedCount = done.filter((s) => s.status === "approved").length
+    const pendingCount  = done.filter((s) => s.status === "pending").length
+
+    let canDo: boolean
+    if (t.taskType === "withdrawal_proof") {
+      // One proof slot unlocks per withdrawal made — user can submit proof as
+      // many times as they have withdrawals that are not yet covered by an
+      // approved or pending proof submission.
+      const proofsCounted = approvedCount + pendingCount
+      canDo = withdrawalCount !== null && withdrawalCount > 0 && proofsCounted < withdrawalCount
+    } else {
+      const counted = approvedCount + pendingCount
+      const limit = t.perUserLimit ?? 1
+      canDo = limit === 0 || counted < limit
+    }
+
     visible.push({
       ...t,
       submissions: done,
       canDo,
-      completedCount: done.filter((s) => s.status === "approved").length,
-      pendingCount: done.filter((s) => s.status === "pending").length,
+      completedCount: approvedCount,
+      pendingCount,
     })
   }
 
@@ -477,14 +500,14 @@ export async function seedSystemTasks() {
     {
       title: "Send Withdrawal Proof to Support",
       description:
-        "After receiving your withdrawal, take a screenshot of the credit alert and send it to support on Telegram (@incum247SPT). Upload the screenshot below — this helps us verify payments and unlock future bonuses.",
+        "After receiving your withdrawal, take a screenshot of the credit alert and send it to support on Telegram (@incum247SPT). Upload the screenshot below — this helps us verify your payment and unlock future bonuses.",
       reward: 100,
-      rewardPoints: 200,
-      taskType: "proof",
+      rewardPoints: 100,
+      taskType: "withdrawal_proof",
       requireProof: true,
       requireApproval: true,
       proofLabel: "Screenshot of your withdrawal / credit alert",
-      perUserLimit: 10, // can do this multiple times (once per withdrawal)
+      perUserLimit: 999, // unlimited — canDo is driven by withdrawal count
     },
   ]
 
