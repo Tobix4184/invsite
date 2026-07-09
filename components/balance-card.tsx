@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
   Eye,
@@ -12,9 +12,23 @@ import {
   CalendarClock,
   ChevronLeft,
   ChevronRight,
+  ArrowRight,
 } from 'lucide-react'
 import { formatNaira } from '@/lib/plans'
 import useSWR from 'swr'
+
+const TX_TYPE_LABEL: Record<string, { label: string; color: string }> = {
+  deposit:        { label: 'Deposit',    color: 'text-success' },
+  withdrawal:     { label: 'Withdrawal', color: 'text-white/60' },
+  daily_earning:  { label: 'Daily earn', color: 'text-success' },
+  referral:       { label: 'Referral',   color: 'text-gold' },
+  task:           { label: 'Task',       color: 'text-gold' },
+  game_win:       { label: 'Game win',   color: 'text-gold' },
+  points_payout:  { label: 'Pts payout', color: 'text-success' },
+  welcome_bonus:  { label: 'Bonus',      color: 'text-gold' },
+}
+
+type Tx = { id: number; type: string; amount: string; description: string | null; createdAt: string }
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
@@ -33,6 +47,23 @@ export function BalanceCard({
 }) {
   const [show, setShow] = useState(true)
   const [slide, setSlide] = useState(0)
+  const [txSlide, setTxSlide] = useState(0)
+  const txTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const { data: txData } = useSWR('/api/recent-transactions', fetcher, {
+    refreshInterval: 15_000,
+    revalidateOnFocus: true,
+  })
+  const recentTxns: Tx[] = txData?.transactions ?? []
+
+  // Auto-cycle through transactions every 3s
+  useEffect(() => {
+    if (recentTxns.length <= 1) return
+    txTimerRef.current = setInterval(() => {
+      setTxSlide(s => (s + 1) % recentTxns.length)
+    }, 3000)
+    return () => { if (txTimerRef.current) clearInterval(txTimerRef.current) }
+  }, [recentTxns.length])
 
   const { data } = useSWR('/api/live-balance', fetcher, {
     fallbackData: {
@@ -122,8 +153,67 @@ export function BalanceCard({
             </Link>
           </div>
 
+          {/* Recent transactions ticker */}
+          <div className="mt-4 overflow-hidden rounded-2xl border border-white/20 bg-white/10">
+            {/* Header row */}
+            <div className="flex items-center justify-between border-b border-white/10 px-3 py-1.5">
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Recent</span>
+              <Link
+                href="/transactions"
+                className="flex items-center gap-0.5 text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white"
+              >
+                View all <ArrowRight className="h-2.5 w-2.5" />
+              </Link>
+            </div>
+
+            {recentTxns.length === 0 ? (
+              <p className="px-3 py-2.5 text-[11px] text-white/40">No transactions yet</p>
+            ) : (
+              <div className="relative h-[2.6rem] overflow-hidden">
+                {recentTxns.map((tx, i) => {
+                  const meta = TX_TYPE_LABEL[tx.type] ?? { label: tx.type, color: 'text-white' }
+                  const amt = Number(tx.amount)
+                  const isCredit = ['deposit','daily_earning','referral','task','game_win','points_payout','welcome_bonus'].includes(tx.type)
+                  return (
+                    <div
+                      key={tx.id}
+                      className="absolute inset-0 flex items-center justify-between px-3 transition-all duration-500 ease-in-out"
+                      style={{
+                        transform: `translateY(${(i - txSlide) * 100}%)`,
+                        opacity: i === txSlide ? 1 : 0,
+                      }}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${meta.color}`}>{meta.label}</span>
+                        <span className="truncate text-[10px] text-white/40 max-w-[110px]">
+                          {tx.description?.replace(/[₦,]/g, '').slice(0, 30) ?? ''}
+                        </span>
+                      </div>
+                      <span className={`shrink-0 text-sm font-black tabular-nums ${isCredit ? 'text-success' : 'text-white/70'}`}>
+                        {isCredit ? '+' : '-'}{show ? formatNaira(Math.abs(amt)) : '₦ •••'}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Slide dots */}
+            {recentTxns.length > 1 && (
+              <div className="flex items-center justify-center gap-1 py-1.5">
+                {recentTxns.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setTxSlide(i)}
+                    className={`rounded-full transition-all duration-300 ${i === txSlide ? 'w-3 h-1 bg-white' : 'w-1 h-1 bg-white/30'}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Dot indicators */}
-          <div className="mt-4 flex items-center justify-center gap-1.5">
+          <div className="mt-3 flex items-center justify-center gap-1.5">
             <span className="h-1.5 w-5 rounded-full bg-white" />
             <span className="h-1.5 w-1.5 rounded-full bg-white/30" />
           </div>
