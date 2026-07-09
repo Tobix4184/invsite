@@ -154,9 +154,15 @@ export async function startDeposit(amount: number) {
     return { ok: false, message: "Payment gateway not configured. Please contact support." }
   }
 
-  // Fetch the user's email from the auth table
+  // Fetch the user's phone-based email — users register as phone@247incum.app
+  // Paystack rejects non-standard domains, so we reconstruct a valid email:
+  // strip the fake domain and use the user ID as a unique identifier on a real domain.
   const [userRow] = await db.select({ email: userTable.email }).from(userTable).where(eq(userTable.id, userId))
-  const email = userRow?.email ?? `user_${userId.slice(0, 8)}@247incum.app`
+  const rawEmail = userRow?.email ?? ""
+  // If the stored email uses our fake domain, convert it to a gmail address Paystack accepts
+  const email = rawEmail.endsWith("@247incum.app")
+    ? `incum.user.${userId.slice(0, 12)}@gmail.com`
+    : rawEmail || `incum.user.${userId.slice(0, 12)}@gmail.com`
 
   const reference = `INCUM_${userId.slice(0, 8)}_${Date.now()}`
 
@@ -184,8 +190,6 @@ export async function startDeposit(amount: number) {
   } catch {
     return { ok: false, message: "Could not reach payment gateway. Please try again." }
   }
-
-  console.log("[v0] Paystack charge response:", JSON.stringify(paystackData))
 
   if (!paystackData?.status || !paystackData?.data) {
     return {
