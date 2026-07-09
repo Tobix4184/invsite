@@ -47,7 +47,12 @@ function RewardChips({ task, className = "" }: { task: TaskWithMeta; className?:
           <Gift className="h-3 w-3" /> {task.rewardScratch} card{task.rewardScratch > 1 ? "s" : ""}
         </span>
       )}
-      {cash === 0 && task.rewardSpins === 0 && task.rewardScratch === 0 && (
+      {(task.rewardPoints ?? 0) > 0 && (
+        <span className="flex items-center gap-1 rounded-lg border-2 border-ink bg-gold/20 px-2 py-0.5 text-xs font-black text-gold-foreground">
+          {(task.rewardPoints ?? 0).toLocaleString()} pts
+        </span>
+      )}
+      {cash === 0 && task.rewardSpins === 0 && task.rewardScratch === 0 && (task.rewardPoints ?? 0) === 0 && (
         <span className="rounded-lg border-2 border-ink bg-secondary px-2 py-0.5 text-xs font-black">Reward</span>
       )}
     </div>

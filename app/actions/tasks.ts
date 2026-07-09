@@ -438,3 +438,79 @@ export async function adminSetTaskStatus(taskId: number, status: "published" | "
   revalidatePath("/tasks")
   return { ok: true }
 }
+
+/**
+ * Seeds the three core system tasks if they have not already been created.
+ * Safe to call multiple times — uses title uniqueness check.
+ */
+export async function seedSystemTasks() {
+  await requireAdmin()
+
+  const existing = await db.select({ title: task.title }).from(task)
+  const titles = new Set(existing.map((r) => r.title))
+
+  const systemTasks = [
+    {
+      title: "Join Our Telegram Group",
+      description:
+        "Join the official 247 Incum Telegram group to stay updated with the latest news, bonuses, and announcements. Tap the link and join: https://t.me/incomehh — then come back and submit your Telegram username as proof.",
+      reward: 200,
+      rewardPoints: 500,
+      taskType: "social",
+      requireProof: false,
+      requireApproval: false,
+      proofLabel: null,
+      perUserLimit: 1,
+    },
+    {
+      title: "Follow Our Telegram Channel",
+      description:
+        "Subscribe to our official Telegram channel for daily earnings updates and platform news. Tap here to follow: https://t.me/incomehh — then submit your Telegram username below.",
+      reward: 150,
+      rewardPoints: 300,
+      taskType: "social",
+      requireProof: false,
+      requireApproval: false,
+      proofLabel: null,
+      perUserLimit: 1,
+    },
+    {
+      title: "Send Withdrawal Proof to Support",
+      description:
+        "After receiving your withdrawal, take a screenshot of the credit alert and send it to support on Telegram (@incum247SPT). Upload the screenshot below — this helps us verify payments and unlock future bonuses.",
+      reward: 100,
+      rewardPoints: 200,
+      taskType: "proof",
+      requireProof: true,
+      requireApproval: true,
+      proofLabel: "Screenshot of your withdrawal / credit alert",
+      perUserLimit: 10, // can do this multiple times (once per withdrawal)
+    },
+  ]
+
+  let seeded = 0
+  for (const t of systemTasks) {
+    if (titles.has(t.title)) continue
+    await db.insert(task).values({
+      title: t.title,
+      description: t.description,
+      reward: String(t.reward),
+      rewardPoints: t.rewardPoints,
+      rewardSpins: 0,
+      rewardScratch: 0,
+      taskType: t.taskType,
+      targetType: "all",
+      targetValue: null,
+      requireProof: t.requireProof,
+      proofLabel: t.proofLabel ?? null,
+      requireApproval: t.requireApproval,
+      perUserLimit: t.perUserLimit,
+      status: "published",
+    })
+    seeded++
+  }
+
+  revalidatePath("/admin")
+  revalidatePath("/tasks")
+  return { ok: true, seeded, message: seeded > 0 ? `${seeded} task(s) seeded.` : "All system tasks already exist." }
+}

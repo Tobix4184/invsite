@@ -218,9 +218,9 @@ export const SITE = {
   promoterLevel1: 20,
   withdrawalHours: 'Mornings on your tier day',
   inviteCode: 'INCUM01',
-  telegramGroup: 'https://t.me/AFRI_EARN',
-  telegramChannel: 'https://t.me/AFRI_EARN',
-  telegramSupport: 'https://t.me/AFRI_EARN',
+  telegramGroup: 'https://t.me/incomehh',
+  telegramChannel: 'https://t.me/incomehh',
+  telegramSupport: 'https://t.me/incum247SPT',
 
   // Promoter salary system (promoters get salary, NOT extra referral commission)
   defaultPromoterSalary: 5000, // weekly, admin can override per promoter

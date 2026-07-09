@@ -127,6 +127,43 @@ export async function getUserWithdrawals() {
     .limit(20)
 }
 
+// ── Bank name verification via Paystack ──────────────────────────────────────
+
+/**
+ * Resolves an account holder name using Paystack's bank/resolve endpoint.
+ * @param accountNumber - 10-digit NUBAN account number
+ * @param bankCode      - Paystack bank code (from /api/banks)
+ */
+export async function lookupBankAccountName(
+  accountNumber: string,
+  bankCode: string,
+): Promise<{ ok: boolean; accountName?: string; message?: string }> {
+  if (!bankCode) return { ok: false, message: "Select a bank first." }
+  if (accountNumber.length !== 10) return { ok: false, message: "Enter a 10-digit account number first." }
+
+  const paystackKey = process.env.PAYSTACK_SECRET_KEY
+  if (!paystackKey) {
+    return { ok: false, message: "Auto-verify not available. Enter your account name below." }
+  }
+
+  try {
+    const url = `https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${paystackKey}`, Accept: "application/json" },
+      cache: "no-store",
+    })
+    const data = await res.json()
+    if (!res.ok || !data?.status) {
+      return { ok: false, message: data?.message ?? "Account not found. Enter name manually." }
+    }
+    const name: string | undefined = data?.data?.account_name
+    if (!name) return { ok: false, message: "Could not fetch name. Enter manually." }
+    return { ok: true, accountName: name }
+  } catch {
+    return { ok: false, message: "Verification failed. Enter your account name below." }
+  }
+}
+
 export async function redeemGiftCode(code: string) {
   const userId = await getUserId()
   const clean = code.trim().toUpperCase()

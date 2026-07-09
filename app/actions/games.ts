@@ -175,9 +175,9 @@ export async function playSpin() {
       description: `Lucky Roulette reward — ₦${prize.toLocaleString()}`,
     })
 
-    // Award weekend salary points proportional to win amount
+    // Award points for the win (cash + points together)
     const ptsCfg = await getPointsConfig()
-    const spinPts = Math.floor(prize / 10 * ptsCfg.gameWinPointsRate)
+    const spinPts = Math.floor((prize / 10) * ptsCfg.gameWinPointsRate)
     if (spinPts > 0) await awardPoints(userId, spinPts, `Spin win points: ₦${prize}`)
   } else {
     const [w] = await db.select({ balance: wallet.balance }).from(wallet).where(eq(wallet.userId, userId))
@@ -208,7 +208,7 @@ export async function getSpinHistory() {
 
 // ──────────────────────────────────────────────────────────────────────────────
 // SCRATCH CARD (entitlement: 2 cards per valid referral — separate from spins)
-// ──────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────��───────────────────────────────────────────────
 
 /** How many scratch cards the user has left right now. */
 export async function getScratchState() {
@@ -271,9 +271,9 @@ export async function playScratchCard() {
       description: `Scratch Card win — ₦${prize.toLocaleString()}`,
     })
 
-    // Award weekend salary points proportional to win amount
+    // Award points for the win (cash + points together)
     const ptsCfg = await getPointsConfig()
-    const scratchPts = Math.floor(prize / 10 * ptsCfg.gameWinPointsRate)
+    const scratchPts = Math.floor((prize / 10) * ptsCfg.gameWinPointsRate)
     if (scratchPts > 0) await awardPoints(userId, scratchPts, `Scratch win points: ₦${prize}`)
   } else {
     const [w] = await db.select({ balance: wallet.balance }).from(wallet).where(eq(wallet.userId, userId))
