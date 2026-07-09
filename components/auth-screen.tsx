@@ -245,7 +245,7 @@ export function AuthScreen({ defaultInvite = "", promoCode = "" }: { defaultInvi
                 <Field
                   id="invite"
                   label="Invite Code"
-                  hint="optional"
+                  hint="required"
                   icon={Tag}
                   placeholder="Enter invite code"
                   value={form.invite}
