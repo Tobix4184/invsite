@@ -2380,7 +2380,7 @@ function DepositCard({
         )}
         {dep.sabussRef && (
           <p className="mt-1 text-muted-foreground">
-            Sabuss ref: <span className="font-mono text-foreground">{dep.sabussRef}</span>
+            Ref: <span className="font-mono text-foreground">{dep.sabussRef}</span>
           </p>
         )}
         <p className="mt-1 text-muted-foreground">{new Date(dep.createdAt).toLocaleString()}</p>
@@ -2421,14 +2421,14 @@ function DepositCard({
             </button>
           </div>
         )}
-        {/* Check Sabuss button — shown for both pending AND completed deposits */}
+        {/* Verify with Paystack */}
         <button
           onClick={handleCheck}
           disabled={checking}
           className="flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-ink bg-secondary py-2 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-60"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} />
-          {checking ? "Checking Sabuss..." : isCompleted ? "Verify in Sabuss" : "Check Sabuss Now"}
+          {checking ? "Checking Paystack..." : isCompleted ? "Verify with Paystack" : "Check Paystack Now"}
         </button>
       </div>
     </div>
@@ -2447,11 +2447,11 @@ function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => vo
 
   return (
     <div className="flex flex-col gap-5">
-      {/* ── Sabuss Live Feed ── */}
+      {/* ── Paystack Live Feed ── */}
       <div>
         <div className="mb-3 flex items-center gap-2">
           <Zap className="h-4 w-4 text-gold" />
-          <h3 className="text-sm font-black">Sabuss Live Feed</h3>
+          <h3 className="text-sm font-black">Paystack Live Feed</h3>
           <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold text-gold">
             {sabussFeed.length} entries
           </span>
@@ -2459,7 +2459,7 @@ function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => vo
 
         {sabussFeed.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-ink bg-card py-6 text-center text-xs text-muted-foreground">
-            No Sabuss webhook drops yet — they will appear here when Sabuss sends a notification.
+            No Paystack webhooks yet — confirmed payments will appear here automatically.
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -2577,22 +2577,18 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
   const [testResults, setTestResults] = useState<Record<number, { ok: boolean; message: string; status?: string }>>({})
   const [form, setForm] = useState({
     accountNumber: "",
-  bankName: "",
-  accountName: "",
-  label: "",
-  weight: "1",
-  sabussApiKey: "",
-  sabussPin: "",
+    bankName: "",
+    accountName: "",
+    label: "",
+    weight: "1",
   })
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({
-  accountNumber: "",
-  bankName: "",
-  accountName: "",
-  label: "",
-  weight: "1",
-  sabussApiKey: "",
-  sabussPin: "",
+    accountNumber: "",
+    bankName: "",
+    accountName: "",
+    label: "",
+    weight: "1",
   })
 
   function handleAdd() {
@@ -2600,7 +2596,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
       const res = await addBankAccount({ ...form, weight: Number(form.weight) || 1 })
       if (res.ok) {
         toast.success(res.message)
-        setForm({ accountNumber: "", bankName: "", accountName: "", label: "", weight: "1", sabussApiKey: "", sabussPin: "" })
+        setForm({ accountNumber: "", bankName: "", accountName: "", label: "", weight: "1" })
         router.refresh()
       } else {
         toast.error(res.message)
@@ -2634,9 +2630,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
       bankName: acc.bankName,
       accountName: acc.accountName,
       label: acc.label || "",
-    weight: String(acc.weight ?? 1),
-    sabussApiKey: acc.sabussApiKey || "",
-    sabussPin: acc.sabussPin || "",
+      weight: String(acc.weight ?? 1),
     })
   }
 
@@ -2651,10 +2645,8 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
   function handleSaveEdit(id: number) {
     startTransition(async () => {
     const res = await updateBankAccount(id, {
-  ...editForm,
-  weight: Number(editForm.weight) || 1,
-  sabussApiKey: editForm.sabussApiKey || null,
-  sabussPin: editForm.sabussPin || null,
+      ...editForm,
+      weight: Number(editForm.weight) || 1,
   })
       if (res.ok) {
         toast.success(res.message)
@@ -2739,32 +2731,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
               className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-              Sabuss API Key <span className="font-normal text-muted-foreground">(paste from Sabuss profile — enables auto-detection)</span>
-            </label>
-            <input
-              placeholder="Sabuss API key (optional)"
-              value={form.sabussApiKey}
-              onChange={(e) => setForm((f) => ({ ...f, sabussApiKey: e.target.value }))}
-              className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
-            />
-          </div>
-          <div>
-  <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-  Sabuss Transaction PIN
-  </label>
-  <p className="mb-1.5 text-xs text-muted-foreground">
-  Your Sabuss account PIN (same PIN you use to log in / approve transactions on Sabuss).
-  </p>
-  <input
-  type="password"
-  placeholder="e.g. 0000"
-  value={form.sabussPin}
-  onChange={(e) => setForm((f) => ({ ...f, sabussPin: e.target.value }))}
-  className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary font-mono text-xs"
-  />
-          </div>
+
           <button
             onClick={handleAdd}
             disabled={pending || !form.accountNumber || !form.bankName || !form.accountName}
@@ -2822,30 +2789,7 @@ function BankAccountsTab({ items }: { items: BankAccount[] }) {
                       className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 text-sm outline-none focus:border-primary"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-                      Sabuss API Key <span className="font-normal">(from Sabuss profile)</span>
-                    </label>
-                    <input
-                      placeholder="Paste Sabuss API key to enable auto-detection"
-                      value={editForm.sabussApiKey}
-                      onChange={(e) => setEditForm((f) => ({ ...f, sabussApiKey: e.target.value }))}
-                      className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
-                    />
-                  </div>
-                  <div>
-  <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-  Sabuss Transaction PIN
-  </label>
-  <p className="mb-1.5 text-xs text-muted-foreground">Your Sabuss account PIN (used to verify transactions via the query API)</p>
-  <input
-  type="password"
-  placeholder="e.g. 0000"
-  value={editForm.sabussPin}
-                      onChange={(e) => setEditForm((f) => ({ ...f, sabussPin: e.target.value }))}
-                      className="w-full rounded-xl border-2 border-ink bg-secondary/50 px-3 py-2.5 font-mono text-xs outline-none focus:border-primary"
-                    />
-                  </div>
+
                   <div className="flex gap-2">
                     <button
                       onClick={() => setEditingId(null)}

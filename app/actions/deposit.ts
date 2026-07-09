@@ -135,11 +135,10 @@ function baseUrl() {
   )
 }
 
-/** Submits a manual deposit request for admin approval. */
+/** Initiates a deposit via Paystack bank transfer (virtual account). */
 export async function startDeposit(amount: number) {
   const userId = await getUserId()
 
-  // Respect global deposit pause — surface as an "unavailable" state
   if (await getBoolSetting(SETTING_KEYS.depositsPaused)) {
     return { ok: false, unavailable: true, message: "Service unavailable. Please try again later." }
   }
@@ -150,45 +149,84 @@ export async function startDeposit(amount: number) {
     return { ok: false, message: `Minimum deposit is ₦${minDeposit.toLocaleString()}` }
   }
 
-  // Get user's last deposit to avoid assigning the same account twice in a row
-  const [lastDeposit] = await db
-    .select()
-    .from(deposit)
-    .where(eq(deposit.userId, userId))
-    .orderBy(desc(deposit.createdAt))
-    .limit(1)
-
-  // Pick an active account using weighted random selection
-  const selectedAccount = await pickWeightedBankAccount(lastDeposit?.bankAccountId ?? undefined)
-  if (!selectedAccount) {
-    return { ok: false, message: "No active payment accounts available. Please try again later." }
+  const paystackKey = process.env.PAYSTACK_SECRET_KEY
+  if (!paystackKey) {
+    return { ok: false, message: "Payment gateway not configured. Please contact support." }
   }
 
+  // Fetch the user's email from the auth table
+  const [userRow] = await db.select({ email: userTable.email }).from(userTable).where(eq(userTable.id, userId))
+  const email = userRow?.email ?? `user_${userId.slice(0, 8)}@247incum.app`
+
   const reference = `INCUM_${userId.slice(0, 8)}_${Date.now()}`
+
+  // Call Paystack charge API — bank_transfer channel generates a virtual account
+  let paystackData: Record<string, unknown> | null = null
+  try {
+    const res = await fetch("https://api.paystack.co/charge", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${paystackKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        amount: amt * 100, // Paystack uses kobo (1 NGN = 100 kobo)
+        currency: "NGN",
+        reference,
+        bank_transfer: {
+          account_expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        },
+      }),
+      cache: "no-store",
+    })
+    paystackData = await res.json()
+  } catch {
+    return { ok: false, message: "Could not reach payment gateway. Please try again." }
+  }
+
+  console.log("[v0] Paystack charge response:", JSON.stringify(paystackData))
+
+  if (!paystackData?.status || !paystackData?.data) {
+    return {
+      ok: false,
+      message: (paystackData?.message as string) ?? "Payment gateway error. Please try again.",
+    }
+  }
+
+  const data = paystackData.data as Record<string, unknown>
+
+  // Paystack bank_transfer response nests virtual account in data.bank_transfer
+  // Shape: { bank_transfer: { account_name, account_number, bank_name, expiry_date } }
+  const bt = (data.bank_transfer ?? {}) as Record<string, unknown>
+  const bankName: string = (bt.bank_name as string) ?? "Paystack-Titan"
+  const accountNumber: string = (bt.account_number as string) ?? ""
+  const accountName: string = (bt.account_name as string) ?? "247 Incum"
+
+  if (!accountNumber) {
+    console.log("[v0] No account number in Paystack response:", JSON.stringify(data))
+    return { ok: false, message: "Could not generate virtual account. Please try again." }
+  }
+
+  // Paystack expiry is 30 minutes for bank transfer
   const expiresAt = new Date()
-  expiresAt.setMinutes(expiresAt.getMinutes() + SITE.paymentExpiryMinutes)
-  
+  expiresAt.setMinutes(expiresAt.getMinutes() + 30)
+
   await db.insert(deposit).values({
     userId,
     amount: String(amt),
     reference,
     status: "pending",
-    bankAccountId: selectedAccount.id,
-    assignedBankName: selectedAccount.bankName,
-    assignedAccountNumber: selectedAccount.accountNumber,
-    assignedAccountName: selectedAccount.accountName,
+    assignedBankName: bankName,
+    assignedAccountNumber: accountNumber,
+    assignedAccountName: accountName,
     expiresAt,
   })
 
   return {
     ok: true,
-    message: `Deposit request submitted. Waiting for admin approval.`,
     reference,
-    bankAccount: {
-      bankName: selectedAccount.bankName,
-      accountNumber: selectedAccount.accountNumber,
-      accountName: selectedAccount.accountName,
-    },
+    bankAccount: { bankName, accountNumber, accountName },
     expiresAt: expiresAt.toISOString(),
   }
 }
