@@ -22,6 +22,7 @@ type DepositData = {
   senderName: string | null
   expiresAt: Date | string | null
   createdAt: Date | string
+  bankAccountId?: number | null // present = manual admin-approved deposit
 }
 
 type PollStatus = "idle" | "checking" | "pending" | "approved" | "expired"
@@ -258,9 +259,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
         <div className="flex items-start gap-3 rounded-2xl border-2 border-ink bg-gold/15 p-3">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-gold-foreground" />
           <p className="text-xs leading-relaxed text-foreground">
-            This account number is for this transaction only. Search for{" "}
-            <span className="font-bold">Paystack-Titan</span> or{" "}
-            <span className="font-bold">Titan-Paystack</span> in your bank app.
+            Transfer the exact amount to the account above. Use your bank app and search for the bank name if needed.
           </p>
         </div>
 
@@ -294,7 +293,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
 
         <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
           <ShieldCheck className="h-4 w-4 text-success" />
-          Secured by Paystack — credited automatically on confirmation
+          Secured and verified — wallet credited on confirmation
         </p>
 
         <p className="text-center font-mono text-[10px] text-muted-foreground/50">
