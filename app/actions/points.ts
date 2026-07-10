@@ -36,7 +36,7 @@ export async function getPointsConfig(): Promise<PointsConfig> {
 
   return {
     pointsPerNaira: parseFloat(map["points_per_naira"] ?? "0.5"),
-    referralJoinPoints: parseInt(map["referral_join_points"] ?? "1000", 10),
+    referralJoinPoints: parseInt(map["referral_join_points"] ?? "2000", 10),
     gameWinPointsRate: parseFloat(map["game_win_points_rate"] ?? "1"),
     investmentDefaultPoints: parseInt(map["investment_default_points"] ?? "500", 10),
     investmentPointsMap: JSON.parse(map["investment_points_map"] ?? "{}"),

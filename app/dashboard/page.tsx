@@ -11,7 +11,11 @@ import { BottomNav } from "@/components/bottom-nav"
 import { BalanceCard } from "@/components/balance-card"
 import { QuickActions } from "@/components/quick-actions"
 import { PlanCard } from "@/components/plan-card"
-import { ActiveInvestments } from "@/components/active-investments"
+import dynamic from "next/dynamic"
+const ActiveInvestments = dynamic(
+  () => import("@/components/active-investments").then((m) => m.ActiveInvestments),
+  { ssr: false }
+)
 import { WelcomePopup } from "@/components/welcome-popup"
 import { PendingDepositPopup } from "@/components/pending-deposit-popup"
 import { PromoPopup } from "@/components/promo-popup"

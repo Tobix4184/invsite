@@ -109,7 +109,7 @@ async function payableAmount(
 
 // ─── User-facing ──────────────────────────────────────────────────────────────
 
-/** Fetch the signed-in promoter's salary summary + recent payments. */
+/** Fetch the signed-in promoter's salary summary + recent payments + per-referral breakdown. */
 export async function getMySalary() {
   const userId = await getUserId()
   const [sal] = await db.select().from(promoterSalary).where(eq(promoterSalary.userId, userId))
@@ -123,11 +123,50 @@ export async function getMySalary() {
     .from(salaryPayment)
     .where(eq(salaryPayment.userId, userId))
     .orderBy(desc(salaryPayment.paidAt))
-    .limit(10)
+    .limit(20)
+
   const [{ total }] = await db
     .select({ total: sql<number>`coalesce(sum(amount),0)::float` })
     .from(salaryPayment)
     .where(eq(salaryPayment.userId, userId))
+
+  // Per-referral earnings breakdown — who generated commission for this promoter
+  const refRows = await db
+    .select({
+      referredId: referral.referredId,
+      totalCommission: referral.totalCommission,
+      level: referral.level,
+      createdAt: referral.createdAt,
+      name: userTable.name,
+      email: userTable.email,
+    })
+    .from(referral)
+    .leftJoin(userTable, eq(referral.referredId, userTable.id))
+    .where(and(eq(referral.referrerId, userId), gt(referral.totalCommission, "0")))
+    .orderBy(desc(referral.totalCommission))
+
+  // Also fetch their most recent active investment for plan context
+  const referredIds = refRows.map((r) => r.referredId)
+  const invRows = referredIds.length > 0
+    ? await db
+        .select({
+          userId: investment.userId,
+          price: sql<number>`max(${investment.price})::float`,
+        })
+        .from(investment)
+        .where(and(inArray(investment.userId, referredIds), eq(investment.status, "active")))
+        .groupBy(investment.userId)
+    : []
+  const invMap = new Map(invRows.map((r) => [r.userId, r.price]))
+
+  const breakdown = refRows.map((r) => ({
+    name: r.name ?? "Member",
+    email: maskRefEmail(r.email ?? ""),
+    commission: Number(r.totalCommission),
+    level: r.level,
+    joinedAt: r.createdAt,
+    activePackagePrice: invMap.get(r.referredId) ?? null,
+  }))
 
   return {
     weeklyAmount: amount,
@@ -135,12 +174,26 @@ export async function getMySalary() {
     manualOverride: sal.manualOverride,
     lastPaidAt: sal.lastPaidAt,
     totalPaid: Number(total),
+    totalCommissionEarned: breakdown.reduce((s, r) => s + r.commission, 0),
     points: comp?.points ?? null,
     referralsCounted: comp?.referralsCounted ?? null,
     windowDays: cfg.windowDays,
     enabled: cfg.enabled,
-    payments,
+    payments: payments.map((p) => ({
+      id: p.id,
+      amount: Number(p.amount),
+      note: p.note,
+      paidAt: p.paidAt,
+    })),
+    breakdown,
   }
+}
+
+function maskRefEmail(email: string) {
+  const [name, domain] = email.split("@")
+  if (!domain) return email
+  const visible = name.slice(0, 2)
+  return `${visible}${"*".repeat(Math.max(name.length - 2, 1))}@${domain}`
 }
 
 // ─── Admin ────────────────────────────────────────────────────────────────────

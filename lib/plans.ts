@@ -211,11 +211,10 @@ export const SITE = {
   minWithdrawal: 1000,
   minDeposit: 3000,
   withdrawalCharge: 18,
-  referralLevel1: 20,
+  referralLevel1: 30,
   referralLevel2: 3,
-  // Promoters get NO special referral commission — they earn a salary instead.
-  // Kept equal to referralLevel1 so promoter commission logic stays neutral.
-  promoterLevel1: 20,
+  // Promoters earn 30% referral commission (same as level 1) plus a weekly salary.
+  promoterLevel1: 30,
   withdrawalHours: 'Mornings on your tier day',
   inviteCode: 'INCUM01',
   telegramGroup: 'https://t.me/incomehh',
