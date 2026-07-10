@@ -842,6 +842,14 @@ export async function setDepositsPaused(paused: boolean) {
   return { ok: true, message: paused ? "Deposits paused" : "Deposits resumed" }
 }
 
+export async function setPaystackPaused(paused: boolean) {
+  await requireAdmin()
+  await setSetting(SETTING_KEYS.paystackPaused, paused ? "true" : "false")
+  revalidatePath("/admin")
+  revalidatePath("/deposits")
+  return { ok: true, message: paused ? "Paystack paused — users will use IncumPay only" : "Paystack resumed" }
+}
+
 export async function setWithdrawalsPaused(paused: boolean) {
   await requireAdmin()
   await setSetting(SETTING_KEYS.withdrawalsPaused, paused ? "true" : "false")

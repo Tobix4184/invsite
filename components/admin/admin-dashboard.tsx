@@ -89,6 +89,7 @@ import {
   toggleMilestoneStatus,
   setSiteFrozen,
   setDepositsPaused,
+  setPaystackPaused,
   setWithdrawalsPaused,
   setWithdrawalsAutomatic,
   createPromoterCode,
@@ -214,6 +215,7 @@ type Milestone = {
   type Controls = {
     siteFrozen: boolean
     depositsPaused: boolean
+    paystackPaused: boolean
     withdrawalsPaused: boolean
     withdrawalsAutomatic: boolean
     minDeposit: number
@@ -1439,10 +1441,12 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
   const [pending, startTransition] = useTransition()
   const [siteFrozen, setSiteFrozenState] = useState(controls.siteFrozen)
   const [depositsPaused, setDepPaused] = useState(controls.depositsPaused)
+  const [paystackPaused, setPaystackPausedState] = useState(controls.paystackPaused)
   const [withdrawalsPaused, setWdPaused] = useState(controls.withdrawalsPaused)
   const [withdrawalsAutomatic, setWdAuto] = useState(controls.withdrawalsAutomatic)
   const [savingFreeze, startFreezeTransition] = useTransition()
   const [savingDep, startDepTransition] = useTransition()
+  const [savingPaystack, startPaystackTransition] = useTransition()
   const [savingWd, startWdTransition] = useTransition()
   const [savingWdAuto, startWdAutoTransition] = useTransition()
   const [savingLimits, startLimitsTransition] = useTransition()
@@ -1454,6 +1458,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
   // Keep local state in sync when polled data arrives
   useEffect(() => { setSiteFrozenState(controls.siteFrozen) }, [controls.siteFrozen])
   useEffect(() => { setDepPaused(controls.depositsPaused) }, [controls.depositsPaused])
+  useEffect(() => { setPaystackPausedState(controls.paystackPaused) }, [controls.paystackPaused])
   useEffect(() => { setWdPaused(controls.withdrawalsPaused) }, [controls.withdrawalsPaused])
   useEffect(() => { setWdAuto(controls.withdrawalsAutomatic) }, [controls.withdrawalsAutomatic])
   useEffect(() => { setMinDepositVal(String(controls.minDeposit)) }, [controls.minDeposit])
@@ -1488,6 +1493,20 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
       })
       if (res.ok) toast.success(res.message)
       else toast.error("Failed to save limits")
+      onAction()
+    })
+  }
+
+  function togglePaystack() {
+    const next = !paystackPaused
+    setPaystackPausedState(next)
+    startPaystackTransition(async () => {
+      const res = await setPaystackPaused(next)
+      if (res.ok) toast.success(res.message)
+      else {
+        toast.error("Failed")
+        setPaystackPausedState(!next)
+      }
       onAction()
     })
   }
@@ -1611,6 +1630,29 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
               )}
             </span>
           </button>
+          <button
+            onClick={togglePaystack}
+            disabled={savingPaystack}
+            className={`flex items-center justify-between rounded-xl border px-3 py-3 text-sm font-semibold transition-colors disabled:opacity-60 ${
+              paystackPaused
+                ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
+                : "border-success/40 bg-success/10 text-success"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Zap className="h-4 w-4" /> Paystack
+            </span>
+            <span className="flex items-center gap-1.5">
+              {savingPaystack ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : paystackPaused ? (
+                <><Pause className="h-4 w-4" /> Paused</>
+              ) : (
+                <><Play className="h-4 w-4" /> Active</>
+              )}
+            </span>
+          </button>
+
           <button
             onClick={toggleWithdrawals}
             disabled={savingWd}

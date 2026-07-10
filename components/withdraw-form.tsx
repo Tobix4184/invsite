@@ -470,6 +470,17 @@ export function WithdrawForm({
             </div>
           </div>
 
+          {/* Withdrawal proof warning */}
+          <div className="mb-4 flex items-start gap-3 rounded-2xl border-2 border-orange-500/50 bg-orange-500/10 p-4">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-orange-400" />
+            <div>
+              <p className="text-xs font-black text-orange-400 uppercase tracking-wide">Important — Proof Required</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                After your withdrawal is processed, you <span className="font-bold text-foreground">must send your successful withdrawal proof</span> to our support on Telegram. Failure to do so will result in your withdrawal being <span className="font-bold text-destructive">rejected</span>.
+              </p>
+            </div>
+          </div>
+
           <div className="flex gap-3">
             <button type="button" onClick={() => setStep("bank")}
               className="press flex-1 rounded-2xl border-2 border-ink bg-surface py-3.5 text-sm font-black">

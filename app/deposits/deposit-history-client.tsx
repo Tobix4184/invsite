@@ -40,6 +40,8 @@ function DepositCard({ dep }: { dep: Deposit }) {
   const [checking, setChecking] = useState(false)
   const [result, setResult] = useState<CheckResult | null>(null)
   const [reporting, setReporting] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportName, setReportName] = useState(dep.senderName ?? "")
 
   const isExpired =
     dep.expiresAt &&
@@ -57,8 +59,12 @@ function DepositCard({ dep }: { dep: Deposit }) {
   const alreadyReported = dep.status === "needs_action"
 
   async function handleReport() {
+    if (!reportName.trim()) {
+      toast.error("Please enter the name on your bank account before reporting")
+      return
+    }
     setReporting(true)
-    const res = await reportFailedDeposit(dep.reference)
+    const res = await reportFailedDeposit(dep.reference, reportName.trim())
     setReporting(false)
     if (res.ok) {
       toast.success(res.message)
@@ -196,15 +202,44 @@ function DepositCard({ dep }: { dep: Deposit }) {
               <AlertTriangle className="h-4 w-4 shrink-0 text-gold-foreground" />
               <p className="text-xs font-bold text-foreground">Reported — admin is reviewing this deposit</p>
             </div>
-          ) : (
+          ) : !reportOpen ? (
             <button
-              onClick={handleReport}
-              disabled={reporting}
-              className="press flex w-full items-center justify-center gap-2 rounded-xl border-2 border-ink bg-destructive/10 py-2.5 text-sm font-bold text-destructive shadow-[2px_2px_0_0_var(--ink)] disabled:opacity-60"
+              onClick={() => setReportOpen(true)}
+              className="press flex w-full items-center justify-center gap-2 rounded-xl border-2 border-ink bg-destructive/10 py-2.5 text-sm font-bold text-destructive shadow-[2px_2px_0_0_var(--ink)]"
             >
-              {reporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
-              {reporting ? "Reporting..." : "Report Issue"}
+              <AlertTriangle className="h-4 w-4" />
+              Report Issue
             </button>
+          ) : (
+            <div className="flex flex-col gap-2 rounded-2xl border-2 border-ink bg-surface p-3">
+              <p className="text-xs font-black text-foreground">Enter your bank account name to report</p>
+              <p className="text-[11px] text-muted-foreground">This helps admin match your transfer faster</p>
+              <input
+                type="text"
+                value={reportName}
+                onChange={(e) => setReportName(e.target.value)}
+                placeholder="e.g. John Doe"
+                disabled={reporting}
+                className="w-full rounded-xl border-2 border-ink bg-background px-3 py-2.5 text-sm font-bold placeholder:font-normal placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setReportOpen(false)}
+                  disabled={reporting}
+                  className="flex-1 rounded-xl border-2 border-ink bg-card py-2.5 text-xs font-black disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleReport}
+                  disabled={reporting || !reportName.trim()}
+                  className="press flex flex-[2] items-center justify-center gap-1.5 rounded-xl border-2 border-ink bg-destructive py-2.5 text-xs font-black text-destructive-foreground shadow-[2px_2px_0_0_var(--ink)] disabled:opacity-40"
+                >
+                  {reporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                  {reporting ? "Submitting..." : "Submit Report"}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}

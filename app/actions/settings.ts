@@ -6,6 +6,7 @@ import { SITE } from "@/lib/plans"
 export const SETTING_KEYS = {
   siteFrozen: "site_frozen",               // "true" = entire site frozen for all non-admin users
   depositsPaused: "deposits_paused",
+  paystackPaused: "paystack_paused",       // "true" = Paystack deposit button hidden/blocked; IncumPay only
   withdrawalsPaused: "withdrawals_paused",
   withdrawalsAutomatic: "withdrawals_automatic", // "true" = auto-pay via Paystack on approve
   // Deposit / withdrawal limits — stored in DB so admin can change and takes effect immediately
@@ -278,13 +279,14 @@ export async function saveGameConfig(config: {
 }
 
 /** Convenience: returns pause flags + site freeze state. */
-export async function getPauseFlags(): Promise<{ depositsPaused: boolean; withdrawalsPaused: boolean; siteFrozen: boolean }> {
+export async function getPauseFlags(): Promise<{ depositsPaused: boolean; paystackPaused: boolean; withdrawalsPaused: boolean; siteFrozen: boolean }> {
   const rows = await db.select().from(siteSetting)
   const map = new Map(rows.map((r) => [r.key, r.value]))
   return {
-    siteFrozen: map.get(SETTING_KEYS.siteFrozen) === "true",
-    depositsPaused: map.get(SETTING_KEYS.depositsPaused) === "true",
-    withdrawalsPaused: map.get(SETTING_KEYS.withdrawalsPaused) === "true",
+  siteFrozen: map.get(SETTING_KEYS.siteFrozen) === "true",
+  depositsPaused: map.get(SETTING_KEYS.depositsPaused) === "true",
+  paystackPaused: map.get(SETTING_KEYS.paystackPaused) === "true",
+  withdrawalsPaused: map.get(SETTING_KEYS.withdrawalsPaused) === "true",
   }
 }
 

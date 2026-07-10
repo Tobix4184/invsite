@@ -113,6 +113,11 @@ export async function startPaystackDeposit(amount: number) {
   if (!validation.ok) return validation
   const { amt } = validation
 
+  // Check if Paystack is paused by admin
+  if (await getBoolSetting(SETTING_KEYS.paystackPaused)) {
+    return { ok: false as const, message: "Paystack is currently unavailable. Please use IncumPay." }
+  }
+
   const paystackKey = process.env.PAYSTACK_SECRET_KEY
   if (!paystackKey) {
     return { ok: false as const, message: "Payment gateway not configured. Please contact support." }
