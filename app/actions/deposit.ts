@@ -113,8 +113,10 @@ export async function startDeposit(amount: number) {
 
   const reference = `INCUM_${userId.slice(0, 8)}_${Date.now()}`
 
-  // Call Paystack charge API — bank_transfer channel generates a virtual account
+  // ── Try Paystack virtual account first ──────────────────────────────────
   let paystackData: Record<string, unknown> | null = null
+  let paystackOk = false
+
   try {
     const res = await fetch("https://api.paystack.co/charge", {
       method: "POST",
@@ -124,7 +126,7 @@ export async function startDeposit(amount: number) {
       },
       body: JSON.stringify({
         email,
-        amount: amt * 100, // Paystack uses kobo (1 NGN = 100 kobo)
+        amount: amt * 100, // kobo
         currency: "NGN",
         reference,
         bank_transfer: {
@@ -134,66 +136,79 @@ export async function startDeposit(amount: number) {
       cache: "no-store",
     })
     paystackData = await res.json()
+
+    const innerStatus = (paystackData?.data as Record<string, unknown>)?.status as string | undefined
+    paystackOk =
+      paystackData?.status === true &&
+      !!innerStatus &&
+      ["charge.attempt", "pay_offline", "pending", "success"].includes(innerStatus)
   } catch {
-    return { ok: false, message: "Could not reach payment gateway. Please try again." }
+    // Network error — fall through to manual bank account
+    paystackOk = false
   }
 
-  // Paystack bank transfer charge returns status:true with data.status === "charge.attempt"
-  // which means a virtual account was successfully created — this is NOT an error.
-  const paystackStatus = paystackData?.status
-  const innerStatus = (paystackData?.data as Record<string, unknown>)?.status as string | undefined
-  const isSuccess =
-    paystackStatus === true &&
-    (innerStatus === "charge.attempt" || innerStatus === "pay_offline" || innerStatus === "pending" || innerStatus === "success")
+  // ── Paystack succeeded — use the virtual account ─────────────────────
+  if (paystackOk && paystackData?.data) {
+    const data = paystackData.data as Record<string, unknown>
+    const bankObj = (data.bank ?? {}) as Record<string, unknown>
+    const bankName: string = (bankObj.name as string) ?? "Paystack-Titan"
+    const accountNumber: string = (data.account_number as string) ?? ""
+    const accountName: string = (data.account_name as string) ?? "247 Incum"
 
-  if (!paystackStatus || !paystackData?.data) {
-    return {
-      ok: false,
-      message: (paystackData?.message as string) ?? "Payment gateway error. Please try again.",
+    if (accountNumber) {
+      const expiresAt = data.account_expires_at
+        ? new Date(data.account_expires_at as string)
+        : new Date(Date.now() + 30 * 60 * 1000)
+
+      await db.insert(deposit).values({
+        userId,
+        amount: String(amt),
+        reference,
+        status: "pending",
+        assignedBankName: bankName,
+        assignedAccountNumber: accountNumber,
+        assignedAccountName: accountName,
+        expiresAt,
+      })
+
+      return {
+        ok: true,
+        reference,
+        bankAccount: { bankName, accountNumber, accountName },
+        expiresAt: expiresAt.toISOString(),
+        isManual: false,
+      }
     }
   }
 
-  if (!isSuccess) {
-    const errMsg = (paystackData?.message as string) ?? `Payment could not be initiated (${innerStatus ?? "unknown"}). Please try again.`
-    return { ok: false, message: errMsg }
+  // ── Fallback — use an admin bank account (manual approval) ────────────
+  const adminAccount = await pickWeightedBankAccount()
+  if (!adminAccount) {
+    return { ok: false, message: "Payment gateway unavailable and no bank accounts configured. Please contact support." }
   }
-
-  const data = paystackData.data as Record<string, unknown>
-
-  // Paystack returns virtual account details at the top level of data:
-  // { account_name, account_number, bank: { name }, account_expires_at, ... }
-  const bankObj = (data.bank ?? {}) as Record<string, unknown>
-  const bankName: string = (bankObj.name as string) ?? "Paystack-Titan"
-  const accountNumber: string = (data.account_number as string) ?? ""
-  const accountName: string = (data.account_name as string) ?? "247 Incum"
-
-  if (!accountNumber) {
-    // Log the full response to understand what Paystack returned
-    console.log("[v0] Paystack charge response missing account_number:", JSON.stringify(data))
-    return { ok: false, message: "Could not generate virtual account. Please try again." }
-  }
-
-  // Use Paystack's actual expiry or fall back to 30 minutes
-  const expiresAt = data.account_expires_at
-    ? new Date(data.account_expires_at as string)
-    : new Date(Date.now() + 30 * 60 * 1000)
 
   await db.insert(deposit).values({
     userId,
     amount: String(amt),
     reference,
     status: "pending",
-    assignedBankName: bankName,
-    assignedAccountNumber: accountNumber,
-    assignedAccountName: accountName,
-    expiresAt,
+    assignedBankName: adminAccount.bankName,
+    assignedAccountNumber: adminAccount.accountNumber,
+    assignedAccountName: adminAccount.accountName,
+    bankAccountId: adminAccount.id,
+    // No expiresAt — manual deposits don't expire; admin approves
   })
 
   return {
     ok: true,
     reference,
-    bankAccount: { bankName, accountNumber, accountName },
-    expiresAt: expiresAt.toISOString(),
+    bankAccount: {
+      bankName: adminAccount.bankName,
+      accountNumber: adminAccount.accountNumber,
+      accountName: adminAccount.accountName,
+    },
+    expiresAt: null,
+    isManual: true,
   }
 }
 

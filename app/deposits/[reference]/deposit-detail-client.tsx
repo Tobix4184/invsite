@@ -22,6 +22,7 @@ type DepositData = {
   senderName: string | null
   expiresAt: Date | string | null
   createdAt: Date | string
+  bankAccountId?: number | null // present = manual admin-approved deposit
 }
 
 type PollStatus = "idle" | "checking" | "pending" | "approved" | "expired"
@@ -38,6 +39,8 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
 
   const isExpired = !!deposit.expiresAt && new Date(deposit.expiresAt) < new Date()
   const isPending = ["pending", "processing"].includes(deposit.status)
+  // A deposit with a bankAccountId was assigned an admin bank account (manual approval, no Paystack)
+  const isManual = !!deposit.bankAccountId
 
   // ── Expiry countdown ───────────────────────────────────────────────────
   useEffect(() => {
@@ -257,30 +260,39 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
         {/* Notice */}
         <div className="flex items-start gap-3 rounded-2xl border-2 border-ink bg-gold/15 p-3">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-gold-foreground" />
-          <p className="text-xs leading-relaxed text-foreground">
-            This account number is for this transaction only. Search for{" "}
-            <span className="font-bold">Paystack-Titan</span> or{" "}
-            <span className="font-bold">Titan-Paystack</span> in your bank app.
-          </p>
+          {isManual ? (
+            <p className="text-xs leading-relaxed text-foreground">
+              Transfer the exact amount to the account above then tap{" "}
+              <span className="font-bold">I&apos;ve Made the Transfer</span>. Your wallet will be credited after admin confirms your payment.
+            </p>
+          ) : (
+            <p className="text-xs leading-relaxed text-foreground">
+              This account number is for this transaction only. Search for{" "}
+              <span className="font-bold">Paystack-Titan</span> or{" "}
+              <span className="font-bold">Titan-Paystack</span> in your bank app.
+            </p>
+          )}
         </div>
 
-        {/* Auto-detection status */}
-        <div className="flex items-center justify-between rounded-2xl border-2 border-ink bg-card px-4 py-3 shadow-[2px_2px_0_0_var(--ink)]">
-          <div className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full ${pollStatus === "checking" ? "animate-pulse bg-primary" : pollStatus === "approved" ? "bg-success" : "bg-muted-foreground/30"}`} />
-            <span className="text-xs font-bold text-muted-foreground">
-              {pollStatus === "checking" ? "Checking..." : pollStatus === "approved" ? "Confirmed!" : `Checking in ${pollCountdown}s`}
-            </span>
+        {/* Auto-detection status — only for Paystack virtual accounts */}
+        {!isManual && (
+          <div className="flex items-center justify-between rounded-2xl border-2 border-ink bg-card px-4 py-3 shadow-[2px_2px_0_0_var(--ink)]">
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${pollStatus === "checking" ? "animate-pulse bg-primary" : pollStatus === "approved" ? "bg-success" : "bg-muted-foreground/30"}`} />
+              <span className="text-xs font-bold text-muted-foreground">
+                {pollStatus === "checking" ? "Checking..." : pollStatus === "approved" ? "Confirmed!" : `Checking in ${pollCountdown}s`}
+              </span>
+            </div>
+            <button
+              onClick={runPoll}
+              disabled={pollStatus === "checking"}
+              className="flex items-center gap-1 rounded-lg border-2 border-ink bg-surface px-2 py-1 text-[10px] font-bold text-muted-foreground disabled:opacity-40"
+            >
+              <RefreshCw className={`h-3 w-3 ${pollStatus === "checking" ? "animate-spin" : ""}`} />
+              Check now
+            </button>
           </div>
-          <button
-            onClick={runPoll}
-            disabled={pollStatus === "checking"}
-            className="flex items-center gap-1 rounded-lg border-2 border-ink bg-surface px-2 py-1 text-[10px] font-bold text-muted-foreground disabled:opacity-40"
-          >
-            <RefreshCw className={`h-3 w-3 ${pollStatus === "checking" ? "animate-spin" : ""}`} />
-            Check now
-          </button>
-        </div>
+        )}
 
         {/* CTA */}
         <button
@@ -294,7 +306,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
 
         <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
           <ShieldCheck className="h-4 w-4 text-success" />
-          Secured by Paystack — credited automatically on confirmation
+          {isManual ? "Reviewed and approved by admin" : "Secured by Paystack — credited automatically on confirmation"}
         </p>
 
         <p className="text-center font-mono text-[10px] text-muted-foreground/50">
