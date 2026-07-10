@@ -150,14 +150,26 @@ export async function startDeposit(amount: number) {
   // ── Paystack succeeded — use the virtual account ─────────────────────
   if (paystackOk && paystackData?.data) {
     const data = paystackData.data as Record<string, unknown>
-    const bankObj = (data.bank ?? {}) as Record<string, unknown>
+
+    // Paystack nests virtual account under data.transfer for charge.attempt
+    // Fall back to top-level keys for other response shapes
+    const transfer = (data.transfer ?? {}) as Record<string, unknown>
+    const accountSource: Record<string, unknown> =
+      (transfer.account_number as string) ? transfer : data
+
+    const bankObj = (accountSource.bank ?? {}) as Record<string, unknown>
     const bankName: string = (bankObj.name as string) ?? "Paystack-Titan"
-    const accountNumber: string = (data.account_number as string) ?? ""
-    const accountName: string = (data.account_name as string) ?? "247 Incum"
+    const accountNumber: string = (accountSource.account_number as string) ?? ""
+    const accountName: string = (accountSource.account_name as string) ?? "247 Incum"
+    const accountExpiresAt = accountSource.account_expires_at ?? data.account_expires_at
+
+    console.log("[v0] Paystack data keys:", Object.keys(data))
+    console.log("[v0] transfer keys:", Object.keys(transfer))
+    console.log("[v0] accountNumber resolved:", accountNumber)
 
     if (accountNumber) {
-      const expiresAt = data.account_expires_at
-        ? new Date(data.account_expires_at as string)
+      const expiresAt = accountExpiresAt
+        ? new Date(accountExpiresAt as string)
         : new Date(Date.now() + 30 * 60 * 1000)
 
       await db.insert(deposit).values({
@@ -179,6 +191,9 @@ export async function startDeposit(amount: number) {
         isManual: false,
       }
     }
+
+    // Account number still missing — log full response to diagnose
+    console.log("[v0] Paystack full response (no account_number):", JSON.stringify(paystackData))
   }
 
   // ── Fallback — use an admin bank account (manual approval) ────────────
