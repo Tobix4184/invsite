@@ -31,6 +31,7 @@ function getCountdown(lastPayoutAt: Date | string): string {
 
 export function ActiveInvestments({ investments: initialInvestments }: { investments: Inv[] }) {
   const [, setTick] = useState(0)
+  const [mounted, setMounted] = useState(false)
 
   const { data } = useSWR('/api/live-balance', fetcher, {
     fallbackData: { investments: initialInvestments },
@@ -42,6 +43,7 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
   const investments: Inv[] = data?.investments ?? initialInvestments
 
   useEffect(() => {
+    setMounted(true)
     const t = setInterval(() => setTick(n => n + 1), 60_000)
     return () => clearInterval(t)
   }, [])
@@ -58,7 +60,7 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
       <div className="flex flex-col gap-3">
         {investments.map((inv) => {
           const pct = Math.min(100, Math.round((inv.daysPaid / inv.durationDays) * 100))
-          const countdown = getCountdown(inv.lastPayoutAt)
+          const countdown = mounted ? getCountdown(inv.lastPayoutAt) : ""
           const isReady = countdown === "Ready"
 
           return (
@@ -90,12 +92,12 @@ export function ActiveInvestments({ investments: initialInvestments }: { investm
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Earned</p>
                   <p className="text-sm font-black tabular-nums">{formatNaira(Number(inv.amountEarned))}</p>
                 </div>
-                {inv.status === "active" && (
+                {inv.status === "active" && mounted && (
                   <div className={`ml-auto inline-flex items-center gap-1.5 rounded-full border-2 border-ink px-2.5 py-1 text-[11px] font-black ${
                     isReady ? "bg-success text-success-foreground" : "bg-primary text-primary-foreground"
                   }`}>
                     <Clock className="h-3 w-3" />
-                    {isReady ? "Ready" : countdown}
+                    <span suppressHydrationWarning>{isReady ? "Ready" : countdown}</span>
                   </div>
                 )}
               </div>
