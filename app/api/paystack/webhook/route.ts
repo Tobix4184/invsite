@@ -92,8 +92,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "No reference" }, { status: 400 })
   }
 
-  // Only auto-credit if this is our reference format or bank_transfer channel
-  if (channel !== "bank_transfer" && !reference.startsWith("INCUM_")) {
+  // Credit if reference is ours (all our deposits start with INCUM_)
+  if (!reference.startsWith("INCUM_")) {
     return NextResponse.json({ ok: true, skipped: true })
   }
 
