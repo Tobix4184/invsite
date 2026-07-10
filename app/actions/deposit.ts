@@ -138,11 +138,24 @@ export async function startDeposit(amount: number) {
     return { ok: false, message: "Could not reach payment gateway. Please try again." }
   }
 
-  if (!paystackData?.status || !paystackData?.data) {
+  // Paystack bank transfer charge returns status:true with data.status === "charge.attempt"
+  // which means a virtual account was successfully created — this is NOT an error.
+  const paystackStatus = paystackData?.status
+  const innerStatus = (paystackData?.data as Record<string, unknown>)?.status as string | undefined
+  const isSuccess =
+    paystackStatus === true &&
+    (innerStatus === "charge.attempt" || innerStatus === "pay_offline" || innerStatus === "pending" || innerStatus === "success")
+
+  if (!paystackStatus || !paystackData?.data) {
     return {
       ok: false,
       message: (paystackData?.message as string) ?? "Payment gateway error. Please try again.",
     }
+  }
+
+  if (!isSuccess) {
+    const errMsg = (paystackData?.message as string) ?? `Payment could not be initiated (${innerStatus ?? "unknown"}). Please try again.`
+    return { ok: false, message: errMsg }
   }
 
   const data = paystackData.data as Record<string, unknown>
@@ -155,6 +168,8 @@ export async function startDeposit(amount: number) {
   const accountName: string = (data.account_name as string) ?? "247 Incum"
 
   if (!accountNumber) {
+    // Log the full response to understand what Paystack returned
+    console.log("[v0] Paystack charge response missing account_number:", JSON.stringify(data))
     return { ok: false, message: "Could not generate virtual account. Please try again." }
   }
 
