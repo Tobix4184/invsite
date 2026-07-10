@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { wallet, withdrawal, transaction, giftCode, giftCodeRedemption, profile } from "@/lib/db/schema"
-import { SITE, WITHDRAWAL_TIERS, canWithdrawToday } from "@/lib/plans"
+import { SITE, getNextWithdrawalTime, formatNextWithdrawalTime } from "@/lib/plans"
 import { getSession, getUserId } from "@/lib/session"
 import { getUserTier } from "@/lib/user-tier"
 import { getBoolSetting, getLiveDepositLimits, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
@@ -37,25 +37,26 @@ export async function requestWithdrawal(data: {
     return { ok: false, message: "Please fill in your bank details" }
   }
 
-  // Enforce withdrawal-day tiers (skipped for admins)
+  // Enforce active package requirement + 22-hour cooldown (skipped for admins)
   const tier = await getUserTier(userId)
   if (!isAdmin) {
     if (!tier) {
       return { ok: false, message: "You need an active package before you can withdraw." }
     }
 
-    // Check if this is the user's very first withdrawal — if so, skip the day restriction
-    const [priorWithdrawals] = await db
-      .select({ c: sql<number>`count(*)::int` })
+    // Check 22-hour cooldown from the most recent withdrawal request
+    const [lastWithdrawal] = await db
+      .select({ createdAt: withdrawal.createdAt })
       .from(withdrawal)
       .where(eq(withdrawal.userId, userId))
+      .orderBy(desc(withdrawal.createdAt))
+      .limit(1)
 
-    const isFirstWithdrawal = Number(priorWithdrawals?.c ?? 0) === 0
-
-    if (!isFirstWithdrawal && !canWithdrawToday(tier)) {
+    const nextTime = getNextWithdrawalTime(lastWithdrawal?.createdAt ?? null)
+    if (nextTime) {
       return {
         ok: false,
-        message: `Your ${WITHDRAWAL_TIERS[tier].label} withdrawal day is ${WITHDRAWAL_TIERS[tier].dayLabel}. Please come back then.`,
+        message: `Your next withdrawal is available ${formatNextWithdrawalTime(nextTime)}.`,
       }
     }
   }
