@@ -43,6 +43,8 @@ import {
   Zap,
   Unlock,
   Download,
+  AlertCircle,
+  Search,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira, PLANS } from "@/lib/plans"
@@ -87,6 +89,7 @@ import {
   toggleMilestoneStatus,
   setSiteFrozen,
   setDepositsPaused,
+  setPaystackPaused,
   setWithdrawalsPaused,
   setWithdrawalsAutomatic,
   createPromoterCode,
@@ -212,6 +215,7 @@ type Milestone = {
   type Controls = {
     siteFrozen: boolean
     depositsPaused: boolean
+    paystackPaused: boolean
     withdrawalsPaused: boolean
     withdrawalsAutomatic: boolean
     minDeposit: number
@@ -1437,10 +1441,12 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
   const [pending, startTransition] = useTransition()
   const [siteFrozen, setSiteFrozenState] = useState(controls.siteFrozen)
   const [depositsPaused, setDepPaused] = useState(controls.depositsPaused)
+  const [paystackPaused, setPaystackPausedState] = useState(controls.paystackPaused)
   const [withdrawalsPaused, setWdPaused] = useState(controls.withdrawalsPaused)
   const [withdrawalsAutomatic, setWdAuto] = useState(controls.withdrawalsAutomatic)
   const [savingFreeze, startFreezeTransition] = useTransition()
   const [savingDep, startDepTransition] = useTransition()
+  const [savingPaystack, startPaystackTransition] = useTransition()
   const [savingWd, startWdTransition] = useTransition()
   const [savingWdAuto, startWdAutoTransition] = useTransition()
   const [savingLimits, startLimitsTransition] = useTransition()
@@ -1452,6 +1458,7 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
   // Keep local state in sync when polled data arrives
   useEffect(() => { setSiteFrozenState(controls.siteFrozen) }, [controls.siteFrozen])
   useEffect(() => { setDepPaused(controls.depositsPaused) }, [controls.depositsPaused])
+  useEffect(() => { setPaystackPausedState(controls.paystackPaused) }, [controls.paystackPaused])
   useEffect(() => { setWdPaused(controls.withdrawalsPaused) }, [controls.withdrawalsPaused])
   useEffect(() => { setWdAuto(controls.withdrawalsAutomatic) }, [controls.withdrawalsAutomatic])
   useEffect(() => { setMinDepositVal(String(controls.minDeposit)) }, [controls.minDeposit])
@@ -1486,6 +1493,20 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
       })
       if (res.ok) toast.success(res.message)
       else toast.error("Failed to save limits")
+      onAction()
+    })
+  }
+
+  function togglePaystack() {
+    const next = !paystackPaused
+    setPaystackPausedState(next)
+    startPaystackTransition(async () => {
+      const res = await setPaystackPaused(next)
+      if (res.ok) toast.success(res.message)
+      else {
+        toast.error("Failed")
+        setPaystackPausedState(!next)
+      }
       onAction()
     })
   }
@@ -1609,6 +1630,29 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
               )}
             </span>
           </button>
+          <button
+            onClick={togglePaystack}
+            disabled={savingPaystack}
+            className={`flex items-center justify-between rounded-xl border px-3 py-3 text-sm font-semibold transition-colors disabled:opacity-60 ${
+              paystackPaused
+                ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
+                : "border-success/40 bg-success/10 text-success"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Zap className="h-4 w-4" /> Paystack
+            </span>
+            <span className="flex items-center gap-1.5">
+              {savingPaystack ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : paystackPaused ? (
+                <><Pause className="h-4 w-4" /> Paused</>
+              ) : (
+                <><Play className="h-4 w-4" /> Active</>
+              )}
+            </span>
+          </button>
+
           <button
             onClick={toggleWithdrawals}
             disabled={savingWd}
@@ -2456,7 +2500,8 @@ function DepositCard({
   const [checkResult, setCheckResult] = useState<{ ok: boolean; found?: boolean; message: string } | null>(null)
 
   const isCompleted = dep.status === "success" || dep.status === "approved"
-  const canAct = dep.status === "pending" || dep.status === "processing" || dep.status === "needs_review"
+  const canAct = dep.status === "pending" || dep.status === "processing" || dep.status === "needs_review" || dep.status === "needs_action"
+  const isNeedsAction = dep.status === "needs_action"
 
   function act(kind: "approve" | "reject") {
     startActTransition(async () => {
@@ -2477,7 +2522,13 @@ function DepositCard({
   }
 
   return (
-    <div className="rounded-2xl border-2 border-ink bg-card p-4">
+    <div className={`rounded-2xl border-2 p-4 ${isNeedsAction ? "border-orange-500 bg-orange-500/5" : "border-ink bg-card"}`}>
+      {isNeedsAction && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl bg-orange-500/15 px-3 py-2">
+          <AlertCircle className="h-4 w-4 shrink-0 text-orange-500" />
+          <p className="text-xs font-black text-orange-500">User reported an issue — needs your review</p>
+        </div>
+      )}
       <div className="flex items-start justify-between">
         <div>
           <p className="font-bold">{formatNaira(Number(dep.amount))}</p>
@@ -2556,17 +2607,69 @@ function DepositCard({
 }
 
 function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => void }) {
+  const [query, setQuery] = useState("")
+
+  // Filter all deposits by search query (email, reference, account number, sender name, bank name, amount)
+  const q = query.trim().toLowerCase()
+  const filtered = q
+    ? items.filter((d) =>
+        (d.userEmail ?? "").toLowerCase().includes(q) ||
+        d.reference.toLowerCase().includes(q) ||
+        (d.assignedAccountNumber ?? "").includes(q) ||
+        (d.assignedBankName ?? "").toLowerCase().includes(q) ||
+        (d.senderName ?? "").toLowerCase().includes(q) ||
+        d.amount.includes(q)
+      )
+    : items
+
   // Split: Sabuss raw feed vs regular deposits
-  const sabussFeed = items.filter(
+  const sabussFeed = filtered.filter(
     (d) =>
       d.status === "unmatched" ||
       d.status === "needs_review" ||
       (d.status === "success" && d.sabussRef),
   )
-  const regularDeposits = items.filter((d) => !sabussFeed.includes(d))
+  const regularDeposits = filtered.filter((d) => !sabussFeed.includes(d))
+
+  // Count needs_action for badge
+  const needsActionCount = items.filter((d) => d.status === "needs_action").length
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Search bar */}
+      <div className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-surface px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary">
+        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by email, reference, account no., name..."
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        />
+        {query && (
+          <button type="button" onClick={() => setQuery("")}>
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
+      </div>
+
+      {/* Needs-action alert */}
+      {needsActionCount > 0 && !q && (
+        <div className="flex items-center gap-2 rounded-2xl border-2 border-orange-500 bg-orange-500/10 px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-orange-500" />
+          <p className="text-xs font-black text-orange-500">
+            {needsActionCount} deposit{needsActionCount > 1 ? "s" : ""} reported by users — scroll down to review
+          </p>
+        </div>
+      )}
+
+      {/* Search summary */}
+      {q && (
+        <p className="text-xs text-muted-foreground">
+          Showing <span className="font-bold text-foreground">{filtered.length}</span> result{filtered.length !== 1 ? "s" : ""} for &quot;{query}&quot;
+        </p>
+      )}
+
       {/* ── Paystack Live Feed ── */}
       <div>
         <div className="mb-3 flex items-center gap-2">
@@ -2579,7 +2682,7 @@ function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => vo
 
         {sabussFeed.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-ink bg-card py-6 text-center text-xs text-muted-foreground">
-            No Paystack webhooks yet — confirmed payments will appear here automatically.
+            {q ? "No feed results match your search." : "No Paystack webhooks yet — confirmed payments will appear here automatically."}
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -2597,7 +2700,7 @@ function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => vo
       <div>
         <p className="mb-3 text-sm font-black">All Deposits</p>
         {regularDeposits.length === 0 ? (
-          <Empty label="No deposits yet" />
+          <Empty label={q ? "No deposits match your search" : "No deposits yet"} />
         ) : (
           <div className="flex flex-col gap-3">
             {regularDeposits.map((dep) => (

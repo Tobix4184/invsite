@@ -44,6 +44,20 @@ export async function requestWithdrawal(data: {
       return { ok: false, message: "You need an active package before you can withdraw." }
     }
 
+    // Enforce withdrawal window: 9:00 AM – 6:30 PM (Nigeria time, UTC+1)
+    const now = new Date()
+    const nigeriaOffset = 60 // UTC+1 in minutes
+    const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes()
+    const nigeriaMinutes = (utcMinutes + nigeriaOffset) % (24 * 60)
+    const openMinutes = 9 * 60      // 09:00
+    const closeMinutes = 18 * 60 + 30 // 18:30
+    if (nigeriaMinutes < openMinutes || nigeriaMinutes >= closeMinutes) {
+      return {
+        ok: false,
+        message: "Withdrawals are open 9:00 AM – 6:30 PM (Nigerian time). Please come back during that window.",
+      }
+    }
+
     // Check 22-hour cooldown from the most recent withdrawal request
     const [lastWithdrawal] = await db
       .select({ createdAt: withdrawal.createdAt })

@@ -3,7 +3,7 @@ import { getSession } from "@/lib/session"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { getUserDeposits } from "@/app/actions/deposit"
-import { getLiveDepositLimits } from "@/app/actions/settings"
+import { getLiveDepositLimits, getPauseFlags } from "@/app/actions/settings"
 import { DepositHistoryClient } from "./deposit-history-client"
 import { NewDepositClient } from "./new-deposit-client"
 import { db } from "@/lib/db"
@@ -16,10 +16,11 @@ export default async function DepositsPage() {
   const session = await getSession()
   if (!session?.user) redirect("/")
 
-  const [deposits, w, limits] = await Promise.all([
+  const [deposits, w, limits, flags] = await Promise.all([
     getUserDeposits(),
     db.select().from(wallet).where(eq(wallet.userId, session.user.id)).then((r) => r[0]),
     getLiveDepositLimits(),
+    getPauseFlags(),
   ])
 
   const balance = Number(w?.balance ?? 0)
@@ -28,7 +29,7 @@ export default async function DepositsPage() {
     <div className="min-h-screen pb-28">
       <AppHeader title="Deposits" />
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5">
-        <NewDepositClient balance={balance} minDeposit={limits.minDeposit} />
+        <NewDepositClient balance={balance} minDeposit={limits.minDeposit} paystackPaused={flags.paystackPaused} />
 
         {deposits.length > 0 && (
           <section className="flex flex-col gap-3">

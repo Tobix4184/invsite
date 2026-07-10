@@ -8,6 +8,7 @@ import {
   Building2,
   CheckCircle2,
   ChevronDown,
+  Clock,
   Loader2,
   Search,
   ShieldCheck,
@@ -112,9 +113,24 @@ export function WithdrawForm({
   minWithdrawal: number
   withdrawalCharge: number
 }) {
+  // Withdrawal window: 9:00 AM – 6:30 PM Nigeria time (UTC+1)
+  function isWithinWithdrawalWindow() {
+    const now = new Date()
+    const nigeriaMinutes = (now.getUTCHours() * 60 + now.getUTCMinutes() + 60) % (24 * 60)
+    return nigeriaMinutes >= 9 * 60 && nigeriaMinutes < 18 * 60 + 30
+  }
+
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [loading, setLoading] = useState(true)
+  const [windowOpen, setWindowOpen] = useState(isWithinWithdrawalWindow())
+
+  // Re-check every minute so the button auto-enables/disables
+  useEffect(() => {
+    const t = setInterval(() => setWindowOpen(isWithinWithdrawalWindow()), 60_000)
+    return () => clearInterval(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [banks, setBanks] = useState<Bank[]>([])
   const [step, setStep] = useState<"amount" | "bank" | "confirm">("amount")
   const [form, setForm] = useState({ amount: "", bankName: "", bankCode: "", accountNumber: "", accountName: "" })
@@ -203,6 +219,26 @@ export function WithdrawForm({
 
   return (
     <main className="mx-auto flex max-w-md flex-col gap-4 px-4 py-5">
+
+      {/* Withdrawal window notice */}
+      {!windowOpen && (
+        <div className="flex items-start gap-3 rounded-2xl border-2 border-ink bg-destructive/10 p-4">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+          <div>
+            <p className="text-sm font-black text-destructive">Withdrawals are currently closed</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Withdrawal window is <span className="font-bold text-foreground">9:00 AM – 6:30 PM</span> (Nigerian time). Please come back during that time.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {windowOpen && (
+        <div className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-success/10 px-4 py-2.5">
+          <Clock className="h-4 w-4 shrink-0 text-success" />
+          <p className="text-xs font-bold text-success">Withdrawals open now · closes 6:30 PM</p>
+        </div>
+      )}
 
       {/* Balance hero card */}
       <div className="relative overflow-hidden rounded-3xl border-2 border-ink bg-primary p-5 shadow-[4px_4px_0_0_var(--ink)]">
@@ -308,10 +344,11 @@ export function WithdrawForm({
 
           <button
             onClick={() => setStep("bank")}
-            disabled={amount < minWithdrawal || amount > balance}
+            disabled={!windowOpen || amount < minWithdrawal || amount > balance}
             className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-4 text-sm font-black uppercase text-primary-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-40"
           >
-            Continue <ArrowRight className="h-4 w-4" />
+            {!windowOpen ? <Clock className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
+            {!windowOpen ? "Opens 9:00 AM" : "Continue"}
           </button>
         </div>
       )}
@@ -430,6 +467,17 @@ export function WithdrawForm({
               <ConfirmRow label="Bank" value={form.bankName} />
               <ConfirmRow label="Account No." value={form.accountNumber} mono />
               <ConfirmRow label="Name" value={form.accountName} highlight />
+            </div>
+          </div>
+
+          {/* Withdrawal proof warning */}
+          <div className="mb-4 flex items-start gap-3 rounded-2xl border-2 border-orange-500/50 bg-orange-500/10 p-4">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-orange-400" />
+            <div>
+              <p className="text-xs font-black text-orange-400 uppercase tracking-wide">Important — Proof Required</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                After your withdrawal is processed, you <span className="font-bold text-foreground">must send your successful withdrawal proof</span> to our support on Telegram. Failure to do so will result in your withdrawal being <span className="font-bold text-destructive">rejected</span>.
+              </p>
             </div>
           </div>
 

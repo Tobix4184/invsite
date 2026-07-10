@@ -113,6 +113,11 @@ export async function startPaystackDeposit(amount: number) {
   if (!validation.ok) return validation
   const { amt } = validation
 
+  // Check if Paystack is paused by admin
+  if (await getBoolSetting(SETTING_KEYS.paystackPaused)) {
+    return { ok: false as const, message: "Paystack is currently unavailable. Please use IncumPay." }
+  }
+
   const paystackKey = process.env.PAYSTACK_SECRET_KEY
   if (!paystackKey) {
     return { ok: false as const, message: "Payment gateway not configured. Please contact support." }
@@ -231,7 +236,7 @@ export async function rejectDeposit(reference: string) {
   const [dep] = await db.select().from(deposit).where(eq(deposit.reference, reference))
   if (!dep) return { ok: false, message: "Deposit not found" }
   if (["success", "failed"].includes(dep.status)) return { ok: true, message: "Already processed" }
-  if (!["pending", "processing"].includes(dep.status)) {
+  if (!["pending", "processing", "needs_action"].includes(dep.status)) {
     return { ok: false, message: "Deposit cannot be rejected in current status" }
   }
 
@@ -239,21 +244,51 @@ export async function rejectDeposit(reference: string) {
   return { ok: true, message: "Deposit rejected" }
 }
 
-/** User updates their sender name for a pending deposit */
+/** User updates their sender name for a pending/processing/needs_action deposit */
 export async function updateDepositSenderName(reference: string, senderName: string) {
   const userId = await getUserId()
   const [dep] = await db.select().from(deposit).where(eq(deposit.reference, reference))
-  
+
   if (!dep) return { ok: false, message: "Deposit not found" }
   if (dep.userId !== userId) return { ok: false, message: "Not authorized" }
-  if (dep.status !== "pending") return { ok: false, message: "Deposit already processed" }
-  
+  if (!["pending", "processing", "needs_action"].includes(dep.status)) {
+    return { ok: false, message: "Deposit already processed" }
+  }
+
   await db
     .update(deposit)
     .set({ senderName: senderName.trim() })
     .where(eq(deposit.reference, reference))
-  
+
   return { ok: true, message: "Sender name updated" }
+}
+
+/**
+ * User reports a failed/expired deposit as an issue.
+ * Sets status to "needs_action" so admin sees it as needing attention.
+ */
+export async function reportFailedDeposit(reference: string, senderName?: string) {
+  const userId = await getUserId()
+  const [dep] = await db.select().from(deposit).where(eq(deposit.reference, reference))
+
+  if (!dep) return { ok: false, message: "Deposit not found" }
+  if (dep.userId !== userId) return { ok: false, message: "Not authorized" }
+  if (dep.status === "success" || dep.status === "approved") {
+    return { ok: false, message: "This deposit was already approved." }
+  }
+  if (dep.status === "needs_action") {
+    return { ok: true, message: "Already reported — admin will review shortly." }
+  }
+
+  await db
+    .update(deposit)
+    .set({
+      status: "needs_action",
+      ...(senderName ? { senderName: senderName.trim() } : {}),
+    })
+    .where(eq(deposit.reference, reference))
+
+  return { ok: true, message: "Issue reported. Our team will review your deposit and respond shortly." }
 }
 
 /** Get user's pending deposit by reference */
