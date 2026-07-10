@@ -9,7 +9,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatNaira } from "@/lib/plans"
-import { markDepositAsPaid } from "@/app/actions/deposit"
+import { markDepositAsPaid, updateDepositSenderName } from "@/app/actions/deposit"
 
 type DepositData = {
   id: number
@@ -32,6 +32,9 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [paidPending, setPaidPending] = useState(false)
   const [pollStatus, setPollStatus] = useState<PollStatus>("idle")
+  const [senderName, setSenderName] = useState(deposit.senderName ?? "")
+  const [savingName, setSavingName] = useState(false)
+  const [nameSaved, setNameSaved] = useState(!!deposit.senderName)
   const [timeLeft, setTimeLeft] = useState(0)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const countRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -117,6 +120,20 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
     }
   }, [isPending, runPoll])
 
+  // ── Save sender name ───────────────────────────────────────────────────
+  async function handleSaveSenderName() {
+    if (!senderName.trim()) return toast.error("Please enter your name")
+    setSavingName(true)
+    const res = await updateDepositSenderName(deposit.reference, senderName.trim())
+    setSavingName(false)
+    if (res.ok) {
+      setNameSaved(true)
+      toast.success("Name saved! This helps admin confirm your payment faster.")
+    } else {
+      toast.error(res.message ?? "Failed to save name")
+    }
+  }
+
   // ── Mark as paid ───────────────────────────────────────────────────────
   async function handleMarkAsPaid() {
     setPaidPending(true)
@@ -182,7 +199,7 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
     )
   }
 
-  // ── Active pending state ───────────────────────────────────────────────
+  // ── Active pending state ─────────────────────────────��─────────────────
   const amt = Number(deposit.amount)
   const isTimeLow = timeLeft > 0 && timeLeft < 300 // under 5 mins
 
@@ -262,6 +279,38 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
             Transfer the exact amount to the account above. Use your bank app and search for the bank name if needed.
           </p>
         </div>
+
+        {/* Sender name — IncumPay only */}
+        {deposit.bankAccountId && (
+          <div className="rounded-3xl border-2 border-ink bg-card shadow-[4px_4px_0_0_var(--ink)] overflow-hidden">
+            <div className="border-b-2 border-ink bg-secondary px-4 py-3">
+              <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Your Transfer Name</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Enter the name on your bank account — helps admin confirm faster</p>
+            </div>
+            <div className="flex items-center gap-2 p-3">
+              <input
+                type="text"
+                value={senderName}
+                onChange={(e) => { setSenderName(e.target.value); setNameSaved(false) }}
+                placeholder="e.g. John Doe"
+                disabled={savingName}
+                className="flex-1 rounded-xl border-2 border-ink bg-background px-3 py-2.5 text-sm font-bold placeholder:font-normal placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              />
+              <button
+                onClick={handleSaveSenderName}
+                disabled={savingName || nameSaved || !senderName.trim()}
+                className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-primary px-3 py-2.5 text-xs font-black text-primary-foreground shadow-[2px_2px_0_0_var(--ink)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-40"
+              >
+                {savingName ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : nameSaved ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : null}
+                {nameSaved ? "Saved" : "Save"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Auto-detection status */}
         <div className="flex items-center justify-between rounded-2xl border-2 border-ink bg-card px-4 py-3 shadow-[2px_2px_0_0_var(--ink)]">
