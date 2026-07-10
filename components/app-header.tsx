@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import useSWR from "swr"
-import { BellDot, X, Clock3, Users, Wallet, ArrowDownToLine, TrendingUp, ShieldCheck, Send, Headphones, BadgeCheck } from "lucide-react"
+import { BellDot, X, Clock3, Users, Wallet, ArrowDownToLine, TrendingUp, ShieldCheck, Send, Headphones, BadgeCheck, Award } from "lucide-react"
 import { LogoMark } from "@/components/logo"
 import { SITE, formatNaira } from "@/lib/plans"
 
@@ -50,13 +51,24 @@ export function AppHeader({ title, isPromoter = false }: { title?: string; isPro
             <h1 className="text-lg font-black uppercase tracking-tight">{title}</h1>
           )}
 
-          <button
-            onClick={() => setOpen(true)}
-            aria-label="Platform info"
-            className="press flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink bg-card text-foreground shadow-[2px_2px_0_0_var(--ink)]"
-          >
-            <BellDot className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {isHome && isPromoter && (
+              <Link
+                href="/promoter"
+                className="press flex h-10 items-center gap-1.5 rounded-xl border-2 border-ink bg-gold px-3 text-[11px] font-black uppercase tracking-wide text-gold-foreground shadow-[2px_2px_0_0_var(--ink)]"
+              >
+                <Award className="h-3.5 w-3.5" />
+                Salary
+              </Link>
+            )}
+            <button
+              onClick={() => setOpen(true)}
+              aria-label="Platform info"
+              className="press flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink bg-card text-foreground shadow-[2px_2px_0_0_var(--ink)]"
+            >
+              <BellDot className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </header>
 
