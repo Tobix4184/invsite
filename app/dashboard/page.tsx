@@ -11,11 +11,7 @@ import { BottomNav } from "@/components/bottom-nav"
 import { BalanceCard } from "@/components/balance-card"
 import { QuickActions } from "@/components/quick-actions"
 import { PlanCard } from "@/components/plan-card"
-import dynamic from "next/dynamic"
-const ActiveInvestments = dynamic(
-  () => import("@/components/active-investments").then((m) => m.ActiveInvestments),
-  { ssr: false }
-)
+import { ActiveInvestmentsWrapper } from "@/components/active-investments-wrapper"
 import { WelcomePopup } from "@/components/welcome-popup"
 import { PendingDepositPopup } from "@/components/pending-deposit-popup"
 import { PromoPopup } from "@/components/promo-popup"
@@ -72,7 +68,7 @@ export default async function DashboardPage() {
         />
         <QuickActions signedInToday={data.signedInToday} />
 
-        <ActiveInvestments investments={investments} />
+        <ActiveInvestmentsWrapper investments={investments} />
 
         <section>
           <div className="mb-3 flex items-center justify-between">
