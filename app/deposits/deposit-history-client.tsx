@@ -3,9 +3,10 @@
 import { useState, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Clock, CheckCircle, XCircle, AlertCircle, Loader2, RefreshCw } from "lucide-react"
+import { AlertTriangle, Clock, CheckCircle, XCircle, AlertCircle, Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { formatNaira } from "@/lib/plans"
+import { reportFailedDeposit } from "@/app/actions/deposit"
 
 type Deposit = {
   id: number
@@ -24,19 +25,21 @@ type Deposit = {
 type CheckResult = { status: string; message?: string }
 
 const STATUS_META: Record<string, { icon: typeof Clock; tint: string; bg: string; label: string }> = {
-  pending:      { icon: Clock,        tint: "text-gold-foreground",        bg: "bg-gold",        label: "Pending Payment" },
-  processing:   { icon: Loader2,      tint: "text-primary-foreground",     bg: "bg-primary",     label: "Processing" },
-  success:      { icon: CheckCircle,  tint: "text-success-foreground",     bg: "bg-success",     label: "Completed" },
-  approved:     { icon: CheckCircle,  tint: "text-success-foreground",     bg: "bg-success",     label: "Completed" },
-  failed:       { icon: XCircle,      tint: "text-destructive-foreground", bg: "bg-destructive", label: "Failed" },
-  rejected:     { icon: XCircle,      tint: "text-destructive-foreground", bg: "bg-destructive", label: "Rejected" },
-  needs_review: { icon: AlertCircle,  tint: "text-gold-foreground",        bg: "bg-gold",        label: "Needs Review" },
+  pending:      { icon: Clock,          tint: "text-gold-foreground",        bg: "bg-gold",        label: "Pending Payment" },
+  processing:   { icon: Loader2,        tint: "text-primary-foreground",     bg: "bg-primary",     label: "Processing" },
+  success:      { icon: CheckCircle,    tint: "text-success-foreground",     bg: "bg-success",     label: "Completed" },
+  approved:     { icon: CheckCircle,    tint: "text-success-foreground",     bg: "bg-success",     label: "Completed" },
+  failed:       { icon: XCircle,        tint: "text-destructive-foreground", bg: "bg-destructive", label: "Failed" },
+  rejected:     { icon: XCircle,        tint: "text-destructive-foreground", bg: "bg-destructive", label: "Rejected" },
+  needs_review: { icon: AlertCircle,    tint: "text-gold-foreground",        bg: "bg-gold",        label: "Needs Review" },
+  needs_action: { icon: AlertTriangle,  tint: "text-gold-foreground",        bg: "bg-gold",        label: "Under Review" },
 }
 
 function DepositCard({ dep }: { dep: Deposit }) {
   const router = useRouter()
   const [checking, setChecking] = useState(false)
   const [result, setResult] = useState<CheckResult | null>(null)
+  const [reporting, setReporting] = useState(false)
 
   const isExpired =
     dep.expiresAt &&
@@ -45,6 +48,25 @@ function DepositCard({ dep }: { dep: Deposit }) {
 
   const canCheck =
     (dep.status === "pending" || dep.status === "processing") && !isExpired
+
+  const canReport =
+    dep.status === "failed" ||
+    dep.status === "rejected" ||
+    (dep.status === "pending" && !!isExpired)
+
+  const alreadyReported = dep.status === "needs_action"
+
+  async function handleReport() {
+    setReporting(true)
+    const res = await reportFailedDeposit(dep.reference)
+    setReporting(false)
+    if (res.ok) {
+      toast.success(res.message)
+      router.refresh()
+    } else {
+      toast.error(res.message)
+    }
+  }
 
   const meta = STATUS_META[dep.status] ?? STATUS_META.pending
 
@@ -163,6 +185,27 @@ function DepositCard({ dep }: { dep: Deposit }) {
             <RefreshCw className={`h-4 w-4 ${checking ? "animate-spin" : ""}`} />
             {checking ? "Checking..." : "Check Payment"}
           </button>
+        </div>
+      )}
+
+      {/* Report issue — for failed, rejected, expired */}
+      {(canReport || alreadyReported) && (
+        <div className="mt-3">
+          {alreadyReported ? (
+            <div className="flex items-center gap-2 rounded-xl border-2 border-ink bg-gold/15 px-3 py-2.5">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-gold-foreground" />
+              <p className="text-xs font-bold text-foreground">Reported — admin is reviewing this deposit</p>
+            </div>
+          ) : (
+            <button
+              onClick={handleReport}
+              disabled={reporting}
+              className="press flex w-full items-center justify-center gap-2 rounded-xl border-2 border-ink bg-destructive/10 py-2.5 text-sm font-bold text-destructive shadow-[2px_2px_0_0_var(--ink)] disabled:opacity-60"
+            >
+              {reporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+              {reporting ? "Reporting..." : "Report Issue"}
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -43,6 +43,8 @@ import {
   Zap,
   Unlock,
   Download,
+  AlertCircle,
+  Search,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira, PLANS } from "@/lib/plans"
@@ -2456,7 +2458,8 @@ function DepositCard({
   const [checkResult, setCheckResult] = useState<{ ok: boolean; found?: boolean; message: string } | null>(null)
 
   const isCompleted = dep.status === "success" || dep.status === "approved"
-  const canAct = dep.status === "pending" || dep.status === "processing" || dep.status === "needs_review"
+  const canAct = dep.status === "pending" || dep.status === "processing" || dep.status === "needs_review" || dep.status === "needs_action"
+  const isNeedsAction = dep.status === "needs_action"
 
   function act(kind: "approve" | "reject") {
     startActTransition(async () => {
@@ -2477,7 +2480,13 @@ function DepositCard({
   }
 
   return (
-    <div className="rounded-2xl border-2 border-ink bg-card p-4">
+    <div className={`rounded-2xl border-2 p-4 ${isNeedsAction ? "border-orange-500 bg-orange-500/5" : "border-ink bg-card"}`}>
+      {isNeedsAction && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl bg-orange-500/15 px-3 py-2">
+          <AlertCircle className="h-4 w-4 shrink-0 text-orange-500" />
+          <p className="text-xs font-black text-orange-500">User reported an issue — needs your review</p>
+        </div>
+      )}
       <div className="flex items-start justify-between">
         <div>
           <p className="font-bold">{formatNaira(Number(dep.amount))}</p>
@@ -2556,17 +2565,69 @@ function DepositCard({
 }
 
 function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => void }) {
+  const [query, setQuery] = useState("")
+
+  // Filter all deposits by search query (email, reference, account number, sender name, bank name, amount)
+  const q = query.trim().toLowerCase()
+  const filtered = q
+    ? items.filter((d) =>
+        (d.userEmail ?? "").toLowerCase().includes(q) ||
+        d.reference.toLowerCase().includes(q) ||
+        (d.assignedAccountNumber ?? "").includes(q) ||
+        (d.assignedBankName ?? "").toLowerCase().includes(q) ||
+        (d.senderName ?? "").toLowerCase().includes(q) ||
+        d.amount.includes(q)
+      )
+    : items
+
   // Split: Sabuss raw feed vs regular deposits
-  const sabussFeed = items.filter(
+  const sabussFeed = filtered.filter(
     (d) =>
       d.status === "unmatched" ||
       d.status === "needs_review" ||
       (d.status === "success" && d.sabussRef),
   )
-  const regularDeposits = items.filter((d) => !sabussFeed.includes(d))
+  const regularDeposits = filtered.filter((d) => !sabussFeed.includes(d))
+
+  // Count needs_action for badge
+  const needsActionCount = items.filter((d) => d.status === "needs_action").length
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Search bar */}
+      <div className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-surface px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary">
+        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by email, reference, account no., name..."
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        />
+        {query && (
+          <button type="button" onClick={() => setQuery("")}>
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
+      </div>
+
+      {/* Needs-action alert */}
+      {needsActionCount > 0 && !q && (
+        <div className="flex items-center gap-2 rounded-2xl border-2 border-orange-500 bg-orange-500/10 px-4 py-3">
+          <AlertCircle className="h-4 w-4 shrink-0 text-orange-500" />
+          <p className="text-xs font-black text-orange-500">
+            {needsActionCount} deposit{needsActionCount > 1 ? "s" : ""} reported by users — scroll down to review
+          </p>
+        </div>
+      )}
+
+      {/* Search summary */}
+      {q && (
+        <p className="text-xs text-muted-foreground">
+          Showing <span className="font-bold text-foreground">{filtered.length}</span> result{filtered.length !== 1 ? "s" : ""} for &quot;{query}&quot;
+        </p>
+      )}
+
       {/* ── Paystack Live Feed ── */}
       <div>
         <div className="mb-3 flex items-center gap-2">
@@ -2579,7 +2640,7 @@ function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => vo
 
         {sabussFeed.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-ink bg-card py-6 text-center text-xs text-muted-foreground">
-            No Paystack webhooks yet — confirmed payments will appear here automatically.
+            {q ? "No feed results match your search." : "No Paystack webhooks yet — confirmed payments will appear here automatically."}
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -2597,7 +2658,7 @@ function DepositsTab({ items, onAction }: { items: Deposit[]; onAction: () => vo
       <div>
         <p className="mb-3 text-sm font-black">All Deposits</p>
         {regularDeposits.length === 0 ? (
-          <Empty label="No deposits yet" />
+          <Empty label={q ? "No deposits match your search" : "No deposits yet"} />
         ) : (
           <div className="flex flex-col gap-3">
             {regularDeposits.map((dep) => (

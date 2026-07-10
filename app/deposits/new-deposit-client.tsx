@@ -136,10 +136,14 @@ export function NewDepositClient({ balance, minDeposit }: { balance: number; min
             {incumPending ? "Getting account..." : `Pay with IncumPay${isValid ? ` — ${formatNaira(amountNum)}` : ""}`}
           </button>
 
-          <div className="flex items-start gap-3 rounded-xl border border-ink/20 bg-surface px-3 py-2.5">
-            <div className="mt-0.5 flex flex-col gap-1 text-[10px] text-muted-foreground leading-relaxed">
-              <span><span className="font-bold text-foreground">Paystack</span> — card, transfer & USSD. Auto-credited instantly.</span>
-              <span><span className="font-bold text-foreground">IncumPay</span> — direct bank transfer. Credited after admin confirms.</span>
+          <div className="flex flex-col gap-1.5 rounded-xl border border-ink/20 bg-surface px-3 py-2.5">
+            <div className="flex items-start gap-2 text-[10px] text-muted-foreground leading-relaxed">
+              <Zap className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+              <span><span className="font-bold text-foreground">Paystack</span> — pay with card, bank transfer or USSD. Wallet credited automatically.</span>
+            </div>
+            <div className="flex items-start gap-2 text-[10px] text-muted-foreground leading-relaxed">
+              <Building2 className="mt-0.5 h-3 w-3 shrink-0 text-foreground" />
+              <span><span className="font-bold text-foreground">IncumPay</span> — direct bank transfer to our account. Credited automatically once transfer is detected.</span>
             </div>
           </div>
         </div>

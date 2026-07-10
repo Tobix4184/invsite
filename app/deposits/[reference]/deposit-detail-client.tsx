@@ -152,21 +152,54 @@ export default function DepositDetailClient({ deposit }: { deposit: DepositData 
     return (
       <main className="mx-auto flex max-w-md flex-col">
         <PageHeader title="Processing Payment" />
-        <div className="flex flex-col items-center gap-6 p-8 text-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-ink bg-primary/15">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <div className="flex flex-col gap-5 p-5">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-ink bg-primary/15">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-black">{formatNaira(Number(deposit.amount))}</p>
+              <p className="mt-1 text-sm text-muted-foreground">Verifying your payment...</p>
+            </div>
+            <div className="w-full rounded-2xl border-2 border-ink bg-primary/10 p-4">
+              <Zap className="mx-auto mb-1 h-5 w-5 text-primary" />
+              <p className="text-sm font-bold">Auto-verification active</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Your wallet will be credited automatically once confirmed.
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-black">{formatNaira(Number(deposit.amount))}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Verifying your payment...</p>
+
+          {/* Sender name — speeds up manual confirmation if needed */}
+          <div className="rounded-3xl border-2 border-ink bg-card shadow-[4px_4px_0_0_var(--ink)] overflow-hidden">
+            <div className="border-b-2 border-ink bg-secondary px-4 py-3">
+              <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Speed Up Confirmation</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Add your bank account name to help us match your transfer faster</p>
+            </div>
+            <div className="flex items-center gap-2 p-3">
+              <input
+                type="text"
+                value={senderName}
+                onChange={(e) => { setSenderName(e.target.value); setNameSaved(false) }}
+                placeholder="e.g. John Doe"
+                disabled={savingName}
+                className="flex-1 rounded-xl border-2 border-ink bg-background px-3 py-2.5 text-sm font-bold placeholder:font-normal placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+              />
+              <button
+                onClick={handleSaveSenderName}
+                disabled={savingName || nameSaved || !senderName.trim()}
+                className="flex items-center gap-1.5 rounded-xl border-2 border-ink bg-primary px-3 py-2.5 text-xs font-black text-primary-foreground shadow-[2px_2px_0_0_var(--ink)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-40"
+              >
+                {savingName ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : nameSaved ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : null}
+                {nameSaved ? "Saved" : "Save"}
+              </button>
+            </div>
           </div>
-          <div className="w-full rounded-2xl border-2 border-ink bg-primary/10 p-4">
-            <Zap className="mx-auto mb-1 h-5 w-5 text-primary" />
-            <p className="text-sm font-bold">Auto-verification active</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Your wallet will be credited automatically once Paystack confirms.
-            </p>
-          </div>
+
           <Link href="/deposits" className="w-full rounded-2xl border-2 border-ink bg-card py-4 text-center text-base font-bold shadow-[3px_3px_0_0_var(--ink)]">
             View All Deposits
           </Link>
