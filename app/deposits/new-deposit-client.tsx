@@ -2,31 +2,47 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Wallet } from "lucide-react"
+import { Loader2, Wallet, Zap, Building2 } from "lucide-react"
 import { toast } from "sonner"
 import { formatNaira } from "@/lib/plans"
-import { startDeposit } from "@/app/actions/deposit"
+import { startPaystackDeposit, startIncumPayDeposit } from "@/app/actions/deposit"
 
 export function NewDepositClient({ balance, minDeposit }: { balance: number; minDeposit: number }) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
+  const [paystackPending, startPaystackTransition] = useTransition()
+  const [incumPending, startIncumTransition] = useTransition()
   const [amount, setAmount] = useState("")
 
   const amountNum = Number(amount)
   const isValid = amountNum >= minDeposit
+  const pending = paystackPending || incumPending
 
   const QUICK = [500, 1000, 2000, 3000, 5000, 10000, 20000, 50000].filter((q) => q >= minDeposit)
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  function handlePaystack() {
     if (!isValid) return
-    startTransition(async () => {
-      const res = await startDeposit(amountNum)
-      if (res.ok && res.reference) {
-        router.push(`/deposits/${res.reference}`)
-      } else if (res.unavailable) {
+    startPaystackTransition(async () => {
+      const res = await startPaystackDeposit(amountNum)
+      if (res.ok && "authorizationUrl" in res && res.authorizationUrl) {
+        // Redirect to Paystack checkout
+        window.location.href = res.authorizationUrl
+      } else if (!res.ok && "unavailable" in res && res.unavailable) {
         toast.error("Deposits are temporarily unavailable. Please try again later.")
-      } else {
+      } else if (!res.ok) {
+        toast.error(res.message)
+      }
+    })
+  }
+
+  function handleIncumPay() {
+    if (!isValid) return
+    startIncumTransition(async () => {
+      const res = await startIncumPayDeposit(amountNum)
+      if (res.ok && "reference" in res && res.reference) {
+        router.push(`/deposits/${res.reference}`)
+      } else if (!res.ok && "unavailable" in res && res.unavailable) {
+        toast.error("Deposits are temporarily unavailable. Please try again later.")
+      } else if (!res.ok) {
         toast.error(res.message)
       }
     })
@@ -67,7 +83,7 @@ export function NewDepositClient({ balance, minDeposit }: { balance: number; min
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
           <div className="rounded-2xl border-2 border-ink bg-surface px-4 transition-all focus-within:ring-2 focus-within:ring-primary">
             <input
               type="number"
@@ -85,15 +101,48 @@ export function NewDepositClient({ balance, minDeposit }: { balance: number; min
             </p>
           )}
 
+          {/* Payment method buttons */}
+          <p className="mt-1 text-center text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Choose payment method
+          </p>
+
+          {/* Paystack */}
           <button
-            type="submit"
+            type="button"
+            onClick={handlePaystack}
             disabled={pending || !isValid}
             className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-4 text-base font-black uppercase tracking-wide text-primary-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-60"
           >
-            {pending && <Loader2 className="h-5 w-5 animate-spin" />}
-            {pending ? "Getting account details..." : `Continue${isValid ? ` — ${formatNaira(amountNum)}` : ""}`}
+            {paystackPending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Zap className="h-5 w-5" />
+            )}
+            {paystackPending ? "Redirecting..." : `Pay with Paystack${isValid ? ` — ${formatNaira(amountNum)}` : ""}`}
           </button>
-        </form>
+
+          {/* IncumPay */}
+          <button
+            type="button"
+            onClick={handleIncumPay}
+            disabled={pending || !isValid}
+            className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-card py-4 text-base font-black uppercase tracking-wide text-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-60"
+          >
+            {incumPending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Building2 className="h-5 w-5" />
+            )}
+            {incumPending ? "Getting account..." : `Pay with IncumPay${isValid ? ` — ${formatNaira(amountNum)}` : ""}`}
+          </button>
+
+          <div className="flex items-start gap-3 rounded-xl border border-ink/20 bg-surface px-3 py-2.5">
+            <div className="mt-0.5 flex flex-col gap-1 text-[10px] text-muted-foreground leading-relaxed">
+              <span><span className="font-bold text-foreground">Paystack</span> — card, transfer & USSD. Auto-credited instantly.</span>
+              <span><span className="font-bold text-foreground">IncumPay</span> — direct bank transfer. Credited after admin confirms.</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

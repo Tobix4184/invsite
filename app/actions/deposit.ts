@@ -89,36 +89,42 @@ function baseUrl() {
   )
 }
 
-/** Initiates a deposit via Paystack bank transfer (virtual account). */
-export async function startDeposit(amount: number) {
-  const userId = await getUserId()
-
+/** Common validation used by both deposit methods. */
+async function validateDepositRequest(amount: number) {
   if (await getBoolSetting(SETTING_KEYS.depositsPaused)) {
-    return { ok: false, unavailable: true, message: "Service unavailable. Please try again later." }
+    return { ok: false as const, unavailable: true, message: "Service unavailable. Please try again later." }
   }
-
   const amt = Math.floor(Number(amount))
   const { minDeposit } = await getLiveDepositLimits()
   if (!amt || amt < minDeposit) {
-    return { ok: false, message: `Minimum deposit is ₦${minDeposit.toLocaleString()}` }
+    return { ok: false as const, message: `Minimum deposit is ₦${minDeposit.toLocaleString()}` }
   }
+  return { ok: true as const, amt }
+}
+
+/**
+ * Initiates a deposit via Paystack redirect (Initialize Transaction).
+ * Returns a Paystack authorization_url — the client redirects the user there.
+ * Paystack calls the webhook (charge.success) when the user completes payment.
+ */
+export async function startPaystackDeposit(amount: number) {
+  const userId = await getUserId()
+  const validation = await validateDepositRequest(amount)
+  if (!validation.ok) return validation
+  const { amt } = validation
 
   const paystackKey = process.env.PAYSTACK_SECRET_KEY
   if (!paystackKey) {
-    return { ok: false, message: "Payment gateway not configured. Please contact support." }
+    return { ok: false as const, message: "Payment gateway not configured. Please contact support." }
   }
 
-  // Paystack requires a valid email — use the platform owner's verified Gmail
-  const email = "alladstets@gmail.com"
-
   const reference = `INCUM_${userId.slice(0, 8)}_${Date.now()}`
+  const email = "alladstets@gmail.com"
+  const callbackUrl = `${baseUrl()}/deposits/verify?reference=${reference}`
 
-  // ── Try Paystack virtual account first ──────────────────────────────────
   let paystackData: Record<string, unknown> | null = null
-  let paystackOk = false
-
   try {
-    const res = await fetch("https://api.paystack.co/charge", {
+    const res = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${paystackKey}`,
@@ -129,78 +135,58 @@ export async function startDeposit(amount: number) {
         amount: amt * 100, // kobo
         currency: "NGN",
         reference,
-        bank_transfer: {
-          account_expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-        },
+        callback_url: callbackUrl,
+        metadata: { userId, cancel_action: `${baseUrl()}/deposits` },
       }),
       cache: "no-store",
     })
     paystackData = await res.json()
-
-    const innerStatus = (paystackData?.data as Record<string, unknown>)?.status as string | undefined
-    paystackOk =
-      paystackData?.status === true &&
-      !!innerStatus &&
-      ["charge.attempt", "pay_offline", "pending", "success"].includes(innerStatus)
   } catch {
-    // Network error — fall through to manual bank account
-    paystackOk = false
+    return { ok: false as const, message: "Could not reach payment gateway. Please try again." }
   }
 
-  // ── Paystack succeeded — use the virtual account ─────────────────────
-  if (paystackOk && paystackData?.data) {
-    const data = paystackData.data as Record<string, unknown>
-
-    // Paystack nests virtual account under data.transfer for charge.attempt
-    // Fall back to top-level keys for other response shapes
-    const transfer = (data.transfer ?? {}) as Record<string, unknown>
-    const accountSource: Record<string, unknown> =
-      (transfer.account_number as string) ? transfer : data
-
-    const bankObj = (accountSource.bank ?? {}) as Record<string, unknown>
-    const bankName: string = (bankObj.name as string) ?? "Paystack-Titan"
-    const accountNumber: string = (accountSource.account_number as string) ?? ""
-    const accountName: string = (accountSource.account_name as string) ?? "247 Incum"
-    const accountExpiresAt = accountSource.account_expires_at ?? data.account_expires_at
-
-    console.log("[v0] Paystack data keys:", Object.keys(data))
-    console.log("[v0] transfer keys:", Object.keys(transfer))
-    console.log("[v0] accountNumber resolved:", accountNumber)
-
-    if (accountNumber) {
-      const expiresAt = accountExpiresAt
-        ? new Date(accountExpiresAt as string)
-        : new Date(Date.now() + 30 * 60 * 1000)
-
-      await db.insert(deposit).values({
-        userId,
-        amount: String(amt),
-        reference,
-        status: "pending",
-        assignedBankName: bankName,
-        assignedAccountNumber: accountNumber,
-        assignedAccountName: accountName,
-        expiresAt,
-      })
-
-      return {
-        ok: true,
-        reference,
-        bankAccount: { bankName, accountNumber, accountName },
-        expiresAt: expiresAt.toISOString(),
-        isManual: false,
-      }
-    }
-
-    // Account number still missing — log full response to diagnose
-    console.log("[v0] Paystack full response (no account_number):", JSON.stringify(paystackData))
+  if (!paystackData?.status || !paystackData?.data) {
+    return { ok: false as const, message: (paystackData?.message as string) ?? "Payment gateway error. Please try again." }
   }
 
-  // ── Fallback — use an admin bank account (manual approval) ────────────
+  const data = paystackData.data as Record<string, unknown>
+  const authorizationUrl = data.authorization_url as string
+
+  if (!authorizationUrl) {
+    return { ok: false as const, message: "Could not generate payment link. Please try again." }
+  }
+
+  // Create a pending deposit record so we can credit it when webhook fires
+  await db.insert(deposit).values({
+    userId,
+    amount: String(amt),
+    reference,
+    status: "pending",
+    assignedBankName: "Paystack",
+    assignedAccountNumber: null,
+    assignedAccountName: null,
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+  })
+
+  return { ok: true as const, authorizationUrl, reference }
+}
+
+/**
+ * Initiates a deposit via IncumPay — assigns an admin bank account.
+ * User transfers manually; admin approves from dashboard.
+ */
+export async function startIncumPayDeposit(amount: number) {
+  const userId = await getUserId()
+  const validation = await validateDepositRequest(amount)
+  if (!validation.ok) return validation
+  const { amt } = validation
+
   const adminAccount = await pickWeightedBankAccount()
   if (!adminAccount) {
-    return { ok: false, message: "Payment gateway unavailable and no bank accounts configured. Please contact support." }
+    return { ok: false as const, message: "No bank accounts configured. Please contact support." }
   }
+
+  const reference = `INCUM_${userId.slice(0, 8)}_${Date.now()}`
 
   await db.insert(deposit).values({
     userId,
@@ -211,20 +197,23 @@ export async function startDeposit(amount: number) {
     assignedAccountNumber: adminAccount.accountNumber,
     assignedAccountName: adminAccount.accountName,
     bankAccountId: adminAccount.id,
-    // No expiresAt — manual deposits don't expire; admin approves
+    // No expiresAt — admin approves manually, no timeout
   })
 
   return {
-    ok: true,
+    ok: true as const,
     reference,
     bankAccount: {
       bankName: adminAccount.bankName,
       accountNumber: adminAccount.accountNumber,
       accountName: adminAccount.accountName,
     },
-    expiresAt: null,
-    isManual: true,
   }
+}
+
+/** @deprecated Use startPaystackDeposit or startIncumPayDeposit instead. */
+export async function startDeposit(amount: number) {
+  return startIncumPayDeposit(amount)
 }
 
 /** Admin approves a deposit and credits the wallet. */
