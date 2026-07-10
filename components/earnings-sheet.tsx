@@ -287,11 +287,11 @@ export function EarningsSheet() {
         <div className="grid grid-cols-2 gap-px bg-ink/20 mt-3">
           {[
             { label: "Earnings Drop",    value: "Every 24 hours" },
-            { label: "Withdrawal Hours", value: SITE.withdrawalHours },
-            { label: "Tier 3 Withdraw",  value: "Every Wednesday" },
-            { label: "Tier 2 Withdraw",  value: "Every Thursday" },
-            { label: "Tier 1 (VIP)",     value: "Every Friday" },
+            { label: "Withdrawal",       value: "Every day" },
+            { label: "Cooldown",         value: "22hrs between" },
+            { label: "First Withdrawal", value: "Anytime" },
             { label: "Weekend Salary",   value: "Every Saturday" },
+            { label: "Withdrawal Hours", value: SITE.withdrawalHours },
           ].map((r) => (
             <div key={r.label} className="flex flex-col bg-foreground px-4 py-3">
               <span className="text-[9px] font-black uppercase tracking-wider text-background/50">{r.label}</span>

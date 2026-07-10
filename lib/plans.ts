@@ -173,15 +173,18 @@ export function getPlanById(id: number): Plan | undefined {
   return PLANS.find((p) => p.id === id)
 }
 
-// ── Withdrawal tier schedule ────────────────────────────────────────────────
-// JS getDay(): 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
+// ── Withdrawal cooldown ─────────────────────────────────────────────────────
+/** Hours a user must wait between withdrawals after their first one. */
+export const WITHDRAWAL_COOLDOWN_HOURS = 22
+
+// Tier labels kept for plan-card styling — no longer controls which day.
 export const WITHDRAWAL_TIERS: Record<
   WithdrawalTier,
   { label: string; days: number[]; dayLabel: string }
 > = {
-  tier1: { label: 'Tier 1 · VIP', days: [5], dayLabel: 'Every Friday' },
-  tier2: { label: 'Tier 2', days: [4], dayLabel: 'Every Thursday' },
-  tier3: { label: 'Tier 3', days: [3], dayLabel: 'Every Wednesday' },
+  tier1: { label: 'Tier 1 · VIP', days: [], dayLabel: 'Every day (22hr cooldown)' },
+  tier2: { label: 'Tier 2',       days: [], dayLabel: 'Every day (22hr cooldown)' },
+  tier3: { label: 'Tier 3',       days: [], dayLabel: 'Every day (22hr cooldown)' },
 }
 
 /** Highest tier the user qualifies for based on their active packages (tier1 > tier2 > tier3) */
@@ -192,10 +195,41 @@ export function bestTier(tiers: WithdrawalTier[]): WithdrawalTier | null {
   return null
 }
 
-/** Is today a valid withdrawal day for the given tier? */
-export function canWithdrawToday(tier: WithdrawalTier | null, date = new Date()): boolean {
-  if (!tier) return false
-  return WITHDRAWAL_TIERS[tier].days.includes(date.getDay())
+/**
+ * Returns null if the user can withdraw now, or the Date when they next can.
+ * lastWithdrawalAt = createdAt of the user's most recent withdrawal request.
+ */
+export function getNextWithdrawalTime(lastWithdrawalAt: Date | null): Date | null {
+  if (!lastWithdrawalAt) return null
+  const next = new Date(lastWithdrawalAt.getTime() + WITHDRAWAL_COOLDOWN_HOURS * 60 * 60 * 1000)
+  return next > new Date() ? next : null
+}
+
+/** Format a Date as a human-friendly "Today at HH:MM AM/PM" or "Tomorrow at …" string. */
+export function formatNextWithdrawalTime(next: Date): string {
+  const now = new Date()
+  const isToday =
+    next.getDate() === now.getDate() &&
+    next.getMonth() === now.getMonth() &&
+    next.getFullYear() === now.getFullYear()
+  const isTomorrow = (() => {
+    const tom = new Date(now)
+    tom.setDate(tom.getDate() + 1)
+    return (
+      next.getDate() === tom.getDate() &&
+      next.getMonth() === tom.getMonth() &&
+      next.getFullYear() === tom.getFullYear()
+    )
+  })()
+  const time = next.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true })
+  if (isToday) return `Today at ${time}`
+  if (isTomorrow) return `Tomorrow at ${time}`
+  return next.toLocaleDateString('en-NG', { weekday: 'long', month: 'short', day: 'numeric' }) + ` at ${time}`
+}
+
+/** @deprecated Use getNextWithdrawalTime instead. */
+export function canWithdrawToday(_tier: WithdrawalTier | null): boolean {
+  return true
 }
 
 export const SITE = {
@@ -215,7 +249,7 @@ export const SITE = {
   referralLevel2: 3,
   // Promoters earn 30% referral commission (same as level 1) plus a weekly salary.
   promoterLevel1: 30,
-  withdrawalHours: 'Mornings on your tier day',
+  withdrawalHours: 'Every day (22hr cooldown)',
   inviteCode: 'INCUM01',
   telegramGroup: 'https://t.me/incomehh',
   telegramChannel: 'https://t.me/incomehh',
