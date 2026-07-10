@@ -1,5 +1,8 @@
+'use client'
+
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { useEffect, useState } from "react"
 import { getSession } from "@/lib/session"
 import { getDashboardData } from "@/app/actions/account"
 import { getInvestments } from "@/app/actions/investments"
