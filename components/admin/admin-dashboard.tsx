@@ -45,6 +45,7 @@ import {
   Download,
   AlertCircle,
   Search,
+  HeartHandshake,
 } from "lucide-react"
 import { toast } from "sonner"
 import { SITE, formatNaira, PLANS } from "@/lib/plans"
@@ -92,6 +93,7 @@ import {
   setPaystackPaused,
   setWithdrawalsPaused,
   setWithdrawalsAutomatic,
+  bumpApologyPopup,
   createPromoterCode,
   updatePromoterCode,
   togglePromoterCode,
@@ -1703,6 +1705,9 @@ function Overview({ stats, controls, onAction, isModerator = false }: { stats: S
               )}
             </span>
           </button>
+
+          {/* Resend apology popup to all users */}
+          <ApologyResendButton />
         </div>
 
         {/* Deposit / Withdrawal Limits */}
@@ -3385,6 +3390,43 @@ function Empty({ label }: { label: string }) {
     <div className="rounded-2xl border-2 border-ink bg-card px-4 py-12 text-center text-sm text-muted-foreground">
       {label}
     </div>
+  )
+}
+
+function ApologyResendButton() {
+  const [pending, startTransition] = useTransition()
+  const [done, setDone] = useState(false)
+
+  function handleBump() {
+    startTransition(async () => {
+      const res = await bumpApologyPopup()
+      if (res.ok) {
+        toast.success(res.message)
+        setDone(true)
+        setTimeout(() => setDone(false), 4000)
+      } else {
+        toast.error("Failed to bump apology popup")
+      }
+    })
+  }
+
+  return (
+    <button
+      onClick={handleBump}
+      disabled={pending || done}
+      className={`col-span-2 mt-1 flex w-full items-center justify-between rounded-xl border px-3 py-3 text-sm font-semibold transition-colors disabled:opacity-60 ${
+        done
+          ? "border-success/40 bg-success/10 text-success"
+          : "border-gold/40 bg-gold/10 text-gold-foreground"
+      }`}
+    >
+      <span className="flex items-center gap-2">
+        <HeartHandshake className="h-4 w-4" /> Resend Apology to All Users
+      </span>
+      <span className="flex items-center gap-1.5 text-[11px] font-black uppercase">
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : done ? "Sent" : "Resend"}
+      </span>
+    </button>
   )
 }
 
