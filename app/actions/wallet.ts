@@ -44,9 +44,13 @@ export async function requestWithdrawal(data: {
       return { ok: false, message: "You need an active package before you can withdraw." }
     }
 
-    // Must have made at least one real deposit
-    const [w0] = await db.select({ totalDeposited: wallet.totalDeposited }).from(wallet).where(eq(wallet.userId, userId))
-    if (!w0 || Number(w0.totalDeposited ?? 0) <= 0) {
+    // Must have made at least one real deposit — unless they are a promoter (admin-funded)
+    const [[w0], [prof]] = await Promise.all([
+      db.select({ totalDeposited: wallet.totalDeposited }).from(wallet).where(eq(wallet.userId, userId)),
+      db.select({ isPromoter: profile.isPromoter }).from(profile).where(eq(profile.userId, userId)),
+    ])
+    const isPromoter = prof?.isPromoter === true
+    if (!isPromoter && (!w0 || Number(w0.totalDeposited ?? 0) <= 0)) {
       return { ok: false, message: "You need to make a deposit before you can withdraw." }
     }
 
