@@ -6,9 +6,10 @@ import { WithdrawForm } from "@/components/withdraw-form"
 import { WithdrawalHistoryClient } from "./withdrawal-history-client"
 import { getUserWithdrawals } from "@/app/actions/wallet"
 import { getLiveDepositLimits, getLiveWithdrawalCharge } from "@/app/actions/settings"
+import { getNextWithdrawalTime } from "@/lib/plans"
 import { db } from "@/lib/db"
-import { wallet } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { wallet, withdrawal } from "@/lib/db/schema"
+import { eq, desc } from "drizzle-orm"
 
 export const dynamic = "force-dynamic"
 
@@ -16,19 +17,26 @@ export default async function WithdrawPage() {
   const session = await getSession()
   if (!session?.user) redirect("/")
 
-  const [[w], withdrawals, limits, charge] = await Promise.all([
+  const [[w], withdrawals, limits, charge, [lastWd]] = await Promise.all([
     db.select().from(wallet).where(eq(wallet.userId, session.user.id)),
     getUserWithdrawals(),
     getLiveDepositLimits(),
     getLiveWithdrawalCharge(),
+    db.select({ createdAt: withdrawal.createdAt }).from(withdrawal).where(eq(withdrawal.userId, session.user.id)).orderBy(desc(withdrawal.createdAt)).limit(1),
   ])
 
   const balance = Number(w?.balance ?? 0)
+  const nextWithdrawalAt = getNextWithdrawalTime(lastWd?.createdAt ?? null)
 
   return (
     <div className="min-h-screen pb-28">
       <AppHeader title="Withdraw" />
-      <WithdrawForm balance={balance} minWithdrawal={limits.minWithdrawal} withdrawalCharge={charge} />
+      <WithdrawForm
+        balance={balance}
+        minWithdrawal={limits.minWithdrawal}
+        withdrawalCharge={charge}
+        nextWithdrawalAt={nextWithdrawalAt?.toISOString() ?? null}
+      />
       {withdrawals.length > 0 && (
         <div className="mx-auto max-w-md px-4 pb-5">
           <p className="mb-3 text-xs font-black uppercase tracking-wider text-muted-foreground">Withdrawal History</p>
