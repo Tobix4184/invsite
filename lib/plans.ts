@@ -245,9 +245,9 @@ export const SITE = {
   minWithdrawal: 1000,
   minDeposit: 3000,
   withdrawalCharge: 18,
-  referralLevel1: 30,
+  referralLevel1: 20,
   referralLevel2: 3,
-  // Promoters earn 30% referral commission (same as level 1) plus a weekly salary.
+  // Promoters earn 30% referral commission plus a weekly salary.
   promoterLevel1: 30,
   withdrawalHours: 'Every day (22hr cooldown)',
   inviteCode: 'INCUM01',
