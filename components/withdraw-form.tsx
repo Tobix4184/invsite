@@ -108,10 +108,12 @@ export function WithdrawForm({
   balance,
   minWithdrawal,
   withdrawalCharge,
+  nextWithdrawalAt,
 }: {
   balance: number
   minWithdrawal: number
   withdrawalCharge: number
+  nextWithdrawalAt?: string | null
 }) {
   // Withdrawal window: 9:00 AM – 6:30 PM Nigeria time (UTC+1)
   function isWithinWithdrawalWindow() {
@@ -120,14 +122,28 @@ export function WithdrawForm({
     return nigeriaMinutes >= 9 * 60 && nigeriaMinutes < 18 * 60 + 30
   }
 
+  function computeCooldown() {
+    if (!nextWithdrawalAt) return null
+    const ms = new Date(nextWithdrawalAt).getTime() - Date.now()
+    if (ms <= 0) return null
+    const totalMins = Math.ceil(ms / 60_000)
+    const hours = Math.floor(totalMins / 60)
+    const mins = totalMins % 60
+    return { hours, mins, ms }
+  }
+
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [loading, setLoading] = useState(true)
   const [windowOpen, setWindowOpen] = useState(isWithinWithdrawalWindow())
+  const [cooldown, setCooldown] = useState(computeCooldown)
 
-  // Re-check every minute so the button auto-enables/disables
+  // Re-check every minute — updates window open state and countdown
   useEffect(() => {
-    const t = setInterval(() => setWindowOpen(isWithinWithdrawalWindow()), 60_000)
+    const t = setInterval(() => {
+      setWindowOpen(isWithinWithdrawalWindow())
+      setCooldown(computeCooldown())
+    }, 60_000)
     return () => clearInterval(t)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -240,6 +256,34 @@ export function WithdrawForm({
         </div>
       )}
 
+      {/* Cooldown notice */}
+      {cooldown && (
+        <div className="flex items-start gap-3 rounded-2xl border-2 border-ink bg-gold/15 p-4">
+          <Clock className="mt-0.5 h-4 w-4 shrink-0 text-gold-foreground" />
+          <div>
+            <p className="text-sm font-black text-foreground">Withdrawal cooldown active</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Your next withdrawal is available in{" "}
+              {cooldown.hours > 0 && (
+                <span className="font-bold text-foreground">
+                  {cooldown.hours} {cooldown.hours === 1 ? "hour" : "hours"}
+                  {cooldown.mins > 0 ? " and " : ""}
+                </span>
+              )}
+              {cooldown.mins > 0 && (
+                <span className="font-bold text-foreground">
+                  {cooldown.mins} {cooldown.mins === 1 ? "minute" : "minutes"}
+                </span>
+              )}
+              {cooldown.hours === 0 && cooldown.mins === 0 && (
+                <span className="font-bold text-foreground">less than a minute</span>
+              )}
+              . Please come back then.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Balance hero card */}
       <div className="relative overflow-hidden rounded-3xl border-2 border-ink bg-primary p-5 shadow-[4px_4px_0_0_var(--ink)]">
         {/* Decorative circle */}
@@ -344,11 +388,11 @@ export function WithdrawForm({
 
           <button
             onClick={() => setStep("bank")}
-            disabled={!windowOpen || amount < minWithdrawal || amount > balance}
+            disabled={!windowOpen || !!cooldown || amount < minWithdrawal || amount > balance}
             className="press flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink bg-primary py-4 text-sm font-black uppercase text-primary-foreground shadow-[4px_4px_0_0_var(--ink)] disabled:opacity-40"
           >
-            {!windowOpen ? <Clock className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-            {!windowOpen ? "Opens 9:00 AM" : "Continue"}
+            {(!windowOpen || !!cooldown) ? <Clock className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
+            {!windowOpen ? "Opens 9:00 AM" : cooldown ? `${cooldown.hours}h ${cooldown.mins}m remaining` : "Continue"}
           </button>
         </div>
       )}

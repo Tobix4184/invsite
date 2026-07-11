@@ -58,7 +58,7 @@ export function WithdrawalHistoryClient({ withdrawals }: { withdrawals: Withdraw
               <p className="text-xs text-muted-foreground">{w.accountName}</p>
             </div>
 
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mt-2 text-xs text-muted-foreground" suppressHydrationWarning>
               {new Date(w.createdAt).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}
             </p>
 
