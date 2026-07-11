@@ -1982,11 +1982,43 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
     })
   }
 
-  if (items.length === 0) return <Empty label="No users" />
+  const [userQuery, setUserQuery] = useState("")
+  const uq = userQuery.trim().toLowerCase()
+  const filteredUsers = uq
+    ? items.filter(
+        (u) =>
+          (u.name ?? "").toLowerCase().includes(uq) ||
+          (u.email ?? "").toLowerCase().includes(uq) ||
+          u.id.toLowerCase().includes(uq)
+      )
+    : items
 
   return (
-    <div className="flex flex-col gap-3">
-      {items.map((u) => (
+    <div className="flex flex-col gap-4">
+      {/* Search */}
+      <div className="flex items-center gap-2 rounded-2xl border-2 border-ink bg-surface px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary">
+        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <input
+          type="text"
+          value={userQuery}
+          onChange={(e) => setUserQuery(e.target.value)}
+          placeholder="Search by name, email or user ID..."
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        />
+        {userQuery && (
+          <button type="button" onClick={() => setUserQuery("")}>
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
+      </div>
+      {uq && (
+        <p className="text-xs text-muted-foreground">
+          Showing <span className="font-bold text-foreground">{filteredUsers.length}</span> of {items.length} users
+        </p>
+      )}
+      {filteredUsers.length === 0 && <Empty label="No users match your search" />}
+      <div className="flex flex-col gap-3">
+      {filteredUsers.map((u) => (
         <div key={u.id} className="rounded-2xl border-2 border-ink bg-card p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
@@ -2173,6 +2205,7 @@ function UsersTab({ items, isModerator = false }: { items: AdminUser[]; isModera
           )}
         </div>
       ))}
+      </div>
     </div>
   )
 }

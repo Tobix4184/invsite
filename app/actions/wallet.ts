@@ -44,6 +44,12 @@ export async function requestWithdrawal(data: {
       return { ok: false, message: "You need an active package before you can withdraw." }
     }
 
+    // Must have made at least one real deposit
+    const [w0] = await db.select({ totalDeposited: wallet.totalDeposited }).from(wallet).where(eq(wallet.userId, userId))
+    if (!w0 || Number(w0.totalDeposited ?? 0) <= 0) {
+      return { ok: false, message: "You need to make a deposit before you can withdraw." }
+    }
+
     // Enforce withdrawal window: 9:00 AM – 6:30 PM (Nigeria time, UTC+1)
     const now = new Date()
     const nigeriaOffset = 60 // UTC+1 in minutes
