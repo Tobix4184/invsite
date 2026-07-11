@@ -36,6 +36,8 @@ export const SETTING_KEYS = {
   scratchPrizes: "game_scratch_prizes",
   // Scratch cards earned per valid referral
   scratchCardsPerReferral: "game_scratch_cards_per_referral",
+  // Apology popup version — incrementing this causes the popup to show again for all users
+  apologyPopupVersion: "apology_popup_version",
   // ── Promoter salary algorithm ──
   salaryEnabled: "salary_enabled",                 // "true" | "false"
   salaryRatePerPoint: "salary_rate_per_point",     // naira per point e.g. "50"
@@ -288,6 +290,12 @@ export async function getPauseFlags(): Promise<{ depositsPaused: boolean; paysta
   paystackPaused: map.get(SETTING_KEYS.paystackPaused) === "true",
   withdrawalsPaused: map.get(SETTING_KEYS.withdrawalsPaused) === "true",
   }
+}
+
+/** Returns the current apology popup version (default "1"). */
+export async function getApologyPopupVersion(): Promise<string> {
+  const v = await getSetting(SETTING_KEYS.apologyPopupVersion)
+  return v ?? "1"
 }
 
 /**

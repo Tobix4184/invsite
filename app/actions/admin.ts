@@ -22,7 +22,7 @@ import {
 } from "@/lib/db/schema"
 import { requireAdmin, requireAdminOrModerator } from "@/lib/session"
 import { accrueIncomeForAll } from "@/lib/income-engine"
-import { getPauseFlags, setSetting, getBoolSetting, getGameConfig, getLiveDepositLimits, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
+import { getPauseFlags, setSetting, getSetting, getBoolSetting, getGameConfig, getLiveDepositLimits, getLiveWithdrawalCharge, SETTING_KEYS } from "@/app/actions/settings"
 import { creditApprovedDeposit } from "@/app/actions/deposit"
 import { and, asc, desc, eq, gt, sql, sum } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
@@ -862,6 +862,16 @@ export async function setWithdrawalsAutomatic(enabled: boolean) {
   await setSetting(SETTING_KEYS.withdrawalsAutomatic, enabled ? "true" : "false")
   revalidatePath("/admin")
   return { ok: true, message: enabled ? "Auto withdrawals enabled" : "Auto withdrawals disabled" }
+}
+
+/** Admin: increment the apology popup version so it shows again for all users. */
+export async function bumpApologyPopup() {
+  await requireAdmin()
+  const current = await getSetting(SETTING_KEYS.apologyPopupVersion)
+  const next = String((parseInt(current ?? "1", 10) || 1) + 1)
+  await setSetting(SETTING_KEYS.apologyPopupVersion, next)
+  revalidatePath("/admin")
+  return { ok: true, message: `Apology popup will show again for all users (version ${next})` }
 }
 
 // ===================== TRANSACTIONS FEED =====================

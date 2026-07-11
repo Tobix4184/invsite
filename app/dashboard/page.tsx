@@ -5,7 +5,8 @@ import { getDashboardData } from "@/app/actions/account"
 import { getInvestments } from "@/app/actions/investments"
 import { getPendingDeposits } from "@/app/actions/deposit"
 import { getActivePromos } from "@/app/actions/promos"
-import { getLiveDepositLimits, getLiveWithdrawalCharge } from "@/app/actions/settings"
+import { getLiveDepositLimits, getLiveWithdrawalCharge, getApologyPopupVersion } from "@/app/actions/settings"
+import { ApologyPopup } from "@/components/apology-popup"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { BalanceCard } from "@/components/balance-card"
@@ -25,13 +26,14 @@ export default async function DashboardPage() {
   if (!session?.user) redirect("/")
 
   const userId = session.user.id
-  const [data, investments, pendingDeposits, activePromos, limits, charge] = await Promise.all([
+  const [data, investments, pendingDeposits, activePromos, limits, charge, apologyVersion] = await Promise.all([
     getDashboardData(),
     getInvestments(),
     getPendingDeposits(),
     getActivePromos(),
     getLiveDepositLimits(),
     getLiveWithdrawalCharge(),
+    getApologyPopupVersion(),
   ])
 
   const todayIncome = investments
@@ -43,6 +45,7 @@ export default async function DashboardPage() {
       <WelcomePopup isNewUser={data.isNewUser} />
       <PendingDepositPopup deposits={pendingDeposits} minDeposit={limits.minDeposit} withdrawalCharge={charge} />
       {!data.isNewUser && <PromoPopup promos={activePromos} />}
+      <ApologyPopup version={apologyVersion} />
       <AppHeader isPromoter={data.isPromoter} />
 
       <main className="mx-auto flex max-w-md flex-col gap-5 px-4 py-5 animate-fade-up">
