@@ -8,7 +8,7 @@ import { getUserWithdrawals } from "@/app/actions/wallet"
 import { getLiveDepositLimits, getLiveWithdrawalCharge } from "@/app/actions/settings"
 import { getNextWithdrawalTime } from "@/lib/plans"
 import { db } from "@/lib/db"
-import { wallet, withdrawal } from "@/lib/db/schema"
+import { wallet, withdrawal, profile } from "@/lib/db/schema"
 import { eq, desc } from "drizzle-orm"
 
 export const dynamic = "force-dynamic"
@@ -17,16 +17,18 @@ export default async function WithdrawPage() {
   const session = await getSession()
   if (!session?.user) redirect("/")
 
-  const [[w], withdrawals, limits, charge, [lastWd]] = await Promise.all([
+  const [[w], withdrawals, limits, charge, [lastWd], [prof]] = await Promise.all([
     db.select().from(wallet).where(eq(wallet.userId, session.user.id)),
     getUserWithdrawals(),
     getLiveDepositLimits(),
     getLiveWithdrawalCharge(),
     db.select({ createdAt: withdrawal.createdAt }).from(withdrawal).where(eq(withdrawal.userId, session.user.id)).orderBy(desc(withdrawal.createdAt)).limit(1),
+    db.select({ windowBypass: profile.windowBypass }).from(profile).where(eq(profile.userId, session.user.id)),
   ])
 
   const balance = Number(w?.balance ?? 0)
   const nextWithdrawalAt = getNextWithdrawalTime(lastWd?.createdAt ?? null)
+  const windowBypass = prof?.windowBypass === true
 
   return (
     <div className="min-h-screen pb-28">

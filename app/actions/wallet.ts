@@ -47,24 +47,28 @@ export async function requestWithdrawal(data: {
     // Must have made at least one real deposit — unless they are a promoter (admin-funded)
     const [[w0], [prof]] = await Promise.all([
       db.select({ totalDeposited: wallet.totalDeposited }).from(wallet).where(eq(wallet.userId, userId)),
-      db.select({ isPromoter: profile.isPromoter }).from(profile).where(eq(profile.userId, userId)),
+      db.select({ isPromoter: profile.isPromoter, windowBypass: profile.windowBypass }).from(profile).where(eq(profile.userId, userId)),
     ])
     const isPromoter = prof?.isPromoter === true
+    const hasWindowBypass = prof?.windowBypass === true
     if (!isPromoter && (!w0 || Number(w0.totalDeposited ?? 0) <= 0)) {
       return { ok: false, message: "You need to make a deposit before you can withdraw." }
     }
 
     // Enforce withdrawal window: 9:00 AM – 6:30 PM (Nigeria time, UTC+1)
-    const now = new Date()
-    const nigeriaOffset = 60 // UTC+1 in minutes
-    const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes()
-    const nigeriaMinutes = (utcMinutes + nigeriaOffset) % (24 * 60)
-    const openMinutes = 9 * 60      // 09:00
-    const closeMinutes = 18 * 60 + 30 // 18:30
-    if (nigeriaMinutes < openMinutes || nigeriaMinutes >= closeMinutes) {
-      return {
-        ok: false,
-        message: "Withdrawals are open 9:00 AM – 6:30 PM (Nigerian time). Please come back during that window.",
+    // Skipped if user has a one-time windowBypass flag
+    if (!hasWindowBypass) {
+      const now = new Date()
+      const nigeriaOffset = 60 // UTC+1 in minutes
+      const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes()
+      const nigeriaMinutes = (utcMinutes + nigeriaOffset) % (24 * 60)
+      const openMinutes = 9 * 60      // 09:00
+      const closeMinutes = 18 * 60 + 30 // 18:30
+      if (nigeriaMinutes < openMinutes || nigeriaMinutes >= closeMinutes) {
+        return {
+          ok: false,
+          message: "Withdrawals are open 9:00 AM – 6:30 PM (Nigerian time). Please come back during that window.",
+        }
       }
     }
 
@@ -113,6 +117,11 @@ export async function requestWithdrawal(data: {
     withdrawalTier: tier ?? "admin",
     status: "pending",
   })
+
+  // If user had a one-time window bypass, consume it now
+  if (hasWindowBypass) {
+    await db.update(profile).set({ windowBypass: false }).where(eq(profile.userId, userId))
+  }
 
   // Save bank details for next time (including bank code for auto-transfer)
   await db
