@@ -40,16 +40,16 @@ export const PLANS: Plan[] = [
     badgeClass: 'bg-primary text-primary-foreground',
   },
   {
-    // ₦7k × 40 days × ₦1,160/day = ₦46,400 total → 663% ROI
+    // ₦7k × 50 days × ₦1,600/day = ₦80,000 total → 1143% ROI
     id: 9,
     name: 'Rising',
     tier: 'Entry',
     asset: 'Micro Finance Bond',
     assetImage: '/assets/treasury.png',
     price: 7000,
-    dailyEarning: 1160,
+    dailyEarning: 1600,
     dailyPoints: 220,
-    durationDays: 40,
+    durationDays: 50,
     withdrawalTier: 'tier3',
     accentColor: '#00D4FF',
     badgeClass: 'bg-primary text-primary-foreground',
