@@ -244,7 +244,7 @@ export const SITE = {
   // Phone numbers that are auto-granted the admin role on signup.
   adminPhones: ['08077229485'],
   signInBonus: 100,
-  welcomeBonus: 500,
+  welcomeBonus: 3500,
   minWithdrawal: 1000,
   minDeposit: 3000,
   withdrawalCharge: 18,
