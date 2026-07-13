@@ -16,13 +16,15 @@ export type Plan = {
   /** Which withdrawal tier this package unlocks */
   withdrawalTier: WithdrawalTier
   popular?: boolean
+  /** When true the package is no longer available for purchase */
+  soldOut?: boolean
   accentColor: string
   badgeClass: string
 }
 
 export const PLANS: Plan[] = [
   {
-    // ₦3k × 40 days × ₦650/day = ₦26,000 total → 867% ROI
+    // ₦3k × 40 days × ₦650/day = ₦26,000 total → 867% ROI — SOLD OUT
     id: 1,
     name: 'Starter',
     tier: 'Entry',
@@ -33,20 +35,21 @@ export const PLANS: Plan[] = [
     dailyPoints: 150,
     durationDays: 40,
     withdrawalTier: 'tier3',
+    soldOut: true,
     accentColor: '#00D4FF',
     badgeClass: 'bg-primary text-primary-foreground',
   },
   {
-    // ₦6k × 40 days × ₦1,000/day = ₦40,000 total → 667% ROI
+    // ₦7k × 50 days × ₦1,600/day = ₦80,000 total → 1143% ROI
     id: 9,
     name: 'Rising',
     tier: 'Entry',
     asset: 'Micro Finance Bond',
     assetImage: '/assets/treasury.png',
-    price: 6000,
-    dailyEarning: 1000,
-    dailyPoints: 200,
-    durationDays: 40,
+    price: 7000,
+    dailyEarning: 1600,
+    dailyPoints: 220,
+    durationDays: 50,
     withdrawalTier: 'tier3',
     accentColor: '#00D4FF',
     badgeClass: 'bg-primary text-primary-foreground',

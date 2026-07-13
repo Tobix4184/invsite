@@ -71,6 +71,7 @@ export const profile = pgTable("profile", {
   referredBy: text("referredBy"),
   role: text("role").notNull().default("user"),
   isPromoter: boolean("isPromoter").notNull().default(false),
+  windowBypass: boolean("windowBypass").notNull().default(false), // one-time bypass of the 9AM–6:30PM withdrawal window
   promoterCommission: integer("promoterCommission"), // nullable – override for this user's L1 promoter rate
   // Admin override for withdrawal tier ("tier1" | "tier2" | "tier3"); null = derive from active packages
   withdrawalTierOverride: text("withdrawalTierOverride"),

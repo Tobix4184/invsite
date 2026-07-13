@@ -13,6 +13,7 @@ export async function buyPlan(planId: number) {
   const userId = await getUserId()
   const plan = PLANS.find((p) => p.id === planId)
   if (!plan) return { ok: false, message: "Plan not found" }
+  if (plan.soldOut) return { ok: false, message: "This package is sold out and no longer available." }
 
   const [w] = await db.select().from(wallet).where(eq(wallet.userId, userId))
   const balance = Number(w?.balance ?? 0)
