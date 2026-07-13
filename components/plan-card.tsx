@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, TrendingUp, CalendarDays, Coins, Zap, ArrowRight, Check, X } from "lucide-react"
+import { Loader2, TrendingUp, CalendarDays, Coins, Zap, ArrowRight, Check, X, Lock } from "lucide-react"
 import { toast } from "sonner"
 import {
   type Plan,
@@ -59,6 +59,16 @@ export function PlanCard({ plan }: { plan: Plan }) {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
+          {/* Sold-out full overlay */}
+          {plan.soldOut && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/70 backdrop-blur-[2px]">
+              <Lock className="h-8 w-8 text-white/80" />
+              <span className="rounded-full border-2 border-white/40 bg-black/60 px-4 py-1 text-sm font-black uppercase tracking-widest text-white">
+                Sold Out
+              </span>
+            </div>
+          )}
+
           {/* Badges overlay */}
           <div className="absolute left-3 top-3 flex items-center gap-2">
             <span className={`inline-flex items-center rounded-full border-2 border-ink px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${plan.badgeClass}`}>
@@ -109,7 +119,12 @@ export function PlanCard({ plan }: { plan: Plan }) {
 
       {/* CTA */}
       <div className="p-3.5">
-        {confirm ? (
+        {plan.soldOut ? (
+          <div className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-ink/30 bg-muted py-4 text-sm font-black uppercase tracking-wide text-muted-foreground opacity-60">
+            <Lock className="h-4 w-4" />
+            No Longer Available
+          </div>
+        ) : confirm ? (
           <div className="flex gap-2.5">
             <button
               onClick={() => setConfirm(false)}

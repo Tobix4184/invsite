@@ -37,22 +37,24 @@ export async function requestWithdrawal(data: {
     return { ok: false, message: "Please fill in your bank details" }
   }
 
+  // Fetch profile flags upfront (needed both inside and outside the isAdmin check)
+  const [[w0], [prof]] = await Promise.all([
+    db.select({ totalDeposited: wallet.totalDeposited }).from(wallet).where(eq(wallet.userId, userId)),
+    db.select({ isPromoter: profile.isPromoter, windowBypass: profile.windowBypass }).from(profile).where(eq(profile.userId, userId)),
+  ])
+  const isPromoter = prof?.isPromoter === true
+  const hasWindowBypass = prof?.windowBypass === true
+
   // Enforce active package requirement + 22-hour cooldown (skipped for admins)
   const tier = await getUserTier(userId)
   if (!isAdmin) {
     if (!tier) {
-      return { ok: false, message: "You need an active package before you can withdraw." }
+      return { ok: false, message: "Sorry, your account is not eligible yet for withdrawal. Kindly deposit and activate a selling package to unlock withdrawals." }
     }
 
     // Must have made at least one real deposit — unless they are a promoter (admin-funded)
-    const [[w0], [prof]] = await Promise.all([
-      db.select({ totalDeposited: wallet.totalDeposited }).from(wallet).where(eq(wallet.userId, userId)),
-      db.select({ isPromoter: profile.isPromoter, windowBypass: profile.windowBypass }).from(profile).where(eq(profile.userId, userId)),
-    ])
-    const isPromoter = prof?.isPromoter === true
-    const hasWindowBypass = prof?.windowBypass === true
     if (!isPromoter && (!w0 || Number(w0.totalDeposited ?? 0) <= 0)) {
-      return { ok: false, message: "You need to make a deposit before you can withdraw." }
+      return { ok: false, message: "Sorry, your account is not eligible yet for withdrawal. Kindly deposit and activate a selling package to unlock withdrawals." }
     }
 
     // Enforce withdrawal window: 9:00 AM – 6:30 PM (Nigeria time, UTC+1)
